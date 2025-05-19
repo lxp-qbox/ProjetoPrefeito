@@ -37,12 +37,12 @@ body {
     /* Sidebar variables, derived from main theme if needed */
     --sidebar-background: 0 0% 100%; /* Light background for sidebar */
     --sidebar-foreground: 222.2 84% 4.9%; /* Dark foreground */
-    --sidebar-primary: 217 89% 61%; /* Primary color */
-    --sidebar-primary-foreground: 210 40% 98%; /* Light foreground for primary elements */
-    --sidebar-accent: 36 100% 57%; /* Accent color */
-    --sidebar-accent-foreground: 24 9.8% 10%; /* Dark foreground for accent elements */
+    --sidebar-primary: var(--primary); /* Primary color from main theme */
+    --sidebar-primary-foreground: var(--primary-foreground); /* Light foreground for primary elements from main theme */
+    --sidebar-accent: var(--primary); /* Use primary color for active items as per image */
+    --sidebar-accent-foreground: var(--primary-foreground); /* Use primary-foreground for active item text */
     --sidebar-border: 214.3 31.8% 91.4%; /* Border color */
-    --sidebar-ring: 217 89% 61%; /* Ring color matches primary */
+    --sidebar-ring: var(--primary); /* Ring color matches primary */
   }
 
   .dark {
@@ -74,12 +74,12 @@ body {
     /* Dark Sidebar variables */
     --sidebar-background: 222.2 84% 4.9%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 89% 61%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 36 100% 57%;
-    --sidebar-accent-foreground: 24 9.8% 10%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--primary); /* Use primary color for active items */
+    --sidebar-accent-foreground: var(--primary-foreground); /* Use primary-foreground for active item text */
     --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 217 89% 61%;
+    --sidebar-ring: var(--primary);
   }
 }
 

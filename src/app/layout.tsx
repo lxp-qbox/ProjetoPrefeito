@@ -6,8 +6,9 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Home, Ticket, ShieldCheck, HelpCircle, Settings, Crown } from 'lucide-react';
+import { Home, Folders, Sparkles, Shapes, Plus, MoreHorizontal, Crown } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button'; // Added Button import
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -39,36 +40,58 @@ export default function RootLayout({
                   <span className="group-data-[collapsible=icon]:hidden">Agency</span>
                 </Link>
               </SidebarHeader>
-              <SidebarContent>
-                <SidebarMenu>
+              <SidebarContent className="flex flex-col flex-1">
+                <SidebarMenu> {/* Main menu items */}
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Home">
-                      <Link href="/"><Home /> <span>Home</span></Link>
+                    <SidebarMenuButton asChild tooltip="Início">
+                      <Link href="/"><Home /> <span>Início</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Games">
-                      <Link href="/games"><Ticket /> <span>Games</span></Link>
+                    <SidebarMenuButton asChild tooltip="Projetos">
+                      <Link href="/projects"><Folders /> <span>Projetos</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Hosted Games">
-                       <Link href="/host/games"><ShieldCheck /> <span>My Hosted Games</span></Link>
+                    <SidebarMenuButton asChild tooltip="Suíte IA">
+                      <Link href="/ai-suite"><Sparkles /> <span>Suíte IA</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Support">
-                      <Link href="/support"><HelpCircle /> <span>Support</span></Link>
+                    <SidebarMenuButton asChild tooltip="Estoque">
+                      <Link href="/stock"><Shapes /> <span>Estoque</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+                
+                {/* Spacer to push Novo and Footer down if content is short */}
+                <div className="flex-grow" /> 
+
+                {/* Section for the Plus button */}
+                <SidebarMenu className="p-2"> 
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild 
+                      tooltip="Novo" 
+                      variant="outline"
+                      className="justify-center"
+                    >
+                      <Link href="/create">
+                        <Plus />
+                        <span>Novo</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarContent>
-              <SidebarFooter className="p-2">
+              <SidebarFooter className="p-2 border-t border-sidebar-border">
                  <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild tooltip="Settings (Soon)">
-                           {/* Placeholder for settings or other footer items */}
-                           <button disabled><Settings /> <span>Settings</span></button>
+                        <SidebarMenuButton asChild tooltip="Mais">
+                           <Link href="/more">
+                             <MoreHorizontal /> 
+                             <span>Mais</span>
+                           </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                  </SidebarMenu>
