@@ -15,10 +15,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
+
 
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
+  const { isMobile } = useSidebar();
+
 
   const handleLogout = async () => {
     await logout();
@@ -31,19 +36,22 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-card shadow-md sticky top-0 z-50">
+    <header className="bg-card shadow-md sticky top-0 z-40"> {/* Reduced z-index for sidebar overlay */}
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
-          <Crown className="w-7 h-7" />
-          <span>The Presidential Agency</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="md:hidden" /> {/* Show trigger only on mobile as sidebar is collapsible by icon on desktop */}
+          <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
+            <Crown className="w-7 h-7" />
+            <span className={isMobile ? "" : "hidden md:inline"}>The Presidential Agency</span> {/* Hide text on mobile if sidebar trigger is shown */}
+          </Link>
+        </div>
         <nav className="flex items-center gap-3 md:gap-4">
-          <Button variant="ghost" size="sm" asChild className="text-sm md:text-base">
+          <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-sm md:text-base">
             <Link href="/games">
               <TicketIcon className="w-4 h-4 mr-1 md:mr-2" /> Games
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" asChild className="text-sm md:text-base">
+          <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-sm md:text-base">
             <Link href="/support">
               <LifeBuoy className="w-4 h-4 mr-1 md:mr-2" /> Support
             </Link>
@@ -84,6 +92,20 @@ export default function Header() {
                     My Hosted Games
                   </Link>
                 </DropdownMenuItem>
+                {/* Mobile only links from sidebar */}
+                <div className="md:hidden">
+                  <DropdownMenuSeparator />
+                   <DropdownMenuItem asChild>
+                    <Link href="/games">
+                      <TicketIcon className="mr-2 h-4 w-4" /> Games
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/support">
+                      <LifeBuoy className="mr-2 h-4 w-4" /> Support
+                    </Link>
+                  </DropdownMenuItem>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
