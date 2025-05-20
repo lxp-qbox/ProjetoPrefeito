@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Smartphone, ArrowLeft } from "lucide-react";
+import { Smartphone, ArrowLeft, DownloadCloud, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -62,14 +62,13 @@ export default function KakoCreationChoicePage() {
 
   const handleProceedToIdInput = () => {
     if (isLoading) return;
-    setLoadingAction('proceedToIdInput'); // Set loading action for the specific button
-    // Simulate a brief loading period if desired, or navigate directly
+    setLoadingAction('proceedToIdInput');
     router.push("/onboarding/kako-id-input");
   };
 
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
        <Button
             asChild
             variant="ghost"
@@ -83,7 +82,7 @@ export default function KakoCreationChoicePage() {
             </Link>
         </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Criar Conta Kako Live</CardTitle>
@@ -92,11 +91,27 @@ export default function KakoCreationChoicePage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-          <div className="my-auto space-y-4">
-            <p className="text-sm text-center text-muted-foreground">
-              Recomendamos criar sua conta primeiro no aplicativo Kako Live. Depois, volte aqui e informe seu ID.
-            </p>
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-6">
+          <Card className="shadow-md border-primary/20">
+            <CardHeader className="flex-row items-center space-x-3 pb-3">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <DownloadCloud className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-semibold">Baixar Aplicativo Kako Live</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-3">
+              <p>
+                Entre no site do Kako Live e baixe o aplicativo de acordo com a versão do seu celular. Após criar sua conta, volte aqui e informe seu ID.
+              </p>
+              <Button variant="link" asChild className="p-0 h-auto text-primary no-underline hover:underline">
+                <a href="https://www.kako.live/index.html" target="_blank" rel="noopener noreferrer">
+                  Acessar kako.live <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4 mt-auto pt-4">
             <Button
               onClick={handleProceedToIdInput}
               className="w-full"
@@ -116,7 +131,7 @@ export default function KakoCreationChoicePage() {
               {isLoading && loadingAction === 'completeWithoutId' ? (
                 <LoadingSpinner size="sm" className="mr-2" />
               ) : null}
-              Criar conta sem ID Kako
+              Prosseguir sem vincular ID Kako
             </Button>
           </div>
       </CardContent>
