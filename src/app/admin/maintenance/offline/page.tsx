@@ -38,7 +38,7 @@ const roleDisplayNames: Record<UserRole, string> = {
 const roleIcons: Record<UserRole, React.ElementType> = {
     master: ShieldCheck,
     admin: UserCog,
-    suporte: UserCog,
+    suporte: UserCog, // Assuming Suporte might share UserCog or need a different one like MessageSquare or HelpCircle
     host: Star,
     player: User,
 };
@@ -54,7 +54,7 @@ const initialModuleStatuses: SiteModule[] = [
   {
     id: 'hosts',
     name: "Página de Hosts",
-    icon: Users,
+    icon: Users, // Changed from Star to Users to avoid repetition with Host role icon
     globallyOffline: false,
     accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
   },
@@ -180,7 +180,7 @@ export default function AdminMaintenanceOfflinePage() {
                             value={module.accessLevels[role]}
                             onValueChange={(value) => handleRoleAccessChange(module.id, role, value as 'normal' | 'maintenance' | 'blocked')}
                           >
-                            <SelectTrigger id={`${module.id}-${role}-access`} className="w-[200px] h-9 text-xs">
+                            <SelectTrigger id={`${module.id}-${role}-access`} className="w-[200px] h-9 text-xs focus-visible:ring-0 focus-visible:ring-offset-0">
                               <SelectValue placeholder="Definir acesso" />
                             </SelectTrigger>
                             <SelectContent>
