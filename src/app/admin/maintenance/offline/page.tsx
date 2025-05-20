@@ -7,30 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User, Save } from "lucide-react";
+import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User, Save, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, setDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
-interface ModuleAccessStatus {
-  globallyOffline: boolean;
-  accessLevels: {
-    master: 'normal' | 'maintenance' | 'blocked';
-    admin: 'normal' | 'maintenance' | 'blocked';
-    suporte: 'normal' | 'maintenance' | 'blocked';
-    host: 'normal' | 'maintenance' | 'blocked';
-    player: 'normal' | 'maintenance' | 'blocked';
-  };
-}
+type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
+type MinimumAccessLevel = UserRole | 'nobody';
 
-interface SiteModule extends ModuleAccessStatus {
+interface SiteModule {
   id: string;
   name: string;
   icon: React.ElementType;
-  // No need to store icon string or function in Firestore, can be mapped by id
+  globallyOffline: boolean;
+  isHiddenFromMenu: boolean; // New field
+  minimumAccessLevelWhenOffline: MinimumAccessLevel; // New field, replaces accessLevels
 }
-
-type UserRole = keyof ModuleAccessStatus['accessLevels'];
 
 const roleDisplayNames: Record<UserRole, string> = {
   master: "Master",
@@ -41,12 +33,21 @@ const roleDisplayNames: Record<UserRole, string> = {
 };
 
 const roleIcons: Record<UserRole, React.ElementType> = {
-    master: ShieldCheck,
-    admin: UserCog,
-    suporte: UserCog,
-    host: Star,
-    player: User,
+  master: ShieldCheck,
+  admin: UserCog,
+  suporte: UserCog, // Assuming Suporte uses UserCog or similar
+  host: Star,
+  player: User,
 };
+
+const minimumAccessLevelOptions: { value: MinimumAccessLevel; label: string }[] = [
+  { value: 'nobody', label: "Ninguém (Totalmente Bloqueado)" },
+  { value: 'master', label: "Apenas Master" },
+  { value: 'admin', label: "Admin e Acima" },
+  { value: 'suporte', label: "Suporte e Acima" },
+  { value: 'host', label: "Host e Acima" },
+  { value: 'player', label: "Player e Todos Acima (Todos Permitidos)" },
+];
 
 const initialModuleStatuses: SiteModule[] = [
   {
@@ -54,42 +55,48 @@ const initialModuleStatuses: SiteModule[] = [
     name: "Página Inicial (Home)",
     icon: HomeIcon,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'player', // Default to all allowed if offline (unless changed)
   },
   {
     id: 'hosts',
     name: "Página de Hosts",
     icon: UsersIconProp,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'player',
   },
   {
     id: 'games',
-    name: "Página de Jogos",
+    name: "Página de Jogos (Bingo)",
     icon: TicketIcon,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'player',
   },
   {
     id: 'adminPanel',
     name: "Painel Admin",
     icon: LayoutDashboard,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'blocked', player: 'blocked' }, // Default block for non-admins
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'master', // Default to master only
   },
   {
     id: 'profile',
     name: "Página de Perfil",
     icon: UserCircle2,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'player',
   },
   {
     id: 'settings',
     name: "Página de Configurações",
     icon: SettingsIcon,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    isHiddenFromMenu: false,
+    minimumAccessLevelWhenOffline: 'player',
   },
 ];
 
@@ -109,17 +116,16 @@ export default function AdminMaintenanceOfflinePage() {
         const docSnap = await getDoc(maintenanceRulesDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // Map Firestore data back to SiteModule[], ensuring icons are functions
-          const fetchedStatuses = (data.rules as any[]).map(fsModule => {
+          const fetchedStatuses = (data.rules as Omit<SiteModule, 'icon'>[]).map(fsModule => {
             const initialModule = initialModuleStatuses.find(im => im.id === fsModule.id);
             return {
-              ...fsModule,
-              icon: initialModule ? initialModule.icon : ServerOff, // Fallback icon
-            };
+              ...initialModule, // Get icon from initialModuleStatuses
+              ...fsModule, // Override with fetched data
+              icon: initialModule ? initialModule.icon : ServerOff, // Ensure icon is always present
+            } as SiteModule;
           });
           setModuleStatuses(fetchedStatuses);
         } else {
-          // No settings found, use initial defaults (and save them on first save action)
           console.log("Nenhuma configuração de manutenção encontrada, usando padrões.");
           setModuleStatuses(initialModuleStatuses);
         }
@@ -148,18 +154,20 @@ export default function AdminMaintenanceOfflinePage() {
     );
   };
 
-  const handleRoleAccessChange = (moduleId: string, role: UserRole, access: 'normal' | 'maintenance' | 'blocked') => {
+  const handleMinimumAccessLevelChange = (moduleId: string, level: MinimumAccessLevel) => {
     setModuleStatuses((prevModules) =>
       prevModules.map((module) =>
         module.id === moduleId
-          ? {
-              ...module,
-              accessLevels: {
-                ...module.accessLevels,
-                [role]: access,
-              },
-            }
+          ? { ...module, minimumAccessLevelWhenOffline: level }
           : module
+      )
+    );
+  };
+
+  const handleHideFromMenuToggle = (moduleId: string, isHidden: boolean) => {
+    setModuleStatuses((prevModules) =>
+      prevModules.map((module) =>
+        module.id === moduleId ? { ...module, isHiddenFromMenu: isHidden } : module
       )
     );
   };
@@ -208,7 +216,8 @@ export default function AdminMaintenanceOfflinePage() {
             Controle de Acesso aos Módulos
           </CardTitle>
           <CardDescription>
-            Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina permissões de acesso granulares por função.
+            Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina o nível de acesso mínimo necessário.
+            Você também pode ocultar módulos dos menus de navegação.
             <strong className="text-destructive block mt-1">Clique em "Salvar Alterações" para persistir suas escolhas no banco de dados.</strong>
           </CardDescription>
         </CardHeader>
@@ -217,7 +226,7 @@ export default function AdminMaintenanceOfflinePage() {
             const ModuleIcon = module.icon;
             return (
               <Card key={module.id} className="p-4 border-border shadow-sm">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <ModuleIcon className="mr-3 h-6 w-6 text-primary" />
                     <Label htmlFor={`${module.id}-global-status`} className="text-lg font-semibold">
@@ -237,37 +246,42 @@ export default function AdminMaintenanceOfflinePage() {
                   </div>
                 </div>
 
+                <div className="flex items-center space-x-3 mb-4">
+                    <Switch
+                        id={`${module.id}-hide-from-menu`}
+                        checked={module.isHiddenFromMenu}
+                        onCheckedChange={(checked) => handleHideFromMenuToggle(module.id, checked)}
+                        aria-label={`Ocultar ${module.name} do menu`}
+                    />
+                    <Label htmlFor={`${module.id}-hide-from-menu`} className="text-sm font-medium flex items-center">
+                       <EyeOff className="mr-2 h-4 w-4 text-muted-foreground" /> Ocultar dos Menus
+                    </Label>
+                </div>
+
                 {module.globallyOffline && (
                   <div className="mt-4 pt-4 border-t border-border space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      O módulo <span className="font-semibold">{module.name}</span> está configurado como offline. Defina abaixo quem ainda pode acessá-lo:
+                      O módulo <span className="font-semibold">{module.name}</span> está configurado como offline.
+                      Defina abaixo o nível mínimo de função necessário para acessá-lo:
                     </p>
-                    {(Object.keys(module.accessLevels) as UserRole[]).map((role) => {
-                      const RoleIcon = roleIcons[role];
-                      return (
-                        <div key={role} className="flex items-center justify-between p-2 border rounded-md bg-muted/30">
-                          <div className="flex items-center">
-                            <RoleIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                            <Label htmlFor={`${module.id}-${role}-access`} className="text-sm font-medium">
-                              {roleDisplayNames[role]}
-                            </Label>
-                          </div>
-                          <Select
-                            value={module.accessLevels[role]}
-                            onValueChange={(value) => handleRoleAccessChange(module.id, role, value as 'normal' | 'maintenance' | 'blocked')}
-                          >
-                            <SelectTrigger id={`${module.id}-${role}-access`} className="w-[200px] h-9 text-xs focus-visible:ring-0 focus-visible:ring-offset-0">
-                              <SelectValue placeholder="Definir acesso" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="normal">Acesso Normal</SelectItem>
-                              <SelectItem value="maintenance">Ver Manutenção</SelectItem>
-                              <SelectItem value="blocked">Bloqueado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      );
-                    })}
+                    <div className="flex items-center justify-between p-2 border rounded-md bg-muted/30">
+                        <Label htmlFor={`${module.id}-min-access`} className="text-sm font-medium">
+                            Acesso Mínimo Permitido:
+                        </Label>
+                        <Select
+                        value={module.minimumAccessLevelWhenOffline}
+                        onValueChange={(value) => handleMinimumAccessLevelChange(module.id, value as MinimumAccessLevel)}
+                        >
+                        <SelectTrigger id={`${module.id}-min-access`} className="w-[280px] h-9 text-xs focus-visible:ring-0 focus-visible:ring-offset-0">
+                            <SelectValue placeholder="Definir acesso mínimo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {minimumAccessLevelOptions.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
                   </div>
                 )}
               </Card>
@@ -284,8 +298,8 @@ export default function AdminMaintenanceOfflinePage() {
 
       <CardFooter className="pt-6 border-t">
         <p className="text-xs text-muted-foreground">
-          <strong>Nota Importante:</strong> As configurações salvas aqui afetam o acesso ao site.
-          A lógica de backend e as verificações de permissão em cada rota precisam ser implementadas para que estas regras tenham efeito real.
+          <strong>Nota Importante:</strong> As configurações salvas aqui afetam o acesso ao site e a visibilidade de itens no menu.
+          A lógica de backend/middleware e as verificações de permissão em cada rota/menu precisam ser implementadas para que estas regras tenham efeito real.
         </p>
       </CardFooter>
     </div>
