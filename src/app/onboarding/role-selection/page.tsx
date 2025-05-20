@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Gamepad2, ArrowLeft } from "lucide-react";
+import { Users, Gamepad2, ArrowLeft, LogIn } from "lucide-react"; // Added LogIn
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -77,7 +77,10 @@ export default function RoleSelectionPage() {
             </Link>
         </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <CardTitle className="text-3xl font-bold mt-8">Olá!</CardTitle>
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+          <LogIn className="h-8 w-8 text-primary" />
+        </div>
+        <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
         <CardDescription className="mt-2">
           Para começar, escolha como você pretende utilizar sua conta:
         </CardDescription>
