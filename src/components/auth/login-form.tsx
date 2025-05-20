@@ -11,6 +11,7 @@ import {
   FormField,
   FormItem,
   FormMessage,
+  FormLabel, // Keep FormLabel import if other parts of the form might use it, or clean up if not needed anywhere
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,13 +22,7 @@ import { auth, GoogleAuthProvider } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, ArrowRight, User, Lock } from "lucide-react";
-
-const formSchema = z.object({
-  email: z.string().email({ message: "Endereço de email inválido." }),
-  password: z.string().min(6, { message: "A senha precisa ter no mínimo 6 caracteres." }),
-  rememberMe: z.boolean().optional(),
-});
+import { Eye, EyeOff, User, Lock } from "lucide-react"; // Removed ArrowRight
 
 // Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -39,6 +34,12 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path fill="none" d="M0 0h48v48H0z"></path>
   </svg>
 );
+
+const formSchema = z.object({
+  email: z.string().email({ message: "Endereço de email inválido." }),
+  password: z.string().min(6, { message: "A senha precisa ter no mínimo 6 caracteres." }),
+  rememberMe: z.boolean().optional(),
+});
 
 export default function LoginForm() {
   const { toast } = useToast();
@@ -184,7 +185,7 @@ export default function LoginForm() {
           </Link>
         </div>
         <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-          {loading ? "Entrando..." : <> <ArrowRight className="mr-2 h-4 w-4" /> Entrar </>}
+          {loading ? "Entrando..." : "Entrar"}
         </Button>
 
         <div className="relative my-6">
