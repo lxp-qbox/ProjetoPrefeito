@@ -4,11 +4,14 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from 'react';
+import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface AdminMenuItem {
   title: string;
@@ -57,7 +60,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
   },
   {
     items: [
-      { title: "Sair", icon: LogOut, link: "#logout" }, // Action handled by handleLogout
+      { title: "Sair", icon: LogOut, link: "#logout" },
     ],
   },
 ];
@@ -67,6 +70,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const toggleAdminSidebar = () => setIsCollapsed(!isCollapsed);
 
   const handleLogout = async () => {
     await logout();
@@ -92,80 +98,111 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-full">
-        <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
-          {/* Admin Navigation Sidebar */}
-          <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-4 space-y-4"> {/* Increased padding from p-2 to p-4 */}
-              {adminMenuGroups.map((group, groupIndex) => (
-                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
-                  {group.groupTitle && (
-                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                      {group.groupTitle}
-                    </h2>
-                  )}
-                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
-                    {group.items.map((item) => {
-                       // Active logic:
-                       // Dashboard (/admin) is active if current path is /admin OR /admin/hosts
-                       // Other items are active if their link exactly matches the current path
-                       const isActive = (item.link === "/admin" && (pathname === "/admin" || pathname.startsWith("/admin/hosts"))) ||
-                                        (item.link !== "/admin" && pathname === item.link);
+      <TooltipProvider delayDuration={0}>
+        <div className="flex flex-col h-full">
+          <div className={cn("flex-grow flex flex-col md:flex-row gap-0 overflow-hidden h-full")}>
+            {/* Admin Navigation Sidebar */}
+            <nav className={cn(
+              "flex flex-col flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto transition-all duration-300 ease-in-out",
+              isCollapsed ? "w-20" : "md:w-80"
+            )}>
+              <div className={cn("p-4 space-y-4 flex-grow")}>
+                {adminMenuGroups.map((group, groupIndex) => (
+                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
+                    {group.groupTitle && !isCollapsed && (
+                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                        {group.groupTitle}
+                      </h2>
+                    )}
+                     {group.groupTitle && isCollapsed && ( // Show a smaller separator or dot when collapsed
+                        <div className="flex justify-center my-3">
+                           <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                        </div>
+                    )}
+                    <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                      {group.items.map((item) => {
+                        const isActiveDashboard = item.link === "/admin" && (pathname === "/admin" || pathname === "/admin/hosts");
+                        const isActiveRegular = item.link !== "/admin" && pathname === item.link;
+                        const isActive = isActiveDashboard || isActiveRegular;
+                        const isLogout = item.link === "#logout";
+                        
+                        const buttonAction = isLogout ? handleLogout : () => {
+                            if (item.link) router.push(item.link);
+                        };
 
-                       const isLogout = item.link === "#logout";
-                       
-                       const buttonAction = isLogout ? handleLogout : () => {
-                           if (item.link) router.push(item.link);
-                       };
-
-                      return (
-                        <Button
-                          key={item.title}
-                          variant="ghost"
-                          className={cn(
-                            "w-full justify-between text-left h-auto py-3 px-2.5 text-sm font-normal rounded-md", // Changed px-3 to px-2.5
-                            isActive
-                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm"
-                          )}
-                          asChild={!isLogout}
-                          onClick={isLogout ? buttonAction : undefined}
-                        >
-                          {isLogout ? (
-                             <div className="flex items-center w-full"> 
-                                <div className="flex items-center gap-2.5"> 
-                                  <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
-                                  {item.title}
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
-                              </div>
-                          ) : (
-                            <Link href={item.link} className="flex items-center w-full">
-                              <div className="flex items-center gap-2.5"> 
-                                <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
-                                {item.title}
-                              </div>
-                              <div className="flex items-center ml-auto">
-                                {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            </Link>
-                          )}
-                        </Button>
-                      );
-                    })}
+                        return (
+                          <Tooltip key={item.title} disableHoverableContent={!isCollapsed}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className={cn(
+                                  "w-full text-left h-auto text-sm font-normal rounded-md transition-all duration-300 ease-in-out",
+                                  isActive
+                                    ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                                    : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
+                                  isCollapsed 
+                                    ? "flex items-center justify-center p-3 h-14"
+                                    : "justify-between py-3 px-2.5"
+                                )}
+                                asChild={!isLogout}
+                                onClick={isLogout ? buttonAction : undefined}
+                              >
+                                {isLogout ? (
+                                  <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}> 
+                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}> 
+                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} /> 
+                                      {!isCollapsed && item.title}
+                                    </div>
+                                    {!isCollapsed && <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
+                                  </div>
+                                ) : (
+                                  <Link href={item.link} className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
+                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}> 
+                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} /> 
+                                      {!isCollapsed && item.title}
+                                    </div>
+                                    {!isCollapsed && (
+                                      <div className="flex items-center ml-auto">
+                                        {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                  </Link>
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            {isCollapsed && (
+                              <TooltipContent side="right" className="bg-foreground text-background">
+                                <p>{item.title}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </nav>
+                ))}
+              </div>
+              <div className="p-4 border-t border-border">
+                <Button
+                  variant="ghost"
+                  onClick={toggleAdminSidebar}
+                  className="w-full flex items-center justify-center"
+                >
+                  {isCollapsed ? <PanelRightOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                  {!isCollapsed && <span className="ml-2 text-sm">{isCollapsed ? "Expandir" : "Recolher"}</span>}
+                  <span className="sr-only">{isCollapsed ? "Expandir menu" : "Recolher menu"}</span>
+                </Button>
+              </div>
+            </nav>
 
-          {/* Admin Content Area */}
-          <main className="flex-grow overflow-y-auto p-6">
-            {children}
-          </main>
+            {/* Admin Content Area */}
+            <main className="flex-grow overflow-y-auto p-6">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     </ProtectedPage>
   );
 }
