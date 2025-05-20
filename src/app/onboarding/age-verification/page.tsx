@@ -45,37 +45,29 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value) return value;
-  // Keep leading '+' if present, remove all other non-digits for the rest
-  const initialChar = value.charAt(0);
-  let digitsPart = value;
-  let leadingPlus = "";
+  if (!value.trim()) return ""; // If input is cleared or only whitespace, return empty.
 
-  if (initialChar === '+') {
-    leadingPlus = '+';
-    digitsPart = value.substring(1);
+  const originalStartsWithPlus = value.charAt(0) === '+';
+  
+  let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
+  
+  digitsOnly = digitsOnly.slice(0, 12); 
+  const len = digitsOnly.length;
+
+  if (len === 0) {
+    return originalStartsWithPlus ? "+" : "";
   }
-  
-  // Remove all non-digits from the rest of the string
-  digitsPart = digitsPart.replace(/[^\d]/g, '');
-  
-  let cleanedDigits = digitsPart.slice(0, 12); // Max 12 digits after potential plus
 
-  const { length } = cleanedDigits;
-  let formatted = leadingPlus;
+  let formatted = "+";
 
-  if (length === 0 && leadingPlus) return leadingPlus; // Only '+'
-  if (length === 0 && !leadingPlus) return "";
-
-
-  if (length <= 2) { // country code
-    formatted += cleanedDigits;
-  } else if (length <= 4) { // area code
-    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2)})`;
-  } else if (length <= 8) { // first part of number
-    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4)}`;
-  } else { // second part of number
-    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4, 8)}-${cleanedDigits.slice(8, 12)}`;
+  if (len <= 2) { 
+    formatted += digitsOnly;
+  } else if (len <= 4) { 
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
+  } else if (len <= 8) { 
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
+  } else { 
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
   }
   return formatted;
 };
@@ -170,7 +162,7 @@ export default function AgeVerificationPage() {
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim(), // Saves the formatted string
+        phoneNumber: phoneNumber.trim(),
         updatedAt: serverTimestamp(),
       };
 
@@ -185,7 +177,9 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile"); // Fallback if role is weird
+        // Fallback if role is not set or unexpected, though role selection should precede this.
+        // Consider if this path needs review based on full onboarding logic.
+        router.push("/profile"); 
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -223,9 +217,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preenche
-          <br />
-          as informacoes abaixo
+          Para prosseguir, preenche<br />as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -358,3 +350,5 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
+    
