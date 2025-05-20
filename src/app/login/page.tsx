@@ -45,11 +45,11 @@ export default function LoginPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full text-muted-foreground hover:bg-[radial-gradient(ellipse_at_center,_rgba(229,231,235,1)_0%,_rgba(255,255,255,1)_75%)] hover:text-primary"
+            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary"
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
-              <ArrowLeft className="h-7 w-7" />
+              <ArrowLeft className="h-8 w-8" />
             </Link>
           </Button>
         </div>
