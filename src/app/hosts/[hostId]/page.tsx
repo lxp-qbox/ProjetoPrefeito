@@ -42,20 +42,18 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     parsedJson = JSON.parse(jsonString);
   } catch (e) {
     // Not JSON, or malformed
-    // console.log("Raw data is not valid JSON:", rawData);
-    return null; // No specific known structure, let the caller handle it as raw if needed
+    return null;
   }
 
   let userName = "Sistema";
   let userAvatar: string | undefined = undefined;
-  let userMedalUrl: string | undefined = undefined; // Default to no medal
+  let userMedalUrl: string | undefined = undefined; 
   let messageData = "";
 
   const messageUser = parsedJson.user;
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
-    // Logic for medal: if user has level or fansLevel, or nickname (implying they are a registered user)
     if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0) || messageUser.nickname) {
       userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
@@ -123,12 +121,12 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  else if (parsedJson.content) { // Generic fallback for a 'content' field
+  else if (parsedJson.content) { 
       messageData = parsedJson.content;
       return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
 
-  return null; // If no specific structure is matched
+  return null; 
 }
 
 const SCROLL_THRESHOLD = 10;
@@ -182,7 +180,6 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-        // Ensure we are not updating if the host context has changed (e.g., navigating to a different host page)
         if (host?.id && prevHost.id !== host.id) {
           return prevHost;
         }
@@ -197,7 +194,7 @@ export default function HostStreamPage() {
       });
     }, 5000); 
     return () => clearInterval(intervalId);
-  }, [host?.id]); // Rerun if host.id changes.
+  }, [host?.id]);
 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -222,16 +219,12 @@ export default function HostStreamPage() {
         scrollViewportRef.current = viewport;
         if (viewport) {
             viewport.addEventListener('scroll', handleScroll);
-            // Initial check
             handleScroll();
-            scrollToBottom('auto'); // Initial scroll to bottom
+            scrollToBottom('auto'); 
             return () => viewport.removeEventListener('scroll', handleScroll);
-        } else {
-            // console.warn("Chat scroll viewport not found for attaching scroll listener.");
         }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host, handleScroll]); // Re-run if host changes to re-attach listener
+  }, [host, handleScroll, scrollToBottom]); 
 
   useEffect(() => {
     const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
@@ -244,31 +237,23 @@ export default function HostStreamPage() {
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]);
 
 
   useEffect(() => {
-    if (host === undefined) { // Still loading host data
+    if (host === undefined) { 
       return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
-       if (host !== undefined && (chatMessages.length === 0 || (chatMessages[chatMessages.length -1]?.message !== "Host ou RoomID não configurado para o chat." && chatMessages[chatMessages.length -1]?.message !== "Conectando ao chat..."))) {
-          // console.warn("Host ou RoomID não configurado para o chat.");
-       }
       return;
     }
 
-    // console.log("Attempting to connect WebSocket for host:", host.id, "roomId:", host.kakoLiveRoomId);
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
     
-    // console.log(`WebSocket: Tentando conectar a ${wsUrl}...`);
-
     socketRef.current.onopen = () => {
       console.log("WebSocket: Conectado!");
-      // Removed system message to chat: setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }]);
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -284,7 +269,6 @@ export default function HostStreamPage() {
         } else if (typeof event.data === 'string') {
           messageContentString = event.data;
         } else {
-          // Try to stringify unknown types, might be an object from a mock or other source
           try {
               messageContentString = JSON.stringify(event.data);
           } catch {
@@ -303,20 +287,19 @@ export default function HostStreamPage() {
               userMedalUrl: processedResult.userMedalUrl,
               message: processedResult.messageData,
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-              rawData: messageContentString, // Store raw data
+              rawData: messageContentString, 
             }]);
           } else if (processedResult.type === 'systemUpdate') {
             setOnlineViewers(processedResult.online);
             setLiveLikes(processedResult.likes);
           }
         } else if (messageContentString && messageContentString.trim() !== "" && messageContentString !== "[Erro ao ler Blob]") {
-          // Fallback for unparsed messages, if showRawData is true later, this will be visible
           setChatMessages(prev => [...prev, {
             id: generateUniqueId(),
-            user: "Servidor (Dados Brutos)", // Indicate it's raw from server
+            user: "Servidor (Dados Brutos)",
             message: messageContentString,
             timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            rawData: messageContentString, // Store raw data
+            rawData: messageContentString, 
           }]);
         }
       } catch (e) {
@@ -333,7 +316,6 @@ export default function HostStreamPage() {
 
     socketRef.current.onerror = (errorEvent) => {
       let errorMessage = "Erro na conexão do chat.";
-       // Attempt to get more details from the error event
        if (typeof errorEvent === 'object' && errorEvent !== null && 'type'in errorEvent && (errorEvent as any).message) {
         errorMessage = `Erro no chat: ${(errorEvent as any).message}`;
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
@@ -351,7 +333,6 @@ export default function HostStreamPage() {
         closeMessage += ` (Código: ${closeEvent.code})`;
       }
       console.log("WebSocket: Desconectado.", closeEvent);
-      // Don't add to chatMessages if we are intentionally closing it (e.g., navigating away)
       if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSING && socketRef.current.readyState !== WebSocket.CLOSED) {
          setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}` }]);
       }
@@ -359,36 +340,30 @@ export default function HostStreamPage() {
 
     return () => {
       if (socketRef.current) {
-        // console.log(`WebSocket: Fechando conexão para hostId: ${host?.id}, roomID: ${host?.kakoLiveRoomId}`);
         socketRef.current.close();
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host?.id, host?.kakoLiveRoomId]); // Only reconnect if host ID or Room ID changes
+  }, [host?.id, host?.kakoLiveRoomId]); 
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      // Construct a message object that Kako Live might expect for sending. This is a guess.
-      // It might need a 'type' or other fields. For now, just sending text.
-      const messageToSend = { text: newMessage.trim() }; // Assuming it expects a JSON with 'text' field
+      const messageToSend = { text: newMessage.trim() }; 
       socketRef.current.send(JSON.stringify(messageToSend));
 
-      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
           id: generateUniqueId(),
-          user: currentUser?.profileName || 'Você', // Use profileName from UserProfile
+          user: currentUser?.profileName || 'Você',
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
-          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal for current user
+          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png',
           message: newMessage.trim(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          rawData: JSON.stringify({ ...messageToSend, sent: true }), // Store what was sent
+          rawData: JSON.stringify({ ...messageToSend, sent: true }),
         }
       ]);
       setNewMessage("");
     } else if (newMessage.trim()) {
-        // If not connected, show a system message in chat
         setChatMessages(prev => [
             ...prev,
             {
@@ -439,12 +414,10 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div> {/* Spacer for balance if needed */}
+        <div className="w-8 h-8"></div> 
       </div>
 
-      {/* Main Content: Video and Chat */}
       <div className={`grid grid-cols-1 ${isChatMaximized ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-6`}>
-        {/* Left Column: Video and Host Info */}
         <div className={`${isChatMaximized ? 'hidden md:hidden' : 'md:col-span-2 space-y-6'}`}>
          <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2 flex-row justify-between items-center">
@@ -467,14 +440,13 @@ export default function HostStreamPage() {
             <CardContent className="p-0 sm:p-2 md:p-4">
             {host.kakoLiveFuid && host.kakoLiveRoomId ? (
                 <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
-                  {/* Kako Live Player Embed */}
                   <iframe
                     src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
                     width="100%"
                     height="100%"
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
-                    className="border-0 aspect-video" // Ensure aspect-video is here if it helps maintain ratio
+                    className="border-0 aspect-video" 
                     title={`Transmissão de ${host.name}`}
                     data-ai-hint="live stream"
                   ></iframe>
@@ -517,7 +489,6 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
-          {/* Gifts Received Card */}
           {host.giftsReceived && host.giftsReceived.length > 0 && (
             <Card className="shadow-lg">
               <CardHeader>
@@ -561,7 +532,6 @@ export default function HostStreamPage() {
           )}
         </div>
 
-        {/* Right Column: Chat */}
         <div className={`${isChatMaximized ? 'md:col-span-1' : 'md:col-span-1'}`}>
           <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
@@ -592,7 +562,7 @@ export default function HostStreamPage() {
                                 scrollToBottom('smooth');
                                 setNewUnreadMessages(0);
                             } else if (!checked) {
-                                setNewUnreadMessages(0); // Clear unread count when disabling auto-scroll
+                                setNewUnreadMessages(0); 
                             }
                         }}
                         aria-label="Rolagem automática"
@@ -610,11 +580,11 @@ export default function HostStreamPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* Added min-h-0 for flex-grow */}
+            <CardContent className="flex-grow p-0 min-h-0 relative"> 
               <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
-                    <div key={item.id} className="flex items-start space-x-3">
+                    <div key={item.id} className="flex items-start space-x-3 pb-2 border-b last:border-b-0">
                       <Avatar className="h-8 w-8 border">
                         {item.avatar ? (
                             <AvatarImage src={item.avatar} alt={item.user} data-ai-hint="user avatar" />
@@ -641,10 +611,8 @@ export default function HostStreamPage() {
                           <pre className="mt-1 text-xs bg-muted/40 p-2 rounded-md overflow-x-auto border border-border">
                             {(() => {
                               try {
-                                // Attempt to parse and then stringify with pretty-printing
                                 return JSON.stringify(JSON.parse(item.rawData), null, 2);
                               } catch (e) {
-                                // If it's not valid JSON, return the raw string
                                 return item.rawData;
                               }
                             })()}
@@ -694,3 +662,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
