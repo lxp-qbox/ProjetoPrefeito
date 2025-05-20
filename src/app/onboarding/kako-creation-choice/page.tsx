@@ -127,7 +127,7 @@ export default function KakoCreationChoicePage() {
             <p className="text-sm text-muted-foreground">
               Você pode explorar o aplicativo. Algumas funcionalidades podem ser limitadas.
             </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-2" />}
+            {isLoading && loadingRole === 'skip' && <LoadingSpinner size="sm" className="mt-2" />}
           </Card>
 
           <Card
@@ -145,7 +145,7 @@ export default function KakoCreationChoicePage() {
             <p className="text-sm text-muted-foreground">
               Após criar, volte e informe seu ID para acesso completo.
             </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-2" />}
+             {isLoading && loadingRole === 'create' && <LoadingSpinner size="sm" className="mt-2" />}
           </Card>
         </div>
       </CardContent>

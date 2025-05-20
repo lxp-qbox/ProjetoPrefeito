@@ -136,6 +136,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Should not happen if role is enforced earlier
         router.push("/profile"); 
       }
     } catch (error) {
@@ -180,7 +181,7 @@ export default function AgeVerificationPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-6">
-           <div>
+          <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
               Sexo
             </Label>

@@ -90,7 +90,7 @@ export default function TermsPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden"> {/* Changed from overflow-y-auto to overflow-hidden for CardContent */}
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden">
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>

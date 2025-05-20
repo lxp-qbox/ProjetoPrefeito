@@ -16,19 +16,19 @@ import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { useAuth } from "@/hooks/use-auth";
-import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+// import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase"; // Not saving directly here anymore
+// import { useToast } from "@/hooks/use-toast";
+// import { useState } from "react";
+// import LoadingSpinner from "@/components/ui/loading-spinner";
 
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  // const { currentUser } = useAuth(); // Not needed if not saving here
+  // const { toast } = useToast(); // Not needed if not saving here
+  // const [isLoading, setIsLoading] = useState(false); // Not needed if not saving here
 
   const handleHasAccount = () => {
     router.push("/onboarding/kako-id-input"); 
