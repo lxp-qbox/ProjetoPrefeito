@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button"; // Import Button
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
@@ -41,13 +42,16 @@ export default function LoginPage() {
     <div className="flex justify-center items-center min-h-[calc(100vh-100px)] p-4">
       <Card className="w-full max-w-md shadow-xl relative flex flex-col aspect-[9/16] md:aspect-auto">
         <div className="absolute top-4 left-4">
-          <Link 
-            href="/" 
-            aria-label="Voltar para página inicial" 
-            className="p-2 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+            asChild
           >
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
+            <Link href="/" aria-label="Voltar para página inicial">
+              <ArrowLeft className="h-6 w-6" />
+            </Link>
+          </Button>
         </div>
         <CardHeader className="text-center pt-12 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
