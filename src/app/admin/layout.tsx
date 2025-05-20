@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon } from "lucide-react"; // Renamed TicketIcon to avoid conflict
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,12 +12,19 @@ import type { ReactNode } from 'react';
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Import page content components
+import AdminHostsPageContent from "@/app/admin/hosts/page-content";
+import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
+import AdminAdminsPage from "@/app/admin/users/admin/page";
+import AdminBansPage from "@/app/admin/actions/bans/page";
+
 
 interface AdminMenuItem {
   title: string;
   icon: React.ElementType;
   link: string;
   currentValue?: string;
+  subItems?: AdminMenuItem[];
 }
 
 interface AdminMenuGroup {
@@ -102,12 +109,31 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  let contentToRender = children; 
+
+  // Specific page content rendering based on pathname
+  if (pathname === "/admin" || pathname === "/admin/hosts") {
+    contentToRender = <AdminHostsPageContent />;
+  } else if (pathname === "/admin/users/players") {
+    contentToRender = <AdminPlayersPageContent />;
+  } else if (pathname === "/admin/users/admin") {
+    contentToRender = <AdminAdminsPage />;
+  } else if (pathname === "/admin/actions/bans") {
+    contentToRender = <AdminBansPage />;
+  }
+  // Add other else if blocks for other specific admin pages as they are created
+  // Example:
+  // else if (pathname === "/admin/language") {
+  //   contentToRender = <div className="p-6 bg-card rounded-lg shadow-lg h-full"><h1 className="text-2xl font-semibold">Configurações de Idioma</h1><p>Esta seção está em desenvolvimento.</p></div>;
+  // }
+  // Fallback to children if no specific page content matches
+  // This allows Next.js to handle routing for pages like /admin/language/page.tsx if they exist
+
   return (
     <ProtectedPage>
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-col h-full">
           <div className={cn("flex-grow flex flex-col md:flex-row gap-0 overflow-hidden h-full")}>
-            {/* Admin Navigation Sidebar */}
             <nav className={cn(
               "flex flex-col flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto transition-all duration-300 ease-in-out",
               isCollapsed ? "w-20" : "md:w-80"
@@ -127,9 +153,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActiveDashboard = item.link === "/admin" && (pathname === "/admin" || pathname === "/admin/hosts");
-                        const isActiveRegular = item.link !== "/admin" && pathname === item.link;
-                        const isActive = isActiveDashboard || isActiveRegular;
+                        const isActive = pathname === item.link || (item.link === "/admin" && pathname === "/admin/hosts");
                         const isLogout = item.link === "#logout";
                         
                         const buttonAction = isLogout ? handleLogout : () => {
@@ -147,8 +171,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                     ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                                     : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
                                   isCollapsed 
-                                    ? "flex items-center justify-center p-3 h-14"
-                                    : "justify-between py-3 px-2.5"
+                                    ? "flex items-center justify-center p-3 h-14" 
+                                    : "justify-between py-3 px-2.5" 
                                 )}
                                 asChild={!isLogout}
                                 onClick={isLogout ? buttonAction : undefined}
@@ -202,9 +226,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </div>
             </nav>
 
-            {/* Admin Content Area */}
-            <main className="flex-grow overflow-y-auto p-6">
-              {children}
+            <main className="flex-grow overflow-y-auto">
+              {contentToRender}
             </main>
           </div>
         </div>
