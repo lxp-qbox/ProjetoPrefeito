@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User } from "lucide-react"; // Added User
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog } from "lucide-react"; // Added UserCog
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
     items: [
       { title: "Contas de Hosts", icon: Users, link: "/admin/hosts" },
       { title: "Contas de Players", icon: User, link: "/admin/users/players" },
-      { title: "Contas de Suporte", icon: Headphones, link: "/admin/users/support" },
+      { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" }, // Changed from Suporte
     ],
   },
   {
@@ -66,7 +66,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
 export default function AdminPage() {
   const { currentUser, logout } = useAuth();
   const pathname = usePathname();
-  const router = useRouter(); 
+  const router = useRouter();
 
   const handleLogout = async () => {
     await logout();
@@ -91,7 +91,7 @@ export default function AdminPage() {
     );
   }
 
-  // Default to host management if the path is /admin/hosts or /admin
+  // Determine if the current view is for host management
   const isHostManagementView = pathname === "/admin/hosts" || pathname === "/admin";
 
   return (
@@ -100,7 +100,7 @@ export default function AdminPage() {
         <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
           {/* Admin Navigation Sidebar */}
           <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-1 space-y-4"> {/* Reduced padding for encostado look */}
+            <div className="p-1 space-y-4">
               {adminMenuGroups.map((group, groupIndex) => (
                 <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
                   {group.groupTitle && (
@@ -110,7 +110,7 @@ export default function AdminPage() {
                   )}
                   <div className={cn("space-y-2", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
-                       const isActive = pathname === item.link;
+                       const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin");
                        const isLogout = item.link === "#logout";
                        const buttonAction = isLogout ? handleLogout : () => {
                            if (item.link) router.push(item.link);
@@ -123,15 +123,15 @@ export default function AdminPage() {
                           className={cn(
                             "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md",
                             isActive
-                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" 
-                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm" 
+                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm"
                           )}
                           asChild={!isLogout}
                           {...(isLogout ? {onClick: buttonAction} : {})}
                         >
                           {isLogout ? (
                              <div className="flex items-center w-full">
-                                <div className="flex items-center gap-3"> {/* Original gap */}
+                                <div className="flex items-center gap-3">
                                   <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
                                   {item.title}
                                 </div>
@@ -139,7 +139,7 @@ export default function AdminPage() {
                               </div>
                           ) : (
                             <Link href={item.link} className="flex items-center w-full">
-                              <div className="flex items-center gap-3"> {/* Original gap */}
+                              <div className="flex items-center gap-3">
                                 <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
                                 {item.title}
                               </div>
