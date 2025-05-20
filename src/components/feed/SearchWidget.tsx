@@ -9,7 +9,7 @@ export function SearchWidget() {
       <Input
         type="search"
         placeholder="Buscar"
-        className="pl-10 rounded-full bg-muted border-transparent focus-visible:bg-card focus-visible:border-primary"
+        className="pl-10 rounded-full bg-muted border-transparent focus-visible:bg-card focus-visible:border-primary h-10"
       />
     </div>
   );

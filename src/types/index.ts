@@ -11,7 +11,7 @@ export interface Game {
   // Fields for Bingo Page
   participants?: number;
   winners?: string; // e.g., "João Silva" or "2 pessoas"
-  additionalInfo?: string; // e.g., "24 participantes!" shown on the "Next Game" card
+  additionalInfo?: string; // e.g., "24 participantes!" for the "Next Game" card
   startTimeDisplay?: string; // e.g., "20:00" for display
   endTimeDisplay?: string; // e.g., "16:30" for display for finished games
 
@@ -194,7 +194,7 @@ export interface Trend {
   id: string;
   category: string;
   topic: string;
-  posts: string;
+  posts?: string; // Made optional to match data
 }
 
 export interface SuggestedUser {

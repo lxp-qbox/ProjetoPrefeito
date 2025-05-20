@@ -14,7 +14,7 @@ export function WhoToFollowWidget() {
   return (
     <Card className="bg-muted border-none rounded-xl">
       <CardHeader className="p-4">
-        <CardTitle className="text-lg font-bold">Quem seguir</CardTitle>
+        <CardTitle className="text-xl font-bold">Quem seguir</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="space-y-0">
@@ -30,14 +30,14 @@ export function WhoToFollowWidget() {
                   <p className="text-xs text-muted-foreground">{user.handle}</p>
                 </div>
               </div>
-              <Button variant="default" className="rounded-full bg-foreground text-background hover:bg-foreground/80 h-8 px-4 text-xs font-semibold">
+              <Button variant="default" className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-8 px-4 text-xs font-semibold">
                 Seguir
               </Button>
             </div>
           ))}
         </div>
         <div className="p-4">
-            <Button variant="link" className="p-0 text-sm text-primary hover:no-underline">Mostrar mais</Button>
+            <Button variant="link" className="p-0 text-sm text-primary hover:no-underline hover:text-primary/80">Mostrar mais</Button>
         </div>
       </CardContent>
     </Card>
