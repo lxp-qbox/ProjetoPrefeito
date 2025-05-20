@@ -17,6 +17,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import React, { useState } from "react"; // Added useState
+import { db, doc, updateDoc, serverTimestamp, getDoc } from "@/lib/firebase"; // Added Firebase imports
+import { useToast } from "@/hooks/use-toast"; // Added useToast
 
 interface StatCardProps {
   title: string;
@@ -42,7 +45,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
 );
 
 interface AdminHost {
-  id: string;
+  id: string; // This should correspond to the user's UID in Firestore users collection
   avatarUrl: string;
   isLive: boolean;
   kakoId: string;
@@ -52,7 +55,7 @@ interface AdminHost {
   status: 'Aprovado' | 'Pendente' | 'Banido';
 }
 
-const placeholderHosts: AdminHost[] = [
+const initialPlaceholderHosts: AdminHost[] = [
   { id: "1", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako123", name: "João Silva", whatsapp: "+55 (11) 98765-4321", url: "#", status: "Aprovado" },
   { id: "2", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako456", name: "Maria Oliveira", whatsapp: "+55 (21) 91234-5678", url: undefined, status: "Pendente" },
   { id: "3", avatarUrl: "https://placehold.co/40x40.png", isLive: false, kakoId: "kako789", name: "Carlos Pereira", whatsapp: "+55 (31) 99887-7665", url: "#", status: "Banido" },
@@ -79,6 +82,48 @@ const formatWhatsAppLink = (phoneNumber: string) => {
 
 
 export default function AdminHostsPageContent() {
+  const [displayedHosts, setDisplayedHosts] = useState<AdminHost[]>(initialPlaceholderHosts);
+  const { toast } = useToast();
+
+  const handleRemoveHostRole = async (hostId: string) => {
+    if (!hostId) {
+      toast({ title: "Erro", description: "ID do host inválido.", variant: "destructive" });
+      return;
+    }
+    try {
+      const userDocRef = doc(db, "users", hostId);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        toast({ title: "Erro", description: "Usuário não encontrado no banco de dados.", variant: "destructive" });
+        // Optionally remove from local list if this means they shouldn't be listed as a host
+        setDisplayedHosts(prevHosts => prevHosts.filter(h => h.id !== hostId));
+        return;
+      }
+
+      await updateDoc(userDocRef, {
+        role: 'player',
+        adminLevel: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      setDisplayedHosts(prevHosts => prevHosts.filter(h => h.id !== hostId));
+      toast({
+        title: "Host Removido",
+        description: "A função do usuário foi alterada para 'player' e o nível de admin removido.",
+      });
+
+    } catch (error) {
+      console.error("Erro ao remover função de host:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover a função de host. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   return (
     <div className="space-y-6 h-full flex flex-col p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -93,9 +138,9 @@ export default function AdminHostsPageContent() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total de Hosts" count={placeholderHosts.length} icon={Users} bgColorClass="bg-blue-500/10" textColorClass="text-blue-500" />
-        <StatCard title="Hosts Pendentes" count={placeholderHosts.filter(h => h.status === 'Pendente').length} icon={Clock} bgColorClass="bg-yellow-500/10" textColorClass="text-yellow-500" />
-        <StatCard title="Hosts Aprovados" count={placeholderHosts.filter(h => h.status === 'Aprovado').length} icon={CheckCircle} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
+        <StatCard title="Total de Hosts" count={displayedHosts.length} icon={Users} bgColorClass="bg-blue-500/10" textColorClass="text-blue-500" />
+        <StatCard title="Hosts Pendentes" count={displayedHosts.filter(h => h.status === 'Pendente').length} icon={Clock} bgColorClass="bg-yellow-500/10" textColorClass="text-yellow-500" />
+        <StatCard title="Hosts Aprovados" count={displayedHosts.filter(h => h.status === 'Aprovado').length} icon={CheckCircle} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
       </div>
 
       <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -111,7 +156,7 @@ export default function AdminHostsPageContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {placeholderHosts.map((host) => {
+              {displayedHosts.map((host) => {
                 const statusInfo = getStatusStyles(host.status);
                 return (
                   <TableRow key={host.id} className="hover:bg-muted/20 transition-colors">
@@ -159,12 +204,19 @@ export default function AdminHostsPageContent() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                            <DropdownMenuItem 
+                                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                onSelect={() => {/* Implement Ban Host Logic */}}
+                            >
                                <XCircle className="mr-2 h-4 w-4" />
                               Banir Host
                             </DropdownMenuItem>
-                            <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
-                            <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleRemoveHostRole(host.id)}>
+                                Remover dos Hosts
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => {/* Implement Give Admin Role Logic */}}>
+                                Dar Cargo Admin
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -178,7 +230,7 @@ export default function AdminHostsPageContent() {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground pt-2">
-        <p>Mostrando 1 a {placeholderHosts.length} de {placeholderHosts.length} resultados</p>
+        <p>Mostrando 1 a {displayedHosts.length} de {displayedHosts.length} resultados</p>
         <div className="flex items-center gap-1 mt-2 sm:mt-0">
           <Button variant="outline" size="sm" className="px-2 h-8 w-8" disabled={true}>&lt;</Button>
           <Button variant="default" size="sm" className="px-3 h-8 w-8">1</Button>
@@ -188,3 +240,5 @@ export default function AdminHostsPageContent() {
     </div>
   );
 }
+
+    
