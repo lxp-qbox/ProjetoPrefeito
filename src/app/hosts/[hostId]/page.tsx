@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, ReceivedGift, UserProfile } from '@/types'; // Added UserProfile for optimistic chat
+import type { Host, UserProfile } from '@/types'; // Added UserProfile for optimistic chat
 import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -27,6 +27,11 @@ interface ChatMessage {
   message: string;
   timestamp: string;
 }
+
+// Helper function to generate a more unique ID
+const generateUniqueId = () => {
+  return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
+};
 
 // Helper function to parse chat messages
 function parseChatMessage(data: any): { userName: string, userAvatar: string, messageData: string } | null {
@@ -141,7 +146,7 @@ export default function HostStreamPage() {
 
   useEffect(() => {
     if (!host || !host.kakoLiveRoomId) {
-      setChatMessages([{id: String(Date.now()), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages([{id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
       return;
     }
 
@@ -150,7 +155,7 @@ export default function HostStreamPage() {
 
     socketRef.current.onopen = () => {
       console.log("WebSocket conectado para chat: " + wsUrl);
-      setChatMessages(prev => [...prev, {id: String(Date.now()), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -189,7 +194,7 @@ export default function HostStreamPage() {
 
       if (processedMessage && processedMessage.messageData && processedMessage.messageData.trim() !== "") {
         setChatMessages(prev => [...prev, {
-          id: String(Date.now()),
+          id: generateUniqueId(),
           user: processedMessage.userName,
           avatar: processedMessage.userAvatar,
           message: processedMessage.messageData,
@@ -209,7 +214,7 @@ export default function HostStreamPage() {
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
-      setChatMessages(prev => [...prev, {id: String(Date.now()), user: "Sistema", avatar: "", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onclose = (closeEvent) => {
@@ -218,7 +223,7 @@ export default function HostStreamPage() {
       if (closeEvent.reason) {
         closeMessage += ` Motivo: ${closeEvent.reason}`;
       }
-      setChatMessages(prev => [...prev, {id: String(Date.now()), user: "Sistema", avatar: "", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     return () => {
@@ -253,7 +258,7 @@ export default function HostStreamPage() {
       setChatMessages(prev => [
         ...prev,
         {
-          id: String(Date.now()),
+          id: generateUniqueId(),
           user: currentUser?.profileName || 'Você',
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
           message: newMessage.trim(),
@@ -265,7 +270,7 @@ export default function HostStreamPage() {
         setChatMessages(prev => [
             ...prev,
             {
-              id: String(Date.now()),
+              id: generateUniqueId(),
               user: 'Sistema',
               avatar: '',
               message: "Não conectado ao chat para enviar mensagem.",
@@ -455,7 +460,7 @@ export default function HostStreamPage() {
                         {item.avatar ? (
                             <AvatarImage src={item.avatar} alt={item.user} data-ai-hint="user avatar" />
                         ) : null}
-                        <AvatarFallback>{item.user.substring(0,1).toUpperCase() || 'S'}</AvatarFallback>
+                        <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-baseline space-x-2">
@@ -494,5 +499,7 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
+    
 
     
