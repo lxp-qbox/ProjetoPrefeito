@@ -12,10 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle, ArrowLeft } from "lucide-react";
+import { FileText, CheckCircle } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-import Link from "next/link";
 
 const placeholderTerms = `
 Bem-vindo à The Presidential Agency!
@@ -82,11 +81,13 @@ export default function TermsPage() {
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <CardHeader className="text-center pt-10 pb-4">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Termos de Uso e Privacidade</CardTitle>
-        <CardDescription>Por favor, leia e aceite nossos termos<br />para continuar.</CardDescription>
+        <CardDescription>
+          Por favor, leia e aceite nossos termos<br />para continuar.
+        </CardDescription>
       </CardHeader>
       <Separator className="mb-4" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col">
