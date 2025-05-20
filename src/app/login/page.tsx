@@ -44,7 +44,7 @@ export default function LoginPage() {
           <Link 
             href="/" 
             aria-label="Voltar para página inicial" 
-            className="p-2 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+            className="p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
@@ -63,7 +63,7 @@ export default function LoginPage() {
         <CardFooter className="flex-col p-0">
           <div className="w-full border-t border-border" />
           <div className="w-full bg-muted p-6 text-center">
-            <Link href="/signup" className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline">
+            <Link href="/signup" className="text-sm font-medium hover:text-primary hover:underline">
               Não tem uma conta? Cadastre-se
             </Link>
           </div>
