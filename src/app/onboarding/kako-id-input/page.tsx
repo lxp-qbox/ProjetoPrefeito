@@ -41,8 +41,8 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    setProfileImageUrl(null); // Reset image to default/fallback
-    setProfileName(null);     // Reset name
+    setProfileImageUrl(null); 
+    setProfileName(null);     
     setProfileFound(false);
 
     // Simulate API call
@@ -57,7 +57,7 @@ export default function KakoIdInputPage() {
         description: `ID ${kakoId} verificado para PRESIDENTE.`,
       });
     } else if (kakoId.trim() === "123456") {
-        setProfileImageUrl("https://placehold.co/96x96.png?text=JG"); // Generic placeholder
+        setProfileImageUrl("https://placehold.co/96x96.png?text=JG"); 
         setProfileName("João Gamer");
         setProfileFound(true);
         toast({
@@ -66,7 +66,7 @@ export default function KakoIdInputPage() {
         });
     } else {
       setProfileFound(false);
-      // No need to set profileName to "Anônimo" here, display logic handles it
+      setProfileName(null); // Explicitly set name to null if not found
       toast({
         title: "Perfil Não Encontrado",
         description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
@@ -100,7 +100,6 @@ export default function KakoIdInputPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: kakoId.trim(),
-        // Update profileName and photoURL in Firestore only if a profile was found from Kako
         profileName: profileFound && profileName ? profileName : currentUser.profileName,
         photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL,
         hasCompletedOnboarding: true,
@@ -125,7 +124,8 @@ export default function KakoIdInputPage() {
 
   const determineBackLink = () => {
     if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
-    return currentUser.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
+    if (currentUser.role === 'host') return "/onboarding/age-verification";
+    return "/onboarding/kako-account-check";
   }
 
   return (
@@ -143,7 +143,7 @@ export default function KakoIdInputPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
@@ -169,9 +169,9 @@ export default function KakoIdInputPage() {
               {isSearching ? (
                 <p className="text-sm text-muted-foreground">Buscando...</p>
               ) : profileFound && profileName ? (
-                <p className="font-semibold text-primary">{profileName}</p>
+                <p className="text-sm font-semibold text-primary">{profileName}</p>
               ) : (
-                 <p className="text-sm text-muted-foreground">Anônimo</p>
+                 <p className="text-sm text-muted-foreground font-semibold">Anônimo</p>
               )}
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function KakoIdInputPage() {
                 value={kakoId}
                 onChange={(e) => {
                     setKakoId(e.target.value);
-                    if(profileFound) { // Reset if user types new ID after a successful search
+                    if(profileFound) { 
                         setProfileFound(false);
                         setProfileImageUrl(null);
                         setProfileName(null);
