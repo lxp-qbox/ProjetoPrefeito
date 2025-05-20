@@ -86,7 +86,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ steps, currentSte
               />
             </div>
             {!isLastStep && (
-              <div className="flex-grow self-center pt-0.5 transform translate-y-[-1rem] sm:translate-y-[-1.25rem]"> 
+              <div className="flex-grow self-center"> 
                  <ConnectingLine isCompleted={isCompleted} />
               </div>
             )}

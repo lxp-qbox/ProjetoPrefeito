@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react"; // Adicionado ArrowLeft
+import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState<UserProfile['role'] | null>(null);
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -40,6 +41,7 @@ export default function RoleSelectionPage() {
       router.push("/login");
       return;
     }
+    setLoadingRole(role);
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -61,6 +63,7 @@ export default function RoleSelectionPage() {
       });
     } finally {
       setIsLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -78,7 +81,7 @@ export default function RoleSelectionPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="text-center pt-10 pb-4"> {/* Mantido pt-10 para espaço do botão voltar */}
+      <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
@@ -101,11 +104,16 @@ export default function RoleSelectionPage() {
             <div className="p-3 bg-primary/10 rounded-full mb-4">
               <Users className="h-10 w-10 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
-            <p className="text-sm text-muted-foreground">
-              Faço parte da agência do Presidente
-            </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
+            {isLoading && loadingRole === 'host' ? (
+              <LoadingSpinner size="md" className="my-3" />
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
+                <p className="text-sm text-muted-foreground">
+                  Faço parte da agência do Presidente
+                </p>
+              </>
+            )}
           </Card>
 
           <Card
@@ -119,11 +127,16 @@ export default function RoleSelectionPage() {
             <div className="p-3 bg-primary/10 rounded-full mb-4">
               <Gamepad2 className="h-10 w-10 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Sou participante.</h3>
-            <p className="text-sm text-muted-foreground">
-              Quero participar dos jogos
-            </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
+            {isLoading && loadingRole === 'player' ? (
+              <LoadingSpinner size="md" className="my-3" />
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold mb-2">Sou participante.</h3>
+                <p className="text-sm text-muted-foreground">
+                  Quero participar dos jogos
+                </p>
+              </>
+            )}
           </Card>
         </div>
       </CardContent>
