@@ -8,7 +8,7 @@ import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users as UsersIcon, Send } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users as UsersIcon, Send, Maximize2, Minimize2, ArrowDownCircle } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,7 +33,6 @@ type ParsedChatMessageType =
 function parseChatMessage(rawData: string): ParsedChatMessageType {
   let parsedJson;
   try {
-    // Attempt to clean up potential leading non-JSON characters
     const firstBraceIndex = rawData.indexOf('{');
     const lastBraceIndex = rawData.lastIndexOf('}');
     let jsonString = rawData;
@@ -42,12 +41,7 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     }
     parsedJson = JSON.parse(jsonString);
   } catch (e) {
-    // If it's not JSON, but it's not an error reading Blob, return it as raw text.
-    if (rawData && rawData.trim() !== "" && rawData.trim() !== "[Erro ao ler Blob]") {
-       // console.warn("Não foi possível analisar como JSON, exibindo dados brutos:", rawData);
-      // This case is handled by the onmessage handler now for raw data display
-    }
-    return null; // Indicate parsing failed or it's not a structured message we understand
+    return null;
   }
 
   let userName = "Sistema";
@@ -59,13 +53,11 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
-    // Basic logic for medal, can be expanded
     if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0) || messageUser.nickname) {
       userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
   }
   
-  // Room Status Update (Viewers, Likes, Anchor Info)
   if (parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
     return {
       type: 'systemUpdate',
@@ -74,7 +66,6 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
       anchorNickname: parsedJson.anchor.nickname
     };
   }
-  // Gift Event
   else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname && typeof parsedJson.giftCount === 'number') {
     messageData = `🎁 ${userName} enviou ${parsedJson.giftCount}x Presente ID ${parsedJson.giftId}!`;
     if (parsedJson.user.level) {
@@ -82,22 +73,19 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     }
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // Game Event (baishun2 - LavaLink) - TO BE IGNORED
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    return null; // No longer displaying game events in chat
+    return null; 
   }
-  // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
     messageData = parsedJson.text;
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // User Join/Enter Event (type 1, type2: 1 variant - no 'count' field)
   else if (
     parsedJson.user && parsedJson.user.nickname &&
     parsedJson.type === 1 && parsedJson.type2 === 1 &&
     !parsedJson.text && !parsedJson.giftId && !parsedJson.game &&
     !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number') &&
-    !parsedJson.count // Differentiate from the other join message
+    !parsedJson.count 
   ) {
     let joinMessage = `👋 ${userName} entrou na sala.`;
     if (parsedJson.user.level) {
@@ -109,7 +97,6 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     messageData = joinMessage;
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // User Join/Enter Event (with 'count' field)
   else if (
     parsedJson.user && parsedJson.user.nickname &&
     typeof parsedJson.count === 'number' &&
@@ -127,35 +114,21 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     messageData = joinMessage;
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // Fallback for other potential user-related structures for chat
   else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     userAvatar = parsedJson.avatar;
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // Generic content that might be a system message not caught above, or simple text
   else if (parsedJson.content) {
       messageData = parsedJson.content;
-      if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
-          // Already handled userName = "Sistema"
-      } else if (parsedJson.user && parsedJson.user.nickname) {
-          // userName and userAvatar already set from messageUser logic
-      }
       return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
-  }
-   // Final fallback for simple string messages not caught by initial rawData check
-  else if (typeof parsedJson === 'string' && parsedJson.trim() !== "") {
-    // This case is usually handled by the raw data display now
-  } else if (parsedJson.message && typeof parsedJson.message === 'string' && parsedJson.message.trim() !== "") {
-    // This case is usually handled by the raw data display now
-  } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') {
-    // console.warn("Mensagem JSON não reconhecida, será exibida como dados brutos:", parsedJson);
-    // This case is handled by the onmessage handler for raw data display
   }
 
   return null;
 }
+
+const SCROLL_THRESHOLD = 10;
 
 export default function HostStreamPage() {
   const params = useParams();
@@ -166,11 +139,17 @@ export default function HostStreamPage() {
   const socketRef = useRef<WebSocket | null>(null);
   
   const scrollAreaRef = useRef<React.ElementRef<typeof ScrollAreaPrimitive.Root>>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const prevChatMessagesLengthRef = useRef<number>(0);
+
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newUnreadMessages, setNewUnreadMessages] = useState(0);
+  const [enableAutoScroll, setEnableAutoScroll] = useState(true);
 
   const [onlineViewers, setOnlineViewers] = useState<number | null>(null);
   const [liveLikes, setLiveLikes] = useState<number | null>(null);
   const [showRawData, setShowRawData] = useState(false);
+  const [isChatMaximized, setIsChatMaximized] = useState(false);
   
   const { currentUser } = useAuth();
 
@@ -179,10 +158,12 @@ export default function HostStreamPage() {
       const foundHost = placeholderHosts.find(h => h.id === hostId);
       setHost(foundHost);
       if (foundHost) {
-        setChatMessages([]); // Clear previous messages
+        setChatMessages([]);
         prevChatMessagesLengthRef.current = 0;
-        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with host's avg viewers
-        setLiveLikes(foundHost.likes || 0); // Initialize with host's likes
+        setOnlineViewers(foundHost.avgViewers || 0);
+        setLiveLikes(foundHost.likes || 0);
+        setIsAtBottom(true);
+        setNewUnreadMessages(0);
       }
     } else {
       setHost(null);
@@ -198,7 +179,6 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-         // Ensure we're updating the correct host if host prop changes, though unlikely with current setup
         if (host?.id && prevHost.id !== host.id) {
           return prevHost;
         }
@@ -211,46 +191,67 @@ export default function HostStreamPage() {
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
-    }, 5000); // Update every 5 seconds
+    }, 5000); 
     return () => clearInterval(intervalId);
-  }, [host?.id]); // Dependency only on host.id to avoid resetting on other host data changes
+  }, [host?.id]); 
 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    const scrollAreaElement = scrollAreaRef.current;
-    if (scrollAreaElement) {
-      const viewport = scrollAreaElement.querySelector('div[data-radix-scroll-area-viewport]') as HTMLDivElement;
-      if (viewport) {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-      }
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTo({ top: scrollViewportRef.current.scrollHeight, behavior });
     }
   }, []);
 
-  useEffect(() => {
-    const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
-    if (newMessagesCount > 0) {
-      scrollToBottom('auto');
+  const handleScroll = useCallback(() => {
+    if (!scrollViewportRef.current) return;
+    const viewport = scrollViewportRef.current;
+    const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - SCROLL_THRESHOLD;
+    setIsAtBottom(atBottom);
+    if (atBottom) {
+      setNewUnreadMessages(0);
     }
-    prevChatMessagesLengthRef.current = chatMessages.length;
-  }, [chatMessages, scrollToBottom]);
+  }, [SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]);
 
   useEffect(() => {
-    // Initial scroll after mount and messages potentially load
-    const timer = setTimeout(() => {
-      scrollToBottom('auto');
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [scrollToBottom]);
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]') as HTMLDivElement;
+        scrollViewportRef.current = viewport;
+        if (viewport) {
+            viewport.addEventListener('scroll', handleScroll);
+            // Initial check
+            handleScroll();
+            scrollToBottom('auto'); // Initial scroll to bottom
+            return () => viewport.removeEventListener('scroll', handleScroll);
+        } else {
+            // console.warn("Chat scroll viewport not found for attaching scroll listener.");
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, handleScroll]); // Re-run if host changes to re-attach listener
+
+  useEffect(() => {
+    const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
+
+    if (newMessagesCount > 0) {
+      if (enableAutoScroll && isAtBottom) {
+        scrollToBottom('auto');
+      } else if (enableAutoScroll && !isAtBottom) {
+        setNewUnreadMessages(prev => prev + newMessagesCount);
+      }
+    }
+    prevChatMessagesLengthRef.current = chatMessages.length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]);
 
 
   useEffect(() => {
     if (host === undefined) {
-      return; // Wait for host data to be resolved
+      return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
-       if (host !== undefined && (chatMessages.length === 0 || (chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
-          console.warn("Host ou RoomID não configurado para o chat.");
+       if (host !== undefined && (chatMessages.length === 0 || (chatMessages[chatMessages.length -1]?.message !== "Host ou RoomID não configurado para o chat." && chatMessages[chatMessages.length -1]?.message !== "Conectando ao chat..."))) {
+          // console.warn("Host ou RoomID não configurado para o chat.");
        }
       return;
     }
@@ -262,7 +263,6 @@ export default function HostStreamPage() {
 
     socketRef.current.onopen = () => {
       console.log("WebSocket: Conectado!");
-      // No longer adding "Conectado ao chat!" to chatMessages
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -279,7 +279,7 @@ export default function HostStreamPage() {
           messageContentString = event.data;
         } else {
           try {
-              messageContentString = JSON.stringify(event.data); // For non-string, non-blob data
+              messageContentString = JSON.stringify(event.data);
           } catch {
               messageContentString = "[Tipo de mensagem desconhecido]";
           }
@@ -301,14 +301,12 @@ export default function HostStreamPage() {
           } else if (processedResult.type === 'systemUpdate') {
             setOnlineViewers(processedResult.online);
             setLiveLikes(processedResult.likes);
-            // Optionally, add a subtle system message if needed, or just update stats
           }
         } else if (messageContentString && messageContentString.trim() !== "" && messageContentString !== "[Erro ao ler Blob]") {
-          // If parseChatMessage returns null, but we have some raw string, display it
           setChatMessages(prev => [...prev, {
             id: generateUniqueId(),
             user: "Servidor (Dados Brutos)",
-            message: messageContentString, // Show the raw string
+            message: messageContentString,
             timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             rawData: messageContentString,
           }]);
@@ -344,10 +342,12 @@ export default function HostStreamPage() {
         closeMessage += ` (Código: ${closeEvent.code})`;
       }
       console.log("WebSocket: Desconectado.", closeEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}` }]);
+      // Don't add to chatMessages if we are intentionally closing it.
+      if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSING && socketRef.current.readyState !== WebSocket.CLOSED) {
+         setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}` }]);
+      }
     };
 
-    // Cleanup function
     return () => {
       if (socketRef.current) {
         console.log(`WebSocket: Fechando conexão para hostId: ${host?.id}, roomID: ${host?.kakoLiveRoomId}`);
@@ -355,31 +355,23 @@ export default function HostStreamPage() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host?.id, host?.kakoLiveRoomId]); // Removed chatMessages from dependencies
+  }, [host?.id, host?.kakoLiveRoomId]);
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      // Kako specific message format for sending text
-      const messageToSend = {
-        type: 0, // Type 0 seems to be for text messages based on some platform conventions
-        content: newMessage.trim(),
-        // You might need to send other fields like userId, nickname, avatar from currentUser
-        // user: { nickname: currentUser?.profileName || "Você", avatar: currentUser?.photoURL, level: currentUser?.level }
-      };
-      // For Kako, it might expect a raw stringified JSON
-      socketRef.current.send(JSON.stringify({ text: newMessage.trim() })); // Simplified, might need more fields
+      const messageToSend = { text: newMessage.trim() };
+      socketRef.current.send(JSON.stringify(messageToSend));
 
-      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
           id: generateUniqueId(),
           user: currentUser?.profileName || 'Você',
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
-          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal for sent messages
+          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png',
           message: newMessage.trim(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          rawData: JSON.stringify({ text: newMessage.trim(), sent: true }),
+          rawData: JSON.stringify({ ...messageToSend, sent: true }),
         }
       ]);
       setNewMessage("");
@@ -424,7 +416,6 @@ export default function HostStreamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/hosts">
@@ -435,14 +426,11 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div> {/* Placeholder for spacing if needed */}
+        <div className="w-8 h-8"></div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column: Video & Host Info */}
-        <div className="md:col-span-2 space-y-6">
-         {/* Video Player Card */}
+      <div className={`grid grid-cols-1 ${isChatMaximized ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-6`}>
+        <div className={`${isChatMaximized ? 'hidden md:hidden' : 'md:col-span-2 space-y-6'}`}>
          <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2 flex-row justify-between items-center">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
@@ -485,7 +473,6 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
-          {/* About Host Card */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -514,7 +501,6 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
-          {/* Gifts Received Card */}
           {host.giftsReceived && host.giftsReceived.length > 0 && (
             <Card className="shadow-lg">
               <CardHeader>
@@ -558,9 +544,8 @@ export default function HostStreamPage() {
           )}
         </div>
 
-        {/* Right Column: Chat */}
-        <div className="md:col-span-1">
-          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> {/* max-h to constrain height */}
+        <div className={`${isChatMaximized ? 'md:col-span-1' : 'md:col-span-1'}`}>
+          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
@@ -570,7 +555,33 @@ export default function HostStreamPage() {
                         <span>{onlineViewers.toLocaleString('pt-BR')}</span>
                     </>
                 )}
-                <div className="flex items-center space-x-2 ml-4">
+                 <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsChatMaximized(!isChatMaximized)}
+                    className="ml-2 text-muted-foreground hover:text-primary"
+                    title={isChatMaximized ? "Minimizar Chat" : "Maximizar Chat"}
+                  >
+                    {isChatMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                <div className="flex items-center space-x-2 ml-2">
+                    <Switch
+                        id="enable-auto-scroll"
+                        checked={enableAutoScroll}
+                        onCheckedChange={(checked) => {
+                            setEnableAutoScroll(checked);
+                            if (checked && !isAtBottom) {
+                                scrollToBottom('smooth');
+                                setNewUnreadMessages(0);
+                            } else if (!checked) {
+                                setNewUnreadMessages(0);
+                            }
+                        }}
+                        aria-label="Rolagem automática"
+                    />
+                    <Label htmlFor="enable-auto-scroll" className="text-xs cursor-pointer">Rolagem Auto.</Label>
+                </div>
+                <div className="flex items-center space-x-2 ml-2">
                     <Switch
                         id="show-raw-data"
                         checked={showRawData}
@@ -581,9 +592,9 @@ export default function HostStreamPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* p-0 to allow ScrollArea to manage padding */}
-              <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area"> {/* h-full to take available space */}
-                <div className="p-4 space-y-4"> {/* Padding applied to inner content */}
+            <CardContent className="flex-grow p-0 min-h-0 relative">
+              <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area">
+                <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3">
                       <Avatar className="h-8 w-8 border">
@@ -592,15 +603,15 @@ export default function HostStreamPage() {
                         ) : null}
                         <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1"> {/* flex-1 to allow text to wrap */}
-                        <div className="flex items-center space-x-2">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-1">
                           {item.userMedalUrl && (
                             <Image
                               src={item.userMedalUrl}
                               alt="Medalha"
                               width={16}
                               height={16}
-                              className="h-4 w-auto mr-0.5 align-middle" // slightly less margin
+                              className="h-4 w-auto mr-0.5 align-middle"
                               data-ai-hint="user medal"
                             />
                           )}
@@ -612,10 +623,8 @@ export default function HostStreamPage() {
                           <pre className="mt-1 text-xs bg-muted/30 p-2 rounded-md overflow-x-auto border border-muted/50">
                             {(() => {
                               try {
-                                // Attempt to parse and then pretty-print if it's JSON
                                 return JSON.stringify(JSON.parse(item.rawData), null, 2);
                               } catch (e) {
-                                // If not valid JSON, show the raw string directly
                                 return item.rawData;
                               }
                             })()}
@@ -626,6 +635,19 @@ export default function HostStreamPage() {
                   ))}
                 </div>
               </ScrollArea>
+              {enableAutoScroll && !isAtBottom && newUnreadMessages > 0 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrollToBottom('smooth')}
+                        className="rounded-full shadow-md bg-primary/80 text-primary-foreground hover:bg-primary"
+                    >
+                        <ArrowDownCircle className="h-4 w-4 mr-2" />
+                        {newUnreadMessages} Nova(s)
+                    </Button>
+                </div>
+              )}
             </CardContent>
             <div className="p-4 border-t">
               <div className="flex space-x-2">
@@ -652,4 +674,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-
