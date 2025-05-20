@@ -69,7 +69,7 @@ export default function AgeVerificationPage() {
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (showUnderageAlert) {
-      setShowUnderageAlert(false); 
+      setShowUnderageAlert(false);
     }
     if (date) {
       setIsCalendarOpen(false);
@@ -84,6 +84,14 @@ export default function AgeVerificationPage() {
         variant: "destructive",
       });
       router.push("/login");
+      return;
+    }
+    if (!selectedCountry) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione seu país.",
+        variant: "destructive",
+      });
       return;
     }
     if (!selectedGender) {
@@ -102,15 +110,7 @@ export default function AgeVerificationPage() {
       });
       return;
     }
-    if (!selectedCountry) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, selecione seu país.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!phoneNumber.trim()) {
+     if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -118,7 +118,7 @@ export default function AgeVerificationPage() {
       });
       return;
     }
-    
+
     const age = calculateAge(selectedDate);
     if (age < 18) {
       setShowUnderageAlert(true);
@@ -148,7 +148,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile"); 
+        router.push("/profile");
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -167,7 +167,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <Button
         asChild
         variant="ghost"
@@ -181,19 +181,17 @@ export default function AgeVerificationPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <CalendarDays className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu sexo,
-          <br />
-          data de nascimento, país e celular.
+          Para prosseguir, por favor, informe seu sexo, data de nascimento,<br />país e celular.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-xs mx-auto space-y-4">
+        <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
@@ -252,7 +250,7 @@ export default function AgeVerificationPage() {
               </PopoverContent>
             </Popover>
           </div>
-        
+
           <div>
             <Label htmlFor="country-select" className="text-sm font-medium mb-1 block text-left">
               País
@@ -286,7 +284,7 @@ export default function AgeVerificationPage() {
                     placeholder="+55 11 91234-5678"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-12"
                 />
             </div>
           </div>
@@ -303,7 +301,7 @@ export default function AgeVerificationPage() {
         </div>
          <Button
           onClick={handleContinue}
-          className="w-full mt-auto"
+          className="w-full mt-4"
           disabled={!selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
         >
           {isLoading ? (
@@ -320,3 +318,4 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
