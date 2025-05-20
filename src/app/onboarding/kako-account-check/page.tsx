@@ -13,12 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Phone, ArrowLeft } from "lucide-react"; // Added ArrowLeft
+import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; // Added Smartphone
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Link from "next/link"; // Added Link
+import Link from "next/link";
 
 export default function KakoAccountCheckPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -75,19 +75,22 @@ export default function KakoAccountCheckPage() {
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
         >
-            <Link href="/onboarding/age-verification"> {/* Or previous relevant step */}
+            <Link href="/onboarding/age-verification">
                 <ArrowLeft className="h-8 w-8" />
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <CardTitle className="text-2xl font-bold mt-8">Conta Kako Live</CardTitle> {/* Added mt-8 for spacing below back button */}
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
+          <Smartphone className="h-8 w-8 text-primary" />
+        </div>
+        <CardTitle className="text-2xl font-bold mt-8">Conta Kako Live</CardTitle>
         <CardDescription>
           Você já possui uma conta no aplicativo Kako Live?
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center justify-center">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center"> {/* Removed justify-center */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
@@ -112,7 +115,7 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
-            disabled={isLoading}
+            aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <Phone className="h-8 w-8 text-primary" />
