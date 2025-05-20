@@ -85,11 +85,11 @@ function Calendar({
               }}
               {...dropdownProps}
             >
-              <SelectTrigger className="pr-1.5 focus:ring-0 h-8 data-[state=open]:ring-0 data-[state=open]:ring-offset-0"> {/* Adjusted height and focus */}
+              <SelectTrigger className="h-7 w-auto rounded-md border border-input bg-background px-2 py-1 text-xs focus:ring-0 focus:ring-offset-0 data-[state=open]:ring-0 data-[state=open]:ring-offset-0">
                 <SelectValue>{selected?.props?.children}</SelectValue>
               </SelectTrigger>
               <SelectContent position="popper">
-                <ScrollArea className="h-80"> {/* Ensures long lists (like years) are scrollable */}
+                <ScrollArea className="h-80">
                   {options.map((option, id: number) => (
                     <SelectItem
                       key={`${option.props.value}-${id}`}
@@ -113,3 +113,4 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
+
