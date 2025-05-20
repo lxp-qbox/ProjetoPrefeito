@@ -85,13 +85,13 @@ export default function RoleSelectionPage() {
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Olá!</CardTitle> {/* Changed from text-3xl */}
+        <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
         <CardDescription className="mt-2">
           Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
-      <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto">
+      <Separator className="my-6" />
+      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto flex flex-col justify-center">
         <div className="grid grid-cols-1 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
