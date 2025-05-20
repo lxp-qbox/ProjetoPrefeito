@@ -3,6 +3,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, GoogleAuthProvider } from "firebase/auth"; // Import GoogleAuthProvider
 import { getAnalytics, type Analytics } from "firebase/analytics";
+import { getFirestore, doc, setDoc, getDoc, serverTimestamp, collection, writeBatch, query, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, increment  } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -32,5 +33,26 @@ if (typeof window !== 'undefined') {
 }
 
 const auth: Auth = getAuth(app);
+const db = getFirestore(app);
 
-export { app, auth, analytics, GoogleAuthProvider };
+export { 
+  app, 
+  auth, 
+  analytics, 
+  GoogleAuthProvider, 
+  db, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp,
+  collection,
+  writeBatch,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  increment
+};

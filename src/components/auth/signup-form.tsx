@@ -15,13 +15,16 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus, ShieldQuestion, UserSquare2 } from "lucide-react";
+import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
+  profileName: z.string().min(3, { message: "Nome de Perfil must be at least 3 characters." }).max(30, { message: "Nome de Perfil cannot exceed 30 characters." }),
+  kakoLiveId: z.string().min(3, {message: "Passaporte (ID do Kako Live) must be at least 3 characters."}).max(50, { message: "Passaporte (ID do Kako Live) cannot exceed 50 characters."}).optional(),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   confirmPassword: z.string().min(6, { message: "Password must be at least 6 characters." }),
@@ -40,6 +43,8 @@ export default function SignupForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      profileName: "",
+      kakoLiveId: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -49,7 +54,34 @@ export default function SignupForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Update Firebase Auth profile
+      await updateProfile(user, {
+        displayName: values.profileName,
+      });
+
+      // Create Firestore document
+      const userDocRef = doc(db, "users", user.uid);
+      const newUserProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email,
+        profileName: values.profileName,
+        kakoLiveId: values.kakoLiveId || "",
+        role: 'player',
+        isVerified: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        followerCount: 0,
+        followingCount: 0,
+        level: 1,
+        photos: [],
+        socialLinks: {},
+        themePreference: 'system',
+      };
+      await setDoc(userDocRef, newUserProfile);
+
       toast({
         title: "Signup Successful",
         description: "Your account has been created. Welcome!",
@@ -70,6 +102,38 @@ export default function SignupForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="profileName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome de Perfil</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Seu nome de usuário" {...field} className="pl-10" />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="kakoLiveId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Passaporte (ID do Kako Live) <span className="text-xs text-muted-foreground">(Opcional)</span></FormLabel>
+              <FormControl>
+                 <div className="relative">
+                  <ShieldQuestion className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Seu ID Kako Live" {...field} className="pl-10" />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="email"

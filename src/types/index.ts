@@ -41,3 +41,34 @@ export interface Host {
   totalFollowers: string; // e.g., "6.55M"
   totalViews: string; // e.g., "50.8M"
 }
+
+export interface UserProfile {
+  uid: string;
+  email?: string | null;
+  role: 'player' | 'host' | 'suporte' | 'admin' | 'master';
+  kakoLiveId?: string;       // passaporte
+  profileName?: string;      // o nome do usuario do kako
+  displayName?: string | null; // From Firebase Auth, synced with profileName
+  photoURL?: string | null;    // From Firebase Auth, for avatar (profile_image)
+  profileHeader?: string;    // a imagem de fundo do profile
+  bio?: string;              // bio - 100 caracteres
+  isVerified?: boolean;      // se o usuario tem verificado ganha um selo
+  level?: number;            // qual e o nivel do usuario no site
+  followerCount?: number;    // numero de seguidores
+  followingCount?: number;   // numero de seguidores que o usuario segue
+  photos?: string[];         // a opcao de adicionar mais fotos no perfil
+  gender?: 'male' | 'female' | 'other' | 'preferNotToSay'; // sexo
+  birthDate?: string;        // data de nascimento (e.g., YYYY-MM-DD)
+  civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // status civil
+  socialLinks?: {            // link de rede social
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+    youtube?: string;
+    twitch?: string;
+  };
+  themePreference?: 'light' | 'dark' | 'system'; // mudar o tema do site
+  accentColor?: string;      // escolher a cor padrao que se destaca no site (hex)
+  createdAt?: any;           // Firestore Timestamp
+  updatedAt?: any;           // Firestore Timestamp
+}
