@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, ChatMessage } from '@/types';
-import { placeholderHosts } from '../page';
+import type { Host, ChatMessage } from '@/types'; // Assuming ChatMessage is defined
+import { placeholderHosts } from '../page'; // Import placeholderHosts
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ type ParsedMessageResult =
 function parseChatMessage(rawData: string): ParsedMessageResult {
   let parsedJson;
   try {
+    // Attempt to find the start and end of a JSON object if there's leading/trailing non-JSON data
     const firstBraceIndex = rawData.indexOf('{');
     const lastBraceIndex = rawData.lastIndexOf('}');
     if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
@@ -36,20 +37,20 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     }
     parsedJson = JSON.parse(rawData);
   } catch (e) {
+    // If parsing fails but rawData is not empty, treat it as a simple text message
     if (rawData && rawData.trim() !== "") {
-      // If parsing fails but rawData is not empty, treat it as a simple text message
       return { type: 'chat', userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawData };
     }
     // console.warn("Could not parse message or empty rawData:", rawData, e);
     return null;
   }
 
-  let userName = "Servidor"; // Default for system or unknown messages
-  let userAvatar = ""; // Default, can be a system icon or placeholder
+  let userName = "Servidor"; 
+  let userAvatar = ""; 
   let messageData = "";
 
   // Room Status Update (Viewers, Likes, Anchor Info)
-  if (parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined && parsedJson.likes !== undefined) {
+  if (parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
     return {
       type: 'systemUpdate',
       online: parsedJson.online,
@@ -58,18 +59,19 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     };
   }
   // Gift Event
-  else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
+  else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname && typeof parsedJson.giftCount === 'number') {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
-    messageData = `🎁 ${userName} enviou ${parsedJson.giftCount || 1}x Presente ID ${parsedJson.giftId}!`;
+    let giftMessage = `🎁 ${userName} enviou ${parsedJson.giftCount}x Presente ID ${parsedJson.giftId}!`;
     if (parsedJson.user.level) {
-        messageData += ` (Nível ${parsedJson.user.level})`;
+        giftMessage += ` (Nível ${parsedJson.user.level})`;
     }
+    messageData = giftMessage;
     return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Game Event (baishun2 - LavaLink)
+  // Game Event (baishun2 - LavaLink) - TO BE IGNORED
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    return null; // Do not display game events in chat
+    return null; 
   }
   // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
@@ -87,7 +89,7 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     !parsedJson.text && 
     !parsedJson.giftId && 
     !parsedJson.game &&
-    !(parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) 
+    !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number') 
   ) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
@@ -105,11 +107,11 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
   else if (
     parsedJson.user && 
     parsedJson.user.nickname && 
-    parsedJson.count !== undefined && 
+    typeof parsedJson.count === 'number' && 
     !parsedJson.text && 
     !parsedJson.giftId && 
     !parsedJson.game &&
-    !(parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined)
+    !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number')
   ) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
@@ -156,18 +158,18 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     return { type: 'chat', userName, userAvatar, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
     // console.warn("Mensagem JSON não reconhecida:", parsedJson);
-    return null; // Do not display unknown complex JSON objects in chat
+    return null;
   }
 
-  return null; // If no specific structure matches
+  return null; 
 }
 
-const SCROLL_THRESHOLD = 10; // Pixels of tolerance for being "at the bottom"
+const SCROLL_THRESHOLD = 10; 
 
 export default function HostStreamPage() {
   const params = useParams();
   const hostId = typeof params.hostId === 'string' ? params.hostId : undefined;
-  const [host, setHost] = useState<Host | null | undefined>(undefined); // undefined for loading, null for not found, Host for found
+  const [host, setHost] = useState<Host | null | undefined>(undefined); 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
@@ -185,54 +187,55 @@ export default function HostStreamPage() {
   useEffect(() => {
     if (hostId) {
       const foundHost = placeholderHosts.find(h => h.id === hostId);
-      setHost(foundHost); // Will be 'undefined' if not found, which is fine for now
+      setHost(foundHost); 
       if (foundHost) {
-        // Reset chat and related states when host changes
         setChatMessages([]);
         setNewUnreadMessages(0);
         setIsAtBottom(true);
         prevChatMessagesLengthRef.current = 0;
-        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with placeholder or actual if available
-        setLiveLikes(foundHost.likes || 0); // Initialize with placeholder or actual if available
+        setOnlineViewers(foundHost.avgViewers || 0);
+        setLiveLikes(foundHost.likes || 0); 
       }
     } else {
-      setHost(null); // No hostId provided
+      setHost(null); 
     }
   }, [hostId]);
 
-  // Gift update simulation
   useEffect(() => {
     if (!host?.id || !host.giftsReceived || host.giftsReceived.length === 0) {
       return;
     }
     const intervalId = setInterval(() => {
       setHost(prevHost => {
-        if (!prevHost || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
+        if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
+        }
+        // Ensure we are still on the same host by comparing with host.id from the outer scope.
+        // This check is a bit redundant given the useEffect dependency on host?.id, but adds safety.
+        if (host?.id && prevHost.id !== host.id) {
+          return prevHost; // Interval is for a previous host
         }
 
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
         const randomIndex = Math.floor(Math.random() * updatedGifts.length);
         
-        // Ensure the gift exists before trying to increment its count
         if (updatedGifts[randomIndex]) { 
             updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + Math.floor(Math.random() * 3) + 1;
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
-    }, 5000); // Update every 5 seconds
+    }, 5000); 
     return () => clearInterval(intervalId);
-  }, [host?.id]); // Re-run if the host ID changes
+  }, [host?.id]); // Changed from host to host?.id
 
-  // WebSocket connection
   useEffect(() => {
-    if (host === undefined) { // Still loading host data
+    if (host === undefined) { 
       return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
        if (host !== undefined && (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
-         // console.log("Host ou RoomID não configurado para o chat."); // Avoid adding to chat UI
+         // console.log("Host ou RoomID não configurado para o chat."); 
        }
       return;
     }
@@ -240,87 +243,91 @@ export default function HostStreamPage() {
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
     
-    console.log(`Tentando conectar a ${wsUrl}...`);
-    // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: `Tentando conectar a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+    console.log(`WebSocket: Tentando conectar a ${wsUrl}...`);
 
     socketRef.current.onopen = () => {
-      console.log("WebSocket conectado!");
-      // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      console.log("WebSocket: Conectado!");
     };
 
     socketRef.current.onmessage = async (event) => {
-      let messageContentString = "";
-      if (event.data instanceof Blob) {
-        try {
-          messageContentString = await event.data.text();
-        } catch (e) {
-          console.error("Erro ao ler Blob:", e);
-          messageContentString = "[Erro ao ler Blob]";
+      try {
+        let messageContentString = "";
+        if (event.data instanceof Blob) {
+          try {
+            messageContentString = await event.data.text();
+          } catch (e) {
+            console.error("WebSocket: Erro ao ler Blob:", e);
+            messageContentString = "[Erro ao ler Blob]";
+          }
+        } else if (typeof event.data === 'string') {
+          messageContentString = event.data;
+        } else {
+          try {
+              messageContentString = JSON.stringify(event.data);
+          } catch {
+              messageContentString = "[Tipo de mensagem desconhecido]";
+          }
         }
-      } else if (typeof event.data === 'string') {
-        messageContentString = event.data;
-      } else {
-        // Attempt to stringify other types, though usually it's string or Blob
-        try {
-            messageContentString = JSON.stringify(event.data);
-        } catch {
-            messageContentString = "[Tipo de mensagem desconhecido]";
-        }
-      }
-      
-      const processedResult = parseChatMessage(messageContentString);
+        
+        const processedResult = parseChatMessage(messageContentString);
 
-      if (processedResult) {
-        if (processedResult.type === 'chat' && processedResult.messageData?.trim() !== "") {
-          setChatMessages(prev => [...prev, {
-            id: generateUniqueId(),
-            user: processedResult.userName,
-            avatar: processedResult.userAvatar,
-            message: processedResult.messageData,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-          }]);
-        } else if (processedResult.type === 'systemUpdate') {
-          setOnlineViewers(processedResult.online);
-          setLiveLikes(processedResult.likes);
+        if (processedResult) {
+          if (processedResult.type === 'chat' && processedResult.messageData?.trim() !== "") {
+            setChatMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              user: processedResult.userName,
+              avatar: processedResult.userAvatar,
+              message: processedResult.messageData,
+              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            }]);
+          } else if (processedResult.type === 'systemUpdate') {
+            setOnlineViewers(processedResult.online);
+            setLiveLikes(processedResult.likes);
+          }
         }
+      } catch (e) {
+        console.error("WebSocket: Erro ao processar mensagem:", e);
+        // Optionally, add a system message to the chat UI about this specific error
+        // setChatMessages(prev => [...prev, { id: generateUniqueId(), user: "Sistema", avatar: "", message: "Erro ao processar mensagem do servidor.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }]);
       }
     };
 
     socketRef.current.onerror = (errorEvent) => {
       let errorMessage = "Erro na conexão do chat.";
-       // Try to get a more specific message if available
        if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent && (errorEvent as any).message) {
         errorMessage = `Erro no chat: ${(errorEvent as any).message}`;
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
-      console.error("Erro no WebSocket:", errorEvent);
+      console.error("WebSocket: Erro na conexão:", errorEvent);
       setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onclose = (closeEvent) => {
       let closeMessage = "Desconectado do chat.";
       if (closeEvent.reason) {
-        closeMessage += ` Motivo: ${closeEvent.reason}`;
+        closeMessage += ` Motivo: ${closeEvent.reason} (Código: ${closeEvent.code})`;
+      } else {
+        closeMessage += ` (Código: ${closeEvent.code})`;
       }
-      console.log("WebSocket desconectado:", closeEvent.reason);
+      console.log("WebSocket: Desconectado.", closeEvent);
       setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     return () => {
       if (socketRef.current) {
-        console.log("Fechando WebSocket...");
+        console.log(`WebSocket: Fechando conexão para hostId: ${host?.id}, roomID: ${host?.kakoLiveRoomId}`);
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]); // Only re-run if host or room ID changes
+  }, [host?.id, host?.kakoLiveRoomId]); 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const viewport = scrollViewportRef.current;
     if (viewport) {
       viewport.scrollTo({ top: viewport.scrollHeight, behavior });
     }
-  }, []);
+  }, [scrollViewportRef]); // Added scrollViewportRef to ensure it's stable
 
   const handleScroll = useCallback(() => {
     const viewport = scrollViewportRef.current;
@@ -331,29 +338,27 @@ export default function HostStreamPage() {
         setNewUnreadMessages(0);
       }
     }
-  }, [setIsAtBottom, setNewUnreadMessages]);
+  }, [scrollViewportRef, SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]);
 
 
   useEffect(() => {
+    let vpCurrent: HTMLDivElement | null = null; 
     const viewportElement = scrollViewportRef.current; 
+    
     if (!viewportElement) {
-        // Attempt to find it again if the ref isn't populated on first pass
-        // This can happen if child components render asynchronously or with delays.
         const el = document.querySelector('.chat-scroll-area div[data-radix-scroll-area-viewport]');
         if (el) {
             scrollViewportRef.current = el as HTMLDivElement;
-            scrollViewportRef.current.addEventListener('scroll', handleScroll);
-            // Initial scroll and state check
+            vpCurrent = el as HTMLDivElement; 
+            vpCurrent.addEventListener('scroll', handleScroll);
             setTimeout(() => {
-                scrollToBottom('auto'); // Initial scroll to bottom
-                handleScroll(); // Set initial isAtBottom state
-            }, 200); // Delay to allow layout to settle
-        } else {
-            // console.warn("Chat scroll viewport not found for event listener attachment.");
+                scrollToBottom('auto'); 
+                handleScroll(); 
+            }, 200); 
         }
     } else {
-        // Ref was already populated
-        viewportElement.addEventListener('scroll', handleScroll);
+        vpCurrent = viewportElement; 
+        vpCurrent.addEventListener('scroll', handleScroll);
         setTimeout(() => {
             scrollToBottom('auto');
             handleScroll();
@@ -361,45 +366,40 @@ export default function HostStreamPage() {
     }
     
     return () => {
-      if (scrollViewportRef.current) {
-        scrollViewportRef.current.removeEventListener('scroll', handleScroll);
+      if (vpCurrent) { 
+        vpCurrent.removeEventListener('scroll', handleScroll);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleScroll, scrollToBottom]); // This effect should run once to set up listeners
+  }, [handleScroll, scrollToBottom]); 
 
 
   useEffect(() => {
     const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
 
     if (newMessagesCount > 0) {
-      if (isAtBottom) { // Use the state variable 'isAtBottom' which is updated by handleScroll
+      if (isAtBottom) { 
         scrollToBottom('auto');
       } else {
         setNewUnreadMessages(prev => prev + newMessagesCount);
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, isAtBottom, scrollToBottom, setNewUnreadMessages]);
 
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      // Format for Kako Live based on observed messages (simplified)
       const messageToSend = {
-        type: 'chat_message', // This is a guess, might need specific type from Kako
+        type: 'chat_message', 
         content: newMessage.trim(),
-        // user: { nickname: currentUser?.profileName || 'Você' } // Kako might infer user from connection
       };
       socketRef.current.send(JSON.stringify(messageToSend));
 
-      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
           id: generateUniqueId(),
-          user: currentUser?.profileName || 'Você', // Use profileName or display name
+          user: currentUser?.profileName || 'Você', 
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
           message: newMessage.trim(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -407,13 +407,12 @@ export default function HostStreamPage() {
       ]);
       setNewMessage("");
     } else if (newMessage.trim()) {
-        // If socket not open, still add to local chat as a system message or just log
         setChatMessages(prev => [
             ...prev,
             {
               id: generateUniqueId(),
               user: 'Sistema',
-              avatar: '', // No avatar for system
+              avatar: '', 
               message: "Não conectado ao chat para enviar mensagem.",
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             }
@@ -452,7 +451,6 @@ export default function HostStreamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/hosts">
@@ -463,14 +461,11 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div> {/* Spacer to balance the back button */}
+        <div className="w-8 h-8"></div> 
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column (Video and Host Info) */}
         <div className="md:col-span-2 space-y-6">
-         {/* Video Player Card */}
          <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2 flex-row justify-between items-center">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
@@ -492,7 +487,6 @@ export default function HostStreamPage() {
             <CardContent className="p-0 sm:p-2 md:p-4">
             {host.kakoLiveFuid && host.kakoLiveRoomId ? (
                 <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
-                  {/* Using iframe to embed Kako Live player */}
                   <iframe
                     src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
                     width="100%"
@@ -514,7 +508,6 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
-          {/* Host Info Card */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -543,7 +536,6 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
-          {/* Gifts Received Card */}
           {host.giftsReceived && host.giftsReceived.length > 0 && (
             <Card className="shadow-lg">
               <CardHeader>
@@ -587,9 +579,8 @@ export default function HostStreamPage() {
           )}
         </div>
 
-        {/* Right Column (Chat) */}
         <div className="md:col-span-1">
-          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> {/* Max height for chat card */}
+          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> 
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
@@ -601,7 +592,7 @@ export default function HostStreamPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* flex-grow and p-0 for ScrollArea */}
+            <CardContent className="flex-grow p-0 min-h-0 relative"> 
               <ScrollArea className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
@@ -661,4 +652,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-
