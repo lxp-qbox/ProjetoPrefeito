@@ -20,10 +20,10 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
+        default: "h-12 px-4 py-2", // Changed from h-10
         sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        lg: "h-11 rounded-md px-8", // Note: lg was h-11, now default is h-12. Consider if lg should also increase. For now, default becomes tallest.
+        icon: "h-12 w-12", // Changed from h-10 w-10 to match default height
       },
     },
     defaultVariants: {
