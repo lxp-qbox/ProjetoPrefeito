@@ -28,6 +28,22 @@ export const placeholderHosts: Host[] = [
   { id: "6", rankPosition: 6, name: "CELLBIT", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 7658, timeStreamed: 233.3, allTimePeakViewers: 215165, hoursWatched: "1.79M", rank: 90, followersGained: 10000, totalFollowers: "3.47M", totalViews: "84.1M" },
   { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M" },
   { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M" },
+  { 
+    id: "new-test-host-1", 
+    rankPosition: 9, 
+    name: "HostAPIKako", 
+    avatarUrl: "https://placehold.co/40x40.png", 
+    avgViewers: 12345, 
+    timeStreamed: 50.0, 
+    allTimePeakViewers: 25000, 
+    hoursWatched: "1.1M", 
+    rank: 120, 
+    followersGained: 7500, 
+    totalFollowers: "500K", 
+    totalViews: "2.5M", 
+    kakoLiveFuid: "fuidFromKakoAPI", // This would come from the API response
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765" // Using the Room ID you provided
+  },
 ];
 
 
