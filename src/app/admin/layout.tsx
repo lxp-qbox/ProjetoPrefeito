@@ -36,17 +36,17 @@ const adminMenuGroups: AdminMenuGroup[] = [
     ],
   },
   {
-    groupTitle: "Gestão de Usuários", // Changed title
+    groupTitle: "Gestão de Usuários",
     items: [
       { title: "Contas de Hosts", icon: Star, link: "/admin/hosts" },
       { title: "Contas de Players", icon: User, link: "/admin/users/players" },
-      { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
     ],
   },
   {
-    groupTitle: "Ações Administrativas", // New Group
+    groupTitle: "Ações Administrativas",
     items: [
       { title: "Banimentos", icon: XCircle, link: "/admin/actions/bans" },
+      { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
     ],
   },
   {
