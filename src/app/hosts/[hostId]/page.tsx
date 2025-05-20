@@ -199,27 +199,29 @@ export default function HostStreamPage() {
     }
 
     if (!host || !host.kakoLiveRoomId) {
-      if (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length -1]?.message !== "Host ou RoomID não configurado para o chat.")) {
-        setChatMessages(prev => [
-          ...prev, 
-          {
-            id: generateUniqueId(), 
-            user: "Sistema", 
-            avatar: "", 
-            message: "Host ou RoomID não configurado para o chat.", 
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-      }
+       setChatMessages(prev => {
+        // Only add if not already present or if chat is empty
+        if (prev.length === 0 || (prev.length > 0 && prev[prev.length - 1]?.message !== "Host ou RoomID não configurado para o chat.")) {
+          return [
+            ...prev, 
+            {
+              id: generateUniqueId(), 
+              user: "Sistema", 
+              avatar: "", 
+              message: "Host ou RoomID não configurado para o chat.", 
+              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            }
+          ];
+        }
+        return prev;
+      });
       return;
     }
 
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
     
-    if (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[0]?.message !== `Conectando a ${wsUrl}...` && chatMessages[0]?.message !== "Conectado ao chat!")) {
-        setChatMessages(prev => [{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev.filter(m => m.message !== "Host ou RoomID não configurado para o chat.")]);
-    }
+    setChatMessages(prev => [{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev.filter(m => m.message !== "Host ou RoomID não configurado para o chat.")]);
 
 
     socketRef.current.onopen = () => {
@@ -231,13 +233,28 @@ export default function HostStreamPage() {
       let messageContentString = "";
       if (event.data instanceof Blob) {
         try {
-          messageContentString = await event.data.text();
+          const text = await event.data.text();
+          // Clean leading non-JSON characters
+          const firstBraceIndex = text.indexOf('{');
+          const lastBraceIndex = text.lastIndexOf('}');
+          if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+            messageContentString = text.substring(firstBraceIndex, lastBraceIndex + 1);
+          } else if (text.trim() !== "") { // If no JSON structure, use raw text if not empty
+            messageContentString = text;
+          }
         } catch (e) {
           console.error("Erro ao ler Blob do WebSocket:", e);
           messageContentString = "[Erro ao ler Blob]";
         }
       } else if (typeof event.data === 'string') {
-        messageContentString = event.data;
+         // Clean leading non-JSON characters from string data as well
+        const firstBraceIndex = event.data.indexOf('{');
+        const lastBraceIndex = event.data.lastIndexOf('}');
+        if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+            messageContentString = event.data.substring(firstBraceIndex, lastBraceIndex + 1);
+        } else if (event.data.trim() !== "") { // If no JSON structure, use raw text if not empty
+            messageContentString = event.data;
+        }
       } else {
         console.warn("Tipo de mensagem WebSocket desconhecido:", event.data);
         try {
@@ -258,7 +275,7 @@ export default function HostStreamPage() {
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         }]);
       } else {
-        console.log("Mensagem processada vazia ou nula, não adicionada ao chat:", processedMessage, "Original data:", event.data);
+        console.log("Mensagem processada vazia ou nula, não adicionada ao chat:", processedMessage, "Original data:", event.data, "Cleaned string:", messageContentString);
       }
     };
 
@@ -287,7 +304,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId, chatMessages]); // Added chatMessages to dependency to avoid stale closures in message setting
+  }, [host?.id, host?.kakoLiveRoomId]); // REMOVED chatMessages from dependencies
 
   // Effect to setup scroll listener and initial scroll
   useEffect(() => {
@@ -589,3 +606,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
