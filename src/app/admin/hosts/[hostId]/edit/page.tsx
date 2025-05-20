@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Control, FieldValues } from "react-hook-form"; // Added for Controller
 import { useRouter, useParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form"; // Added Controller
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
-import { countries } from "@/lib/countries"; // Assuming you have this
+import { countries } from "@/lib/countries";
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -39,7 +40,7 @@ const editHostSchema = z.object({
   kakoLiveId: z.string().optional(),
   phoneNumber: z.string().optional(),
   hostStatus: z.enum(["approved", "pending_review", "banned"]),
-  adminLevel: z.enum(["master", "admin", "suporte", ""]).nullable().optional(), // "" for 'Nenhum'
+  adminLevel: z.enum(["master", "admin", "suporte", ""]).nullable().optional(),
   bio: z.string().max(160, "Bio não pode exceder 160 caracteres.").optional(),
 });
 
@@ -106,11 +107,11 @@ export default function EditHostPage() {
       const hostDocRef = doc(db, "users", hostId);
       const updateData: Partial<UserProfile> = {
         profileName: data.profileName,
-        displayName: data.profileName, // Keep displayName in sync with profileName
+        displayName: data.profileName,
         kakoLiveId: data.kakoLiveId,
-        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""), // Store unformatted number
+        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""),
         hostStatus: data.hostStatus,
-        adminLevel: data.adminLevel === "" ? null : data.adminLevel, // Treat empty string as null
+        adminLevel: data.adminLevel === "" ? null : data.adminLevel,
         bio: data.bio,
         updatedAt: serverTimestamp(),
       };
@@ -147,7 +148,7 @@ export default function EditHostPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Editar Host: {hostData.profileName || hostData.displayName}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Edit Profile</h1>
         <Button variant="outline" asChild>
           <Link href="/admin/hosts">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -162,6 +163,7 @@ export default function EditHostPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Row 1: Profile Name, Kako ID, Email */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <Label htmlFor="profileName">Nome do Perfil</Label>
@@ -178,14 +180,15 @@ export default function EditHostPage() {
               </div>
             </div>
 
+            {/* Row 2: Phone Number, Country */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="phoneNumber">Número de WhatsApp</Label>
-                <Input 
-                  id="phoneNumber" 
-                  {...form.register("phoneNumber")} 
+                <Input
+                  id="phoneNumber"
+                  {...form.register("phoneNumber")}
                   onChange={(e) => form.setValue("phoneNumber", formatPhoneNumberForDisplay(e.target.value))}
-                  className="mt-1" 
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -193,15 +196,16 @@ export default function EditHostPage() {
                 <Input id="country" value={hostData.country || "N/A"} readOnly disabled className="mt-1 bg-muted/50" />
               </div>
             </div>
-
+            
+            {/* Row 3: Host Status, Admin Level */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div>
+              <div>
                 <Label htmlFor="hostStatus">Status do Host</Label>
                 <Controller
-                  control={form.control}
+                  control={form.control as unknown as Control<FieldValues>}
                   name="hostStatus"
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || "pending_review"}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Selecione um status" />
                       </SelectTrigger>
@@ -217,11 +221,11 @@ export default function EditHostPage() {
               <div>
                 <Label htmlFor="adminLevel">Nível Admin</Label>
                  <Controller
-                  control={form.control}
+                  control={form.control as unknown as Control<FieldValues>}
                   name="adminLevel"
                   render={({ field }) => (
-                    <Select 
-                        onValueChange={(value) => field.onChange(value === "" ? null : value as UserProfile['adminLevel'])} 
+                    <Select
+                        onValueChange={(value) => field.onChange(value === "" ? null : value as UserProfile['adminLevel'])}
                         value={field.value === null ? "" : field.value || ""}
                     >
                       <SelectTrigger className="mt-1">
@@ -238,7 +242,8 @@ export default function EditHostPage() {
                 />
               </div>
             </div>
-            
+
+            {/* About Me / Bio */}
             <div>
               <Label htmlFor="bio">Bio (Sobre Mim)</Label>
               <Textarea id="bio" {...form.register("bio")} className="mt-1" rows={4} />
@@ -251,7 +256,7 @@ export default function EditHostPage() {
               </Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                Salvar Alterações
+                Update Profile
               </Button>
             </CardFooter>
           </form>
@@ -260,5 +265,3 @@ export default function EditHostPage() {
     </div>
   );
 }
-
-    
