@@ -5,7 +5,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import { auth, db, doc, getDoc, setDoc, serverTimestamp } from "@/lib/firebase";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+// Removed LoadingSpinner import as it's handled by AppContentWrapper now
 import type { UserProfile } from "@/types";
 
 interface AuthContextType {
@@ -27,24 +27,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
-          const firestoreData = userDocSnap.data() as UserProfile; // Assume UserProfile structure
+          const firestoreData = userDocSnap.data() as UserProfile;
           setCurrentUser({
-            // Explicitly map Firebase Auth properties and then Firestore data
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            displayName: firestoreData.profileName || firebaseUser.displayName, // Prioritize Firestore profileName
-            photoURL: firebaseUser.photoURL, // Use Firebase Auth photoURL as base
-            ...firestoreData, // Spread the rest from Firestore, potentially overwriting displayName/photoURL if they exist there
-            role: firestoreData.role || 'player', // Ensure role has a default
+            displayName: firestoreData.profileName || firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            ...firestoreData,
+            role: firestoreData.role || 'player',
           });
         } else {
-          // User exists in Auth, but not in Firestore. Create a basic profile.
-          // This can happen if Firestore doc creation failed during signup or for legacy users.
           const newProfile: UserProfile = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
-            profileName: firebaseUser.displayName || "", // Initialize profileName
+            profileName: firebaseUser.displayName || "",
             photoURL: firebaseUser.photoURL,
             role: 'player',
             isVerified: false,
@@ -65,13 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCurrentUser(newProfile);
           } catch (error) {
             console.error("Error creating Firestore document for new user:", error);
-            // Fallback to a more basic profile if Firestore write fails
             setCurrentUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
-              role: 'player', // Minimal fallback
+              role: 'player',
             });
           }
         }
@@ -85,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await firebaseSignOut(auth);
-    setCurrentUser(null); // Clear the UserProfile object
+    setCurrentUser(null);
   };
 
   const value = {
@@ -94,13 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
+  // AuthProvider now always renders its children wrapped in the context provider.
+  // The loading spinner logic is moved to AppContentWrapper.
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
