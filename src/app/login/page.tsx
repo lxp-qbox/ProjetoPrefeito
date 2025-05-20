@@ -4,7 +4,7 @@
 import LoginForm from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { LogIn } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -51,6 +51,7 @@ export default function LoginPage() {
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
       <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+        {/* Back button was removed as per user request */}
         <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
@@ -63,7 +64,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
@@ -78,5 +79,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
