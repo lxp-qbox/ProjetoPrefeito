@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { XCircle, ExternalLink, ArrowLeft, Smartphone } from "lucide-react";
+import { XCircle, Smartphone, ArrowLeft } from "lucide-react"; // Changed ExternalLink to Smartphone
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<string | null>(null); 
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -62,6 +62,7 @@ export default function KakoCreationChoicePage() {
 
   const handleProceedToIdInput = () => {
     if (isLoading) return;
+    // This function is now tied to the second card click
     router.push("/onboarding/kako-id-input");
   };
 
@@ -114,26 +115,28 @@ export default function KakoCreationChoicePage() {
             )}
           </Card>
 
-          <div className="text-center space-y-3 pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              Para criar sua conta Kako Live, acesse o site oficial:
-            </p>
-            <Button variant="link" asChild className="text-lg">
-              <a href="https://www.kako.live/index.html" target="_blank" rel="noopener noreferrer">
-                Acessar Kako Live <ExternalLink className="ml-2 h-5 w-5" />
-              </a>
-            </Button>
-            <Button 
-              onClick={handleProceedToIdInput} 
-              className="w-full mt-4" 
-              disabled={isLoading}
-            >
-              {isLoading && loadingAction === 'proceedToIdInput' ? (
-                 <LoadingSpinner size="sm" className="mr-2" />
-              ) : null}
-              Já baixei e criei minha conta
-            </Button>
-          </div>
+          <Card
+            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
+            onClick={!isLoading ? handleProceedToIdInput : undefined}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleProceedToIdInput()}
+            aria-disabled={isLoading && loadingAction === 'proceedToIdInput'}
+          >
+            <div className="p-3 bg-primary/10 rounded-full mb-3">
+              <Smartphone className="h-8 w-8 text-primary" />
+            </div>
+             {isLoading && loadingAction === 'proceedToIdInput' ? (
+              <LoadingSpinner size="md" className="my-3" />
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-1">Vou criar uma conta no app Kako Live</h3>
+                <p className="text-sm text-muted-foreground">
+                    Recomendamos criar sua conta no app Kako Live primeiro. Depois, volte aqui e informe seu ID para finalizar.
+                </p>
+              </>
+            )}
+          </Card>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
