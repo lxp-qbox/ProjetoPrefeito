@@ -10,11 +10,11 @@ import {
   FormControl,
   FormField,
   FormItem,
-  // FormLabel, // Label removed as per previous request
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label"; // Added Label import
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, GoogleAuthProvider } from "@/lib/firebase";
@@ -117,7 +117,6 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel className="flex items-center">Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -133,7 +132,6 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel className="flex items-center">Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -163,17 +161,18 @@ export default function LoginForm() {
             control={form.control}
             name="rememberMe"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
+                    id="rememberMeLogin" // Added id for label
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
-                <div className="leading-none">
-                   {/* <FormLabel className="font-normal"> */}
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="rememberMeLogin" className="font-normal cursor-pointer text-sm text-muted-foreground">
                     Lembrar de mim
-                   {/* </FormLabel> */}
+                  </Label>
                 </div>
               </FormItem>
             )}
@@ -200,7 +199,7 @@ export default function LoginForm() {
         <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
           {googleLoading ? "Entrando com Google..." : (
             <>
-              <GoogleIcon className="mr-2 h-6 w-6" /> {/* Changed size to h-6 w-6 */}
+              <GoogleIcon className="mr-2 h-6 w-6" />
               Entrar com Google
             </>
           )}
@@ -209,4 +208,3 @@ export default function LoginForm() {
     </Form>
   );
 }
-

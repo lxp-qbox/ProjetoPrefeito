@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { Separator } from "@/components/ui/separator"; // Added Separator import
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
@@ -44,12 +45,13 @@ export default function LoginPage() {
             <ArrowLeft className="h-6 w-6" />
           </Link>
         </div>
-        <CardHeader className="text-center pt-12"> {/* Added padding-top to make space for back arrow */}
+        <CardHeader className="text-center pt-12">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold">Entrar</CardTitle>
           <CardDescription>Acesse sua conta para continuar.</CardDescription>
+          <Separator className="my-4" /> {/* Added Separator */}
         </CardHeader>
         <CardContent className="flex-grow overflow-y-auto">
           <LoginForm />
