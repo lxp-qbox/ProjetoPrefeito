@@ -86,14 +86,6 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!selectedCountry) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, selecione seu país.",
-        variant: "destructive",
-      });
-      return;
-    }
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -106,6 +98,14 @@ export default function AgeVerificationPage() {
       toast({
         title: "Atenção",
         description: "Por favor, selecione sua data de nascimento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!selectedCountry) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione seu país.",
         variant: "destructive",
       });
       return;
@@ -130,9 +130,9 @@ export default function AgeVerificationPage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
-        country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
+        country: selectedCountry,
         phoneNumber: phoneNumber.trim(),
         updatedAt: serverTimestamp(),
       };
@@ -167,7 +167,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
       <Button
         asChild
         variant="ghost"
@@ -186,7 +186,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu sexo, data de nascimento,<br />país e celular.
+          Para prosseguir, preenche<br />as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
