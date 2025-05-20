@@ -15,20 +15,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Fingerprint, Search, CheckCircle } from "lucide-react";
+import { ArrowLeft, Fingerprint, Search, CheckCircle, UserCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const DEFAULT_AVATAR_PLACEHOLDER = "https://placehold.co/96x96.png?text=?"; // Generic placeholder
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSearching, setIsSearching] = useState(false); 
+  const [isSearching, setIsSearching] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(DEFAULT_AVATAR_PLACEHOLDER);
+  const [profileName, setProfileName] = useState<string | null>(null);
+  const [profileFound, setProfileFound] = useState(false);
+
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -43,14 +49,39 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    
+    setProfileImageUrl(DEFAULT_AVATAR_PLACEHOLDER); // Reset to default placeholder
+    setProfileName(null);
+    setProfileFound(false);
+
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Simulated "found" logic
+    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") { // Example ID for "PRESIDENTE"
+      setProfileImageUrl("https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200");
+      setProfileName("PRESIDENTE");
+      setProfileFound(true);
+      toast({
+        title: "Perfil Encontrado!",
+        description: `ID ${kakoId} verificado para PRESIDENTE.`,
+      });
+    } else if (kakoId.trim() === "123456") { // Another example
+        setProfileImageUrl("https://placehold.co/96x96.png?text=JG");
+        setProfileName("João Gamer");
+        setProfileFound(true);
+        toast({
+            title: "Perfil Encontrado!",
+            description: `ID ${kakoId} verificado para João Gamer.`,
+        });
+    } else {
+      setProfileFound(false);
+      toast({
+        title: "Perfil Não Encontrado",
+        description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
+        variant: "destructive",
+      });
+    }
     setIsSearching(false);
-    toast({
-      title: "Perfil Encontrado (Simulado)",
-      description: `ID ${kakoId} verificado (simulação).`,
-    });
   };
 
   const handleContinue = async () => {
@@ -77,6 +108,8 @@ export default function KakoIdInputPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: kakoId.trim(),
+        profileName: profileFound && profileName ? profileName : currentUser.profileName, // Update profileName if found
+        photoURL: profileFound && profileImageUrl !== DEFAULT_AVATAR_PLACEHOLDER ? profileImageUrl : currentUser.photoURL, // Update photoURL if found & not default
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
@@ -99,8 +132,6 @@ export default function KakoIdInputPage() {
 
   const determineBackLink = () => {
     if (!currentUser) return "/onboarding/kako-account-check"; // Fallback
-    // For hosts, they come directly from age-verification.
-    // For players, they come from kako-account-check.
     return currentUser.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
@@ -119,7 +150,7 @@ export default function KakoIdInputPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
@@ -132,6 +163,20 @@ export default function KakoIdInputPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-6">
+          <div className="flex flex-col items-center space-y-3 mb-6">
+            <Avatar className="h-24 w-24 border-2 border-primary/30">
+              <AvatarImage src={profileImageUrl || undefined} alt={profileName || "Avatar do perfil"} />
+              <AvatarFallback>
+                {profileName ? (
+                  profileName.substring(0, 2).toUpperCase()
+                ) : (
+                  <UserCircle2 className="h-12 w-12 text-muted-foreground" />
+                )}
+              </AvatarFallback>
+            </Avatar>
+            {profileName && <p className="font-semibold text-primary">{profileName}</p>}
+          </div>
+
           <div>
             <Label htmlFor="kakoId" className="text-sm font-medium mb-2 block text-left">
               ID do Kako Live
@@ -141,12 +186,17 @@ export default function KakoIdInputPage() {
                 id="kakoId"
                 placeholder="Ex: 12345678"
                 value={kakoId}
-                onChange={(e) => setKakoId(e.target.value)}
+                onChange={(e) => {
+                    setKakoId(e.target.value);
+                    setProfileFound(false); // Reset found status if ID changes
+                    setProfileImageUrl(DEFAULT_AVATAR_PLACEHOLDER);
+                    setProfileName(null);
+                }}
                 className="flex-grow"
               />
-              <Button 
-                variant="outline" 
-                onClick={handleSearchProfile} 
+              <Button
+                variant="outline"
+                onClick={handleSearchProfile}
                 disabled={isSearching || !kakoId.trim()}
                 className="shrink-0"
               >
