@@ -12,9 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle, ArrowLeft } from "lucide-react";
+import { FileText, CheckCircle } from "lucide-react"; // Removido ArrowLeft
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Link from "next/link";
+// Removido Link pois o botão voltar foi removido
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
@@ -49,7 +49,7 @@ Nossa Política de Privacidade rege o uso de informações pessoais que coletamo
 Este é um texto de placeholder. Em uma aplicação real, este seria substituído pelos termos de uso e política de privacidade completos.
 É crucial que você leia e entenda nossos termos completos antes de prosseguir.
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
-  `.trim().repeat(3); // Repeat for scrollability
+  `.trim().repeat(3);
 
   const handleContinue = async () => {
     if (!currentUser) {
@@ -81,19 +81,8 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
-       <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar para Login"
-        >
-            <Link href="/login">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
-        </Button>
-      <CardHeader className="text-center pt-10 pb-4">
+      {/* Botão Voltar Removido */}
+      <CardHeader className="text-center pt-10 pb-4"> {/* pt-10 mantido para consistência visual, mesmo sem botão */}
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <FileText className="h-8 w-8 text-primary" />
         </div>
@@ -112,7 +101,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6">
+      <CardFooter className="p-6 pt-0"> {/* Removido border-t para tirar a linha */}
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
