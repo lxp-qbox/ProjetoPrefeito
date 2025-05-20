@@ -39,7 +39,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -269,11 +269,9 @@ export default function AgeVerificationPage() {
             </Alert>
           )}
         </div>
-      </CardContent>
-      <CardFooter className="p-6 pt-2 flex-col gap-4">
-        <Button
+         <Button
           onClick={handleContinue}
-          className="w-full"
+          className="w-full mt-auto"
           disabled={!selectedCountry || !selectedGender || !selectedDate || isLoading}
         >
           {isLoading ? (
@@ -283,6 +281,8 @@ export default function AgeVerificationPage() {
           )}
           Continuar
         </Button>
+      </CardContent>
+      <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </Card>

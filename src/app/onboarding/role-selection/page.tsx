@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import type { UserProfile } from "@/types";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -140,7 +140,7 @@ export default function RoleSelectionPage() {
           </Card>
         </div>
       </CardContent>
-       <CardFooter className="p-4 border-t">
+       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
     </Card>

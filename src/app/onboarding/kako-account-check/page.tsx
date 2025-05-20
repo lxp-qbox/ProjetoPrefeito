@@ -1,9 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,18 +12,13 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  const { currentUser } = useAuth(); // Not used directly for saving, but good for context/checks if needed
-  const { toast } = useToast(); // Not used in current logic, but available
 
   const handleHasAccount = () => {
     router.push("/onboarding/kako-id-input"); 
@@ -94,7 +87,7 @@ export default function KakoAccountCheckPage() {
           </Card>
         </div>
       </CardContent>
-       <CardFooter className="p-4 border-t">
+       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </Card>

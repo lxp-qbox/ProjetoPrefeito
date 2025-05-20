@@ -21,7 +21,7 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -97,10 +97,9 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
-    if (currentUser?.role === 'host') {
-      return "/onboarding/age-verification";
-    }
-    return "/onboarding/kako-account-check";
+    // If user is a host, they came from age-verification.
+    // If user is a player, they came from kako-account-check.
+    return currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
   return (
@@ -156,11 +155,9 @@ export default function KakoIdInputPage() {
             </p>
           </div>
         </div>
-      </CardContent>
-      <CardFooter className="p-6 border-t mt-auto flex-col gap-4">
         <Button
           onClick={handleContinue}
-          className="w-full"
+          className="w-full mt-auto"
           disabled={isLoading || isSearching || !kakoId.trim()}
         >
           {isLoading ? (
@@ -170,6 +167,8 @@ export default function KakoIdInputPage() {
           )}
           Continuar e Finalizar
         </Button>
+      </CardContent>
+      <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </Card>
