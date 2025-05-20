@@ -110,15 +110,12 @@ export default function AgeVerificationPage() {
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
         updatedAt: serverTimestamp(),
-        // Note: hasCompletedOnboarding is NOT set to true here.
-        // It will be set at the end of the entire onboarding flow.
       });
       toast({
         title: "Informações Salvas",
         description: "Suas informações foram registradas com sucesso.",
       });
-      // For now, redirect to profile. In a full flow, this would go to the next onboarding step.
-      router.push("/profile");
+      router.push("/profile"); 
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
@@ -132,8 +129,8 @@ export default function AgeVerificationPage() {
     }
   };
   
-  const maxDate = new Date(); // Today
-  const minDate = subYears(new Date(), 100); // 100 years ago
+  const maxDate = new Date(); 
+  const minDate = subYears(new Date(), 100); 
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
@@ -143,7 +140,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu sexo e data de nascimento.
+          Para prosseguir, por favor, informe seu sexo <br /> e data de nascimento.
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
@@ -180,7 +177,7 @@ export default function AgeVerificationPage() {
                   id="birthdate-picker"
                   variant={"outline"}
                   className={cn(
-                    "w-full justify-start text-left font-normal h-12",
+                    "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0", // Added focus ring removal
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
