@@ -96,7 +96,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
           {/* Admin Navigation Sidebar */}
           <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-2 space-y-4"> {/* Changed p-1 to p-2 */}
+            <div className="p-4 space-y-4"> {/* Increased padding from p-2 to p-4 */}
               {adminMenuGroups.map((group, groupIndex) => (
                 <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
                   {group.groupTitle && (
@@ -104,7 +104,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       {group.groupTitle}
                     </h2>
                   )}
-                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Kept space-y-1 */}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
                        const isActive = pathname === item.link || (item.link === "/admin" && pathname.startsWith("/admin/hosts")) || (item.link === "/admin/hosts" && pathname === "/admin");
                        const isLogout = item.link === "#logout";
@@ -118,7 +118,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                           key={item.title}
                           variant="ghost"
                           className={cn(
-                            "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md", 
+                            "w-full justify-between text-left h-auto py-3 px-2.5 text-sm font-normal rounded-md", // Changed px-3 to px-2.5
                             isActive
                               ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                               : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm"
@@ -128,7 +128,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         >
                           {isLogout ? (
                              <div className="flex items-center w-full"> 
-                                <div className="flex items-center gap-3"> 
+                                <div className="flex items-center gap-2.5"> 
                                   <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
                                   {item.title}
                                 </div>
@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                               </div>
                           ) : (
                             <Link href={item.link} className="flex items-center w-full">
-                              <div className="flex items-center gap-3"> 
+                              <div className="flex items-center gap-2.5"> 
                                 <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
                                 {item.title}
                               </div>
