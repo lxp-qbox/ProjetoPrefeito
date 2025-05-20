@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Gamepad2, ArrowLeft, Star } from "lucide-react"; // Changed LogIn to Star
+import { Users, Gamepad2, ArrowLeft, Star } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -78,16 +78,16 @@ export default function RoleSelectionPage() {
         </Button>
       <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
-          <Star className="h-8 w-8 text-primary" /> {/* Changed LogIn to Star */}
+          <Star className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
         <CardDescription className="mt-2">
-          Para começar, escolha como você pretende utilizar sua conta:
+          Para começar,<br />escolha como você pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
       <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        <div className="grid grid-cols-1 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('host')}
