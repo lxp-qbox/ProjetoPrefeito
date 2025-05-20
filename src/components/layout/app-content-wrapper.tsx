@@ -23,31 +23,43 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   }
 
   return (
-    <SidebarProvider defaultOpen={false}> {/* Start collapsed */}
+    <SidebarProvider defaultOpen={false}> 
       <Sidebar collapsible="icon" className="border-r">
-        <SidebarHeader className="p-0"> {/* No padding for header */}
+        <SidebarHeader className="p-0"> 
           <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
         </SidebarHeader>
-        <SidebarContent className="flex flex-col flex-1 pt-2"> {/* Added pt-2 to content */}
+        <SidebarContent className="flex flex-col flex-1 pt-2"> 
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Início">
-                <Link href="/"><Home /> <span className="group-data-[collapsible=icon]:hidden">Início</span></Link>
+                <Link href="/">
+                  <Home className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
+                  <span className="transition-all delay-150 duration-500 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Início</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Hosts">
-                <Link href="/hosts"><Users /> <span className="group-data-[collapsible=icon]:hidden">Hosts</span></Link>
+                <Link href="/hosts">
+                  <Users className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
+                  <span className="transition-all delay-150 duration-500 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Hosts</span>
+                  </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Bingo">
-                <Link href="/bingo"><LayoutGrid /> <span className="group-data-[collapsible=icon]:hidden">Bingo</span></Link>
+                <Link href="/bingo">
+                  <LayoutGrid className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
+                  <span className="transition-all delay-150 duration-500 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Bingo</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Login">
-                <Link href="/login"><LogIn /> <span className="group-data-[collapsible=icon]:hidden">Login</span></Link>
+                <Link href="/login">
+                  <LogIn className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
+                  <span className="transition-all delay-150 duration-500 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Login</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -60,8 +72,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Mais">
                      <Link href="/more">
-                       <FileText /> 
-                       <span className="group-data-[collapsible=icon]:hidden">Mais</span>
+                       <FileText className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
+                       <span className="transition-all delay-150 duration-500 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Mais</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
