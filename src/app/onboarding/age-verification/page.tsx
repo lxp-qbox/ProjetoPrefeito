@@ -30,7 +30,6 @@ import { countries } from "@/lib/countries";
 import { CalendarDays, CheckCircle, ArrowLeft, AlertTriangle, Phone, UserCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -50,7 +49,6 @@ export default function AgeVerificationPage() {
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [rememberMe, setRememberMe] = useState<boolean>(false); // New state for "Lembrar de mim"
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -169,7 +167,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
       <Button
         asChild
         variant="ghost"
@@ -210,17 +208,6 @@ export default function AgeVerificationPage() {
                     className="pl-10 h-12"
                 />
             </div>
-          </div>
-
-          <div className="flex items-center space-x-2 pt-1">
-            <Checkbox
-              id="rememberMe"
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
-            />
-            <Label htmlFor="rememberMe" className="text-sm font-normal text-muted-foreground cursor-pointer">
-              Lembrar de mim
-            </Label>
           </div>
 
           <div>
@@ -332,5 +319,3 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
-
-    
