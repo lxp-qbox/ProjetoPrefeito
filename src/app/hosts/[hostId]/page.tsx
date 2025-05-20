@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import type { Host, ChatMessage } from '@/types';
-import { placeholderHosts } from '../page';
+import { placeholderHosts } from '../page'; // Import placeholderHosts
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,6 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from '@/hooks/use-auth';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-// Removed Firestore imports as upsertHostProfile is being removed
-// import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "@/lib/firebase";
 
 
 const generateUniqueId = () => {
@@ -31,8 +29,6 @@ type ParsedChatMessageType =
   | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string, anchorUserId?: string, anchorAvatarUrl?: string, anchorLevel?: number, extractedRoomId?: string, isCurrentlyLive: boolean }
   | null;
 
-
-// Removed upsertHostProfile function as per user request to stop pre-registering hosts
 
 function parseChatMessage(rawData: string): ParsedChatMessageType {
   let parsedJson: any;
@@ -65,7 +61,7 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
     userId = messageUser.userId;
     userLevel = messageUser.level;
-    if (messageUser.nickname) {
+    if (messageUser.nickname) { // Basic condition to show a medal
         userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
   }
@@ -73,11 +69,12 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   // System Room Status Update (online, likes, anchor info)
   if (parsedJson.anchor && typeof parsedJson.anchor === 'object' && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
     let isStreamCurrentlyLive = true;
+    // Check various conditions that might indicate the stream has ended
     if (parsedJson.anchor.hasOwnProperty('isLiving') && parsedJson.anchor.isLiving === false) {
       isStreamCurrentlyLive = false;
-    } else if (parsedJson.hasOwnProperty('status') && parsedJson.status !== 19 && parsedJson.status !== 1) {
+    } else if (parsedJson.hasOwnProperty('status') && parsedJson.status !== 19 && parsedJson.status !== 1) { // Assuming 19 and 1 mean "live"
       isStreamCurrentlyLive = false;
-    } else if (parsedJson.hasOwnProperty('stopReason') && parsedJson.stopReason !== 0) {
+    } else if (parsedJson.hasOwnProperty('stopReason') && parsedJson.stopReason !== 0) { // Assuming 0 means no stop reason / still live
       isStreamCurrentlyLive = false;
     }
 
@@ -103,7 +100,7 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   }
   // Game Event (baishun2 - now ignored for formatted chat display)
   else if (parsedJson.game && parsedJson.game.baishun2 && messageUser && messageUser.nickname) {
-    return null;
+    return null; // No longer format this as a chat message
   }
    // User Join Event (type 1, type2: 1 - specific structure, NO count field)
   else if (
@@ -207,6 +204,10 @@ export default function HostStreamPage() {
 
   useEffect(() => {
     if (isStreamEnded || !host?.id || !host.giftsReceived || host.giftsReceived.length === 0) {
+      if (socketRef.current && isStreamEnded && socketRef.current.readyState !== WebSocket.CLOSED) {
+        // No need to add chat message if stream ended, it's handled elsewhere
+        console.log("WebSocket: Connection will be closed by stream end logic.");
+      }
       return;
     }
     const intervalId = setInterval(() => {
@@ -214,6 +215,7 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
+        // Ensure we are not modifying state for a different host if navigation happened quickly
         if (host?.id && prevHost.id !== host.id) {
           return prevHost;
         }
@@ -228,7 +230,7 @@ export default function HostStreamPage() {
       });
     }, 5000);
     return () => clearInterval(intervalId);
-  }, [host?.id, host?.giftsReceived, isStreamEnded]);
+  }, [host?.id, host?.giftsReceived, isStreamEnded]); // Added host?.id and host?.giftsReceived
 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -245,7 +247,7 @@ export default function HostStreamPage() {
     if (atBottom) {
       setNewUnreadMessages(0);
     }
-  }, [SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]); // Added missing dependencies
+  }, [SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -253,17 +255,17 @@ export default function HostStreamPage() {
         scrollViewportRef.current = viewport;
         if (viewport) {
             viewport.addEventListener('scroll', handleScroll);
-            handleScroll();
+            handleScroll(); // Initial check
             return () => viewport.removeEventListener('scroll', handleScroll);
         }
     }
-  }, [host, handleScroll]); // Added host dependency
+  }, [host, handleScroll]); // Re-attach if host changes, though viewport might be stable
 
 
   useEffect(() => {
     const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
 
-    if (newMessagesCount > 0 && enableAutoScroll) {
+    if (newMessagesCount > 0 && enableAutoScroll) { // Only auto-scroll if enabled
       if (isAtBottom) {
         scrollToBottom('auto');
       } else {
@@ -271,12 +273,13 @@ export default function HostStreamPage() {
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]); // Added setNewUnreadMessages
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]);
 
 
   useEffect(() => {
-    if (host === undefined || isStreamEnded) {
-      if (isStreamEnded && socketRef.current) {
+    if (host === undefined || isStreamEnded) { // Added isStreamEnded check here
+      if (isStreamEnded && socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
         socketRef.current.close();
         socketRef.current = null;
         console.log("WebSocket: Connection closed because stream ended.");
@@ -285,9 +288,13 @@ export default function HostStreamPage() {
     }
 
     if (!host || !host.kakoLiveRoomId) {
-        // Removed adding system message to chat
         console.warn("Host ou RoomID não configurado para chat.");
         return;
+    }
+    if (socketRef.current) {
+      console.log("WebSocket: Attempting to close existing connection before opening new one.");
+      socketRef.current.close();
+      socketRef.current = null;
     }
 
     console.log(`WebSocket: Tentando conectar a wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`);
@@ -295,7 +302,6 @@ export default function HostStreamPage() {
 
     socketRef.current.onopen = () => {
       console.log("WebSocket: Conectado!");
-      // Removed adding system message to chat
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -326,9 +332,7 @@ export default function HostStreamPage() {
                 setOnlineViewers(processedResult.online);
                 setLiveLikes(processedResult.likes);
 
-                // Removed call to upsertHostProfile for anchor
-
-                if (processedResult.isCurrentlyLive === false) {
+                if (processedResult.isCurrentlyLive === false && !isStreamEnded) { // Prevent multiple "stream ended" messages
                   setIsStreamEnded(true);
                   setChatMessages(prev => [...prev, {
                       id: generateUniqueId(),
@@ -343,9 +347,7 @@ export default function HostStreamPage() {
                 }
             }
           } else if (processedResult.type === 'chat') {
-            const shouldDisplayFormatted = processedResult.extractedRoomId ? processedResult.extractedRoomId === host.kakoLiveRoomId : false; // Default to false if no roomId in message
-
-            // Removed call to upsertHostProfile for chat sender
+            const shouldDisplayFormatted = processedResult.extractedRoomId ? processedResult.extractedRoomId === host.kakoLiveRoomId : false;
 
             const potentialNewMessage: ChatMessage = {
               id: processedResult.id || generateUniqueId(),
@@ -362,22 +364,20 @@ export default function HostStreamPage() {
               if (potentialNewMessage.id && prev.some(msg => msg.id === potentialNewMessage.id && !potentialNewMessage.id.startsWith("client-temp-"))) {
                   return prev;
               }
+              const lastMessage = prev.length > 0 ? prev[prev.length -1] : null;
               if (potentialNewMessage.user === (currentUser?.profileName || 'Você') &&
-                  prev.length > 0 &&
-                  prev[prev.length - 1].user === potentialNewMessage.user &&
-                  prev[prev.length - 1].message === potentialNewMessage.message &&
-                  prev[prev.length - 1].displayFormatted &&
-                  prev[prev.length - 1].id.startsWith("client-temp-") // Only if the last one was an optimistic update
+                  lastMessage &&
+                  lastMessage.user === potentialNewMessage.user &&
+                  lastMessage.message === potentialNewMessage.message &&
+                  lastMessage.displayFormatted &&
+                  lastMessage.id.startsWith("client-temp-")
                 ) {
-                      // Potentially replace optimistic with server message if IDs match
-                      // For now, simple echo prevention by not adding if content is identical
                       return prev;
                   }
               return [...prev, potentialNewMessage];
             });
           }
         } else if (messageContentString?.trim() !== "") {
-          // Handle unparseable messages for raw data display
           setChatMessages(prev => [...prev, {
             id: generateUniqueId(),
             user: 'Sistema (Evento Ignorado)',
@@ -386,13 +386,13 @@ export default function HostStreamPage() {
             message: 'Conteúdo não processado para o chat.',
             timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             rawData: messageContentString,
-            displayFormatted: false, // Will only show if rawData is enabled
+            displayFormatted: false,
           }]);
         }
       } catch (e: any) {
-        console.error("WebSocket: Erro fatal ao processar mensagem:", e);
+        console.error("WebSocket: Erro fatal ao processar mensagem:", e, "Dados originais:", event.data);
         const errorMessage = e instanceof Error ? e.message : String(e);
-        const originalData = typeof event.data === 'string' ? event.data : '[Blob/Binary Data]';
+        const originalData = typeof event.data === 'string' ? event.data : (event.data instanceof Blob ? '[Blob Data]' : '[Binary Data]');
         setChatMessages(prev => [...prev, {
           id: generateUniqueId(),
           user: "Sistema",
@@ -421,7 +421,7 @@ export default function HostStreamPage() {
           userMedalUrl: undefined,
           message: errorMessage,
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          rawData: JSON.stringify(errorEvent),
+          rawData: JSON.stringify(errorEvent), // Ensure errorEvent is serializable
           displayFormatted: true,
         }]);
     };
@@ -455,7 +455,7 @@ export default function HostStreamPage() {
         console.log("WebSocket: Connection closed on component unmount or dependency change.");
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName, isStreamEnded]);
+  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName, isStreamEnded]); // Added isStreamEnded
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN && !isStreamEnded) {
@@ -463,7 +463,7 @@ export default function HostStreamPage() {
       socketRef.current.send(JSON.stringify(messageToSend));
 
       const optimisticMessage: ChatMessage = {
-        id: "client-temp-" + generateUniqueId(),
+        id: "client-temp-" + generateUniqueId(), // Ensure unique ID for optimistic updates
         user: currentUser?.profileName || 'Você',
         avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
         userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal
@@ -488,7 +488,7 @@ export default function HostStreamPage() {
           displayFormatted: true,
         }
       ]);
-    } else if (newMessage.trim()) {
+    } else if (newMessage.trim()) { // Not connected
         setChatMessages(prev => [
             ...prev,
             {
@@ -570,8 +570,8 @@ export default function HostStreamPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-0 sm:p-2 md:p-4">
-            <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground relative">
+            <CardContent className="p-0">
+            <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-[16/9] flex flex-col items-center justify-center text-muted-foreground relative">
               {isStreamEnded ? (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center p-4 z-10">
                   <WifiOff className="w-16 h-16 text-destructive mb-4" />
@@ -585,7 +585,7 @@ export default function HostStreamPage() {
                     height="100%"
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
-                    className="border-0 aspect-video"
+                    className="border-0"
                     title={`Transmissão de ${host.name}`}
                     data-ai-hint="live stream"
                   ></iframe>
@@ -704,7 +704,7 @@ export default function HostStreamPage() {
                                 scrollToBottom('smooth');
                                 setNewUnreadMessages(0);
                             } else if (!checked) {
-                                setNewUnreadMessages(0);
+                                setNewUnreadMessages(0); // Clear unread when disabling auto-scroll
                             }
                         }}
                         aria-label="Rolagem automática"
@@ -760,12 +760,12 @@ export default function HostStreamPage() {
                             try {
                               return JSON.stringify(JSON.parse(item.rawData), null, 2);
                             } catch (e) {
-                              return item.rawData;
+                              return item.rawData; // Show raw string if not valid JSON
                             }
                           })()}
                         </pre>
                       )}
-                      {!item.displayFormatted && !showRawData && null}
+                      {!item.displayFormatted && !showRawData && null} {/* Render nothing if not formatted and not showing raw */}
                     </div>
                   ))}
                 </div>
