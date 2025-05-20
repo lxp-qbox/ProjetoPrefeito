@@ -55,8 +55,9 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
+    // Assign medal if user level or fans level > 0, or if nickname exists (as a basic proxy)
     if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0) || messageUser.nickname) {
-      userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
+        userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
   }
   
@@ -226,19 +227,16 @@ export default function HostStreamPage() {
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-        // Query for the viewport element within the ScrollArea
         const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]') as HTMLDivElement;
-        scrollViewportRef.current = viewport; // Store it in the ref
+        scrollViewportRef.current = viewport; 
         if (viewport) {
             viewport.addEventListener('scroll', handleScroll);
-            // Call handleScroll initially to set the correct isAtBottom state
             handleScroll();
-            // Initial scroll to bottom once viewport is available
             scrollToBottom('auto'); 
             return () => viewport.removeEventListener('scroll', handleScroll);
         }
     }
-  }, [host, handleScroll, scrollToBottom]); // Re-run if host changes to ensure viewport is found for new content
+  }, [host, handleScroll, scrollToBottom]); 
 
   useEffect(() => {
     const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
@@ -251,20 +249,20 @@ export default function HostStreamPage() {
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]);
 
 
   useEffect(() => {
-    if (host === undefined) { // Still loading host data
+    if (host === undefined) { 
       return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
-       if (host !== undefined && host === null && !hostId) { // Navigated away or invalid hostId
+       if (host !== undefined && host === null && !hostId) { 
         // console.log("Host data is null, not connecting WebSocket.");
-      } else if (host) { // Host data loaded but no kakoLiveRoomId
+      } else if (host) { 
         console.warn("Host ou RoomID não configurado para WebSocket.");
+        // The line below was removed as per user request
         // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: "Host ou RoomID não configurado para chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: "Missing host.kakoLiveRoomId" }]);
       }
       return;
@@ -302,8 +300,8 @@ export default function HostStreamPage() {
 
         if (processedResult) {
           if (processedResult.type === 'chat' && processedResult.messageData?.trim() !== "") {
-            const potentialNewMessage = {
-              id: processedResult.id || generateUniqueId(), // Prioritize server ID
+            const potentialNewMessage: ChatMessage = {
+              id: processedResult.id || generateUniqueId(), 
               user: processedResult.userName,
               avatar: processedResult.userAvatar,
               userMedalUrl: processedResult.userMedalUrl,
@@ -313,18 +311,14 @@ export default function HostStreamPage() {
             };
 
             setChatMessages(prev => {
-              // 1. Prevent adding if message with same ID (server ID prioritised) already exists
               if (prev.some(msg => msg.id === potentialNewMessage.id)) {
                   return prev;
               }
-
-              // 2. Simple echo prevention for current user's messages
               if (potentialNewMessage.user === (currentUser?.profileName || 'Você')) {
                   const lastMessage = prev[prev.length - 1];
                   if (lastMessage &&
                       lastMessage.user === potentialNewMessage.user &&
                       lastMessage.message === potentialNewMessage.message) {
-                      // This is a basic echo check.
                       console.log("Skipping likely echo of user's own message:", potentialNewMessage.message);
                       return prev;
                   }
@@ -336,6 +330,18 @@ export default function HostStreamPage() {
             setOnlineViewers(processedResult.online);
             setLiveLikes(processedResult.likes);
           }
+        } else if (messageContentString?.trim() !== "") {
+          // Handle cases where parseChatMessage returns null but there's still content
+            setChatMessages(prev => [
+                ...prev,
+                {
+                  id: generateUniqueId(),
+                  user: 'Servidor (Dados)',
+                  message: messageContentString,
+                  timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                  rawData: messageContentString
+                }
+            ]);
         }
       } catch (e) {
         console.error("WebSocket: Erro fatal ao processar mensagem:", e);
@@ -379,22 +385,21 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName]); // Added currentUser?.profileName for echo check
+  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName]); 
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const messageToSend = { text: newMessage.trim() }; // Kako specific format might differ
+      const messageToSend = { text: newMessage.trim() }; 
       socketRef.current.send(JSON.stringify(messageToSend));
 
-      // Optimistic UI update
       const optimisticMessage = {
-        id: generateUniqueId(), // Temporary client-side ID
+        id: generateUniqueId(), 
         user: currentUser?.profileName || 'Você',
         avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
-        userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Placeholder medal
+        userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png',
         message: newMessage.trim(),
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        rawData: JSON.stringify({ ...messageToSend, sent: true }), // Store what was sent
+        rawData: JSON.stringify({ ...messageToSend, sent: true }), 
       };
       setChatMessages(prev => [...prev, optimisticMessage]);
       setNewMessage("");
@@ -597,10 +602,10 @@ export default function HostStreamPage() {
                         checked={enableAutoScroll}
                         onCheckedChange={(checked) => {
                             setEnableAutoScroll(checked);
-                            if (checked && !isAtBottom) { // If enabling and not at bottom, scroll
+                            if (checked && !isAtBottom) { 
                                 scrollToBottom('smooth');
-                                setNewUnreadMessages(0); // Clear unread count
-                            } else if (!checked) { // If disabling, clear unread count
+                                setNewUnreadMessages(0); 
+                            } else if (!checked) { 
                                 setNewUnreadMessages(0); 
                             }
                         }}
@@ -619,9 +624,9 @@ export default function HostStreamPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* Removed padding, added min-h-0 */}
+            <CardContent className="flex-grow p-0 min-h-0 relative"> 
               <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area">
-                <div className="p-4 space-y-4"> {/* Padding applied to inner div */}
+                <div className="p-4 space-y-4"> 
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3 pb-2 border-b last:border-b-0">
                       <Avatar className="h-8 w-8 border">
@@ -650,10 +655,8 @@ export default function HostStreamPage() {
                           <pre className="mt-1 text-xs bg-muted/40 p-2 rounded-md overflow-x-auto border border-border">
                             {(() => {
                               try {
-                                // Attempt to parse and pretty-print if it's JSON
                                 return JSON.stringify(JSON.parse(item.rawData), null, 2);
                               } catch (e) {
-                                // Otherwise, show the raw string
                                 return item.rawData;
                               }
                             })()}
@@ -703,3 +706,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
