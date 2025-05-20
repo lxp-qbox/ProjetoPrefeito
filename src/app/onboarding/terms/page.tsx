@@ -87,14 +87,14 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         <CardDescription>Por favor, leia e aceite nossos termos para continuar.</CardDescription>
       </CardHeader>
       <Separator className="mb-4" />
-      <CardContent className="flex-grow px-6 py-0 flex flex-col"> {/* Ensure CardContent is flex-col if ScrollArea is not h-full */}
-        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30 h-[300px]"> {/* Changed h-full to h-[300px] */}
+      <CardContent className="flex-grow px-6 py-0 flex flex-col">
+        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30 h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex items-center space-x-2 mt-4 mb-2"> {/* Added margin for spacing */}
+        <div className="flex items-center space-x-2 mt-4 mb-2">
           <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
           <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
-            Li e concordo com os Termos de Uso e Política de Privacidade.
+            Li e estou de acordo
           </Label>
         </div>
       </CardContent>
