@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarIcon as LucideCalendarIcon, Save, Briefcase } from "lucide-react"; // Removed BadgeCent as it's not used
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarIcon as LucideCalendarIcon, Save, Briefcase, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
+import { countries } from "@/lib/countries"; // Import countries list
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -26,7 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO, subYears } from "date-fns";
+import { format, parseISO, subYears, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -37,44 +38,39 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [editableCountry, setEditableCountry] = useState<string | undefined>(undefined);
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [editableBirthDate, setEditableBirthDate] = useState<Date | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
+      setEditableCountry(currentUser.country || undefined);
       setEditableGender(currentUser.gender || 'preferNotToSay');
       if (currentUser.birthDate) {
         try {
-            // Attempt to parse date string that might be YYYY-MM-DD
-            const parsedDate = parseISO(currentUser.birthDate);
-            // Check if parsedDate is a valid date
-            if (!isNaN(parsedDate.getTime())) {
+            const dateParts = currentUser.birthDate.split('-');
+            let parsedDate: Date | null = null;
+
+            if (dateParts.length === 3) { // YYYY-MM-DD
+                const year = parseInt(dateParts[0], 10);
+                const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+                const day = parseInt(dateParts[2], 10);
+                parsedDate = new Date(year, month, day);
+            } else {
+                // Attempt direct parsing for other potential ISO formats
+                parsedDate = parseISO(currentUser.birthDate);
+            }
+            
+            if (parsedDate && isValid(parsedDate)) {
                  setEditableBirthDate(parsedDate);
             } else {
-                // Handle cases where birthDate might not be in a directly parseable ISO format
-                // e.g. DD/MM/YYYY or other non-ISO formats.
-                // This part might need more robust parsing if your stored dates are varied.
-                // For now, we attempt a simple split assuming YYYY-MM-DD if parseISO fails.
-                console.warn("Could not parse birthDate from currentUser with parseISO:", currentUser.birthDate);
-                const dateParts = currentUser.birthDate.split('-');
-                if (dateParts.length === 3) { // Attempt YYYY-MM-DD
-                    const year = parseInt(dateParts[0], 10);
-                    const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
-                    const day = parseInt(dateParts[2], 10);
-                    const tempDate = new Date(year, month, day);
-                    if (!isNaN(tempDate.getTime())) {
-                         setEditableBirthDate(tempDate);
-                    } else {
-                        setEditableBirthDate(undefined); // Fallback if still invalid
-                    }
-                } else {
-                     setEditableBirthDate(undefined); // Fallback if not YYYY-MM-DD
-                }
+                console.warn("Could not parse birthDate from currentUser:", currentUser.birthDate);
+                setEditableBirthDate(undefined);
             }
         } catch (error) {
             console.error("Error parsing birthDate from currentUser:", error);
-            setEditableBirthDate(undefined); // Set to undefined or some default if parsing fails
+            setEditableBirthDate(undefined);
         }
       } else {
         setEditableBirthDate(undefined);
@@ -102,20 +98,15 @@ export default function ProfilePage() {
       updatedAt: serverTimestamp(),
     };
 
-    if (editableGender) {
-      dataToUpdate.gender = editableGender;
-    }
-    if (editableBirthDate) {
-      dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
-    }
+    if (editableCountry) dataToUpdate.country = editableCountry;
+    if (editableGender) dataToUpdate.gender = editableGender;
+    if (editableBirthDate) dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
+    
 
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, dataToUpdate);
       toast({ title: "Perfil Atualizado", description: "Suas informações foram salvas." });
-      // To see changes reflected in currentUser object from useAuth,
-      // context needs a way to re-fetch or update its internal currentUser state.
-      // For now, the form fields reflect the saved state.
     } catch (error) {
       console.error("Erro ao salvar perfil:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar suas informações.", variant: "destructive" });
@@ -188,13 +179,32 @@ export default function ProfilePage() {
                     </div>
                 </div>
                 
-                <div className="space-y-1 pt-2"> {/* Added Sexo (Gender) field here */}
-                  <Label htmlFor="gender-select" className="text-sm font-medium">Sexo</Label>
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
+                  <Select
+                    value={editableCountry}
+                    onValueChange={(value) => setEditableCountry(value)}
+                  >
+                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                      <SelectValue placeholder="Selecione seu país" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country.code} value={country.name}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
                   <Select
                     value={editableGender}
                     onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
                   >
-                    <SelectTrigger id="gender-select" className="w-full">
+                    <SelectTrigger id="gender-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                       <SelectValue placeholder="Selecione seu sexo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -206,17 +216,17 @@ export default function ProfilePage() {
                   </Select>
                 </div>
 
-                <div className="space-y-1 pt-2"> {/* Added Data de Nascimento (Date of Birth) field here */}
-                  <Label htmlFor="birthdate-picker" className="text-sm font-medium">
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">
                     Data de Nascimento
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        id="birthdate-picker"
+                        id="birthdate-picker-profile"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal h-10",
+                          "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
                           !editableBirthDate && "text-muted-foreground"
                         )}
                       >

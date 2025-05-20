@@ -79,6 +79,7 @@ export interface UserProfile {
   photos?: string[];         // a opcao de adicionar mais fotos no perfil
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay'; // sexo
   birthDate?: string;        // data de nascimento (e.g., YYYY-MM-DD)
+  country?: string;          // País do usuário
   civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // status civil
   socialLinks?: {            // link de rede social
     twitter?: string;
@@ -108,4 +109,3 @@ export interface ChatMessage {
   userId?: string; // User ID of the message sender
   userLevel?: number; // Level of the message sender
 }
-
