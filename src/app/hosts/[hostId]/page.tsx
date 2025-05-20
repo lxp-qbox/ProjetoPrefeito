@@ -61,14 +61,19 @@ export default function HostStreamPage() {
         if (!prevHost?.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
+        // Ensure prevHost is not null before spreading
+        if (!prevHost) return prevHost;
+        
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
         const randomIndex = Math.floor(Math.random() * updatedGifts.length);
-        updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + Math.floor(Math.random() * 3) + 1;
+        if (updatedGifts[randomIndex]) { // Check if gift exists at index
+            updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + Math.floor(Math.random() * 3) + 1;
+        }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
     }, 5000);
     return () => clearInterval(intervalId);
-  }, [host?.giftsReceived]);
+  }, [host]);
 
 
   // Effect for WebSocket chat
@@ -85,34 +90,70 @@ export default function HostStreamPage() {
       setChatMessages(prev => [...prev, {id: String(Date.now()), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
-    socketRef.current.onmessage = (event) => {
+    socketRef.current.onmessage = async (event) => { // Made async
       console.log("Mensagem recebida do WebSocket:", event.data);
-      let messageData = "Nova mensagem: " + event.data;
+      let messageData = "";
       let userName = "Servidor";
-      try {
-        const parsed = JSON.parse(event.data as string);
-        // Attempt to find relevant fields, this is highly speculative
-        if (parsed.user && parsed.message) {
-          userName = parsed.user.nickname || parsed.user.name || "Usuário";
-          messageData = parsed.message;
-        } else if (parsed.content) {
-            messageData = parsed.content;
-        } else if (typeof parsed === 'string') {
-            messageData = parsed;
+      let userAvatar = `https://placehold.co/32x32.png?text=S`;
+
+      if (event.data instanceof Blob) {
+        try {
+          const blobText = await event.data.text();
+          messageData = blobText; // Default to blob text
+          // Attempt to parse blob text as JSON
+          try {
+            const parsedBlobJson = JSON.parse(blobText);
+            if (parsedBlobJson.user && parsedBlobJson.message) {
+              userName = parsedBlobJson.user.nickname || parsedBlobJson.user.name || "Usuário";
+              messageData = parsedBlobJson.message;
+              userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+            } else if (parsedBlobJson.content) {
+                messageData = parsedBlobJson.content;
+            } else {
+                 // If JSON but not expected structure, use raw text
+                console.log("Blob text was JSON, but not expected structure. Using raw text:", messageData);
+            }
+          } catch (e) {
+            // Blob text was not JSON, use it as raw messageData
+            console.log("Blob text was not JSON, using raw text:", messageData);
+          }
+        } catch (e) {
+          console.error("Erro ao ler Blob do WebSocket:", e);
+          messageData = "[Erro ao ler Blob]";
         }
-      } catch (e) {
-        // Data is not JSON or not in expected format, treat as raw
-        if (typeof event.data === 'string') {
-            messageData = event.data;
+      } else if (typeof event.data === 'string') {
+        // Handle string data (try to parse as JSON first)
+        try {
+          const parsedJson = JSON.parse(event.data);
+          if (parsedJson.user && parsedJson.message) {
+            userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
+            messageData = parsedJson.message;
+            userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+          } else if (parsedJson.content) {
+            messageData = parsedJson.content;
+          } else {
+            // JSON, but not the expected user/message structure
+            messageData = event.data; // Show raw JSON string
+          }
+        } catch (e) {
+          // Not JSON, treat as raw string
+          messageData = event.data;
         }
+      } else {
+        // Other data types?
+        console.warn("Tipo de mensagem WebSocket desconhecido:", event.data);
+        messageData = "[Tipo de mensagem desconhecido]";
       }
-      setChatMessages(prev => [...prev, {
-        id: String(Date.now()), 
-        user: userName, 
-        avatar: `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'S'}`, 
-        message: messageData, 
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      }]);
+      
+      if (messageData) { // Only add if messageData is not empty
+        setChatMessages(prev => [...prev, {
+          id: String(Date.now()), 
+          user: userName, 
+          avatar: userAvatar, 
+          message: messageData, 
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
     };
 
     socketRef.current.onerror = (error) => {
@@ -242,7 +283,7 @@ export default function HostStreamPage() {
               <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
                 <video
                   playsInline
-                  webkit-playsinline="" // For older Safari, typically true is not needed as value
+                  webkit-playsinline="" 
                   x5-playsinline="true"
                   x5-video-player-type="h5"
                   x-webkit-airplay="allow"
@@ -251,11 +292,8 @@ export default function HostStreamPage() {
                   poster="https://placehold.co/1280x720.png?text=Player+de+V%C3%ADdeo"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   className="w-full h-full"
+                  data-ai-hint="live stream"
                 >
-                  {/* 
-                    A valid video source URL (e.g., .mp4, .webm, HLS .m3u8, DASH .mpd) is required here.
-                    WebSocket URLs (wss://...) are not direct video sources for this player.
-                  */}
                 </video>
               </div>
               <div className="mt-3 p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
@@ -264,7 +302,7 @@ export default function HostStreamPage() {
                   <p className="font-semibold">Player de Vídeo Genérico Ativado</p>
                   <p>
                     Para reproduzir o conteúdo, este player requer uma URL de stream de vídeo direta (ex: .mp4, HLS .m3u8). 
-                    A URL WebSocket (`wss://...`) fornecida para o chat não é uma fonte de vídeo compatível para este player. A funcionalidade de transmissão ao vivo do Kako Live não funcionará com este player genérico.
+                    A URL WebSocket (`wss://...`) para o chat não é uma fonte de vídeo compatível para este player. A funcionalidade de transmissão ao vivo do Kako Live não funcionará com este player genérico.
                   </p>
                 </div>
               </div>
