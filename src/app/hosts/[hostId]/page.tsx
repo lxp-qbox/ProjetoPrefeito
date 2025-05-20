@@ -1,32 +1,20 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, UserProfile } from '@/types';
-import { placeholderHosts } from '../page';
+import type { Host, UserProfile, ReceivedGift, ChatMessage } from '@/types';
+import { placeholderHosts } from '../page'; // Import placeholderHosts
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users as UsersIcon, Send } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users as UsersIcon, Send, ArrowDownCircle } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/hooks/use-auth';
-
-const getHostById = (id: string): Host | undefined => {
-  return placeholderHosts.find(host => host.id === id);
-};
-
-interface ChatMessage {
-  id: string;
-  user: string;
-  avatar: string;
-  message: string;
-  timestamp: string;
-}
 
 const generateUniqueId = () => {
   return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
@@ -38,23 +26,36 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
 
   if (typeof data === 'string') {
     rawStringInput = data;
+    // Attempt to clean leading non-JSON characters
+    const firstBraceIndex = rawStringInput.indexOf('{');
+    const lastBraceIndex = rawStringInput.lastIndexOf('}');
+    let cleanJsonString = rawStringInput;
+
+    if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+      cleanJsonString = rawStringInput.substring(firstBraceIndex, lastBraceIndex + 1);
+    }
+    
     try {
-      parsedJson = JSON.parse(data);
+      parsedJson = JSON.parse(cleanJsonString);
     } catch (e) {
-      // Not JSON, treat as raw string for messageData
-      return { userName: "Anônimo", userAvatar: `https://placehold.co/32x32.png?text=A`, messageData: data };
+      // Not JSON, or cleaned string is not valid JSON
+      // Use original rawStringInput if it wasn't just braces
+      if (rawStringInput.trim() !== "" && firstBraceIndex === -1) {
+         return { userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawStringInput };
+      }
+      return null; // Or treat as error/unknown if needed
     }
   } else if (typeof data === 'object' && data !== null) {
-    parsedJson = data; // Already an object (e.g. from Blob parsed as JSON)
+    parsedJson = data;
   } else {
-    return null; // Not a string or object we can parse
+    return null;
   }
 
   let userName = "Servidor";
   let userAvatar = "";
   let messageData = "";
 
-  // Check for Gift Event Structure
+  // Check for Gift Event Structure (as per user example)
   if (parsedJson && parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
@@ -63,56 +64,49 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
         messageData += ` (Nível ${parsedJson.user.level})`;
     }
   }
-  // Check for standard chat message structure (like from your previous example)
-  else if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message || parsedJson.content)) {
-    userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
-    messageData = parsedJson.text || parsedJson.message || parsedJson.content;
-    if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
-      userAvatar = parsedJson.user.avatar;
-    } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') {
-      userAvatar = parsedJson.user.avatarUrl;
-    } else {
-      userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    }
-  } else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
+  // Check for standard chat message structure (like from user example: KAROL❤️WILLIAN🦊FOX)
+  else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.text) {
+    userName = parsedJson.user.nickname || "Usuário";
+    messageData = parsedJson.text;
+    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+  }
+  // Fallback for other potential structures
+  else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
-    if (parsedJson.avatar && typeof parsedJson.avatar === 'string') {
-      userAvatar = parsedJson.avatar;
-    } else {
-       userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    }
-  } else if (parsedJson.content) { // Generic content field
+    userAvatar = parsedJson.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+  } else if (parsedJson.content) {
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema";
-          userAvatar = ""; // No avatar for system
+          userAvatar = ""; 
       }
-  } else if (typeof parsedJson === 'string') { // If parsedJson is just a string itself
+  } else if (typeof parsedJson === 'string') { 
     messageData = parsedJson;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (parsedJson.message && typeof parsedJson.message === 'string') { // Object with a 'message' string
+  } else if (parsedJson.message && typeof parsedJson.message === 'string') { 
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (rawStringInput) { // Fallback to the original raw string if no known structure matched
+  } else if (rawStringInput && rawStringInput.trim() !== "" && rawStringInput.indexOf('{') === -1) { 
     messageData = rawStringInput;
     userName = "Texto";
     userAvatar = `https://placehold.co/32x32.png?text=T`;
-  } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { // Fallback for unknown JSON object
-    messageData = JSON.stringify(parsedJson); // Show the raw JSON
+  } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
+    messageData = JSON.stringify(parsedJson); 
     userName = "JSON";
     userAvatar = `https://placehold.co/32x32.png?text=J`;
-  } else if (data.toString && typeof data.toString === 'function') { // Last resort, try .toString()
+  } else if (data.toString && typeof data.toString === 'function') { 
     messageData = data.toString();
   } else {
-    return null; // Could not determine message structure
+    return null; 
   }
 
   return { userName, userAvatar, messageData };
 }
 
+const SCROLL_THRESHOLD = 10; // Pixels tolerance for being "at the bottom"
 
 export default function HostStreamPage() {
   const params = useParams();
@@ -121,13 +115,25 @@ export default function HostStreamPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const prevChatMessagesLengthRef = useRef<number>(0);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [newUnreadMessages, setNewUnreadMessages] = useState(0);
+  
   const { currentUser } = useAuth();
 
   useEffect(() => {
     if (hostId) {
-      const foundHost = getHostById(hostId);
+      const foundHost = placeholderHosts.find(h => h.id === hostId);
       setHost(foundHost);
+      if (foundHost) {
+        // Reset chat for new host
+        setChatMessages([]);
+        setNewUnreadMessages(0);
+        setIsAtBottom(true);
+        prevChatMessagesLengthRef.current = 0;
+      }
     } else {
       setHost(null);
     }
@@ -155,14 +161,39 @@ export default function HostStreamPage() {
     return () => clearInterval(intervalId);
   }, [host]);
 
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const viewport = scrollViewportRef.current;
+    if (viewport) {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+    }
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const viewport = scrollViewportRef.current;
+    if (viewport) {
+      const atBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + SCROLL_THRESHOLD;
+      setIsAtBottom(atBottom);
+      if (atBottom) {
+        setNewUnreadMessages(0);
+      }
+    }
+  }, []);
+
+  // Effect for WebSocket connection
   useEffect(() => {
     if (!host || !host.kakoLiveRoomId) {
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      if (host !== undefined) { // Only add message if host is loaded but no room ID
+        setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      }
       return;
     }
 
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
+    // Clear previous messages if any from a different host, for new connection
+    setChatMessages([{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+
 
     socketRef.current.onopen = () => {
       console.log("WebSocket conectado para chat: " + wsUrl);
@@ -170,46 +201,26 @@ export default function HostStreamPage() {
     };
 
     socketRef.current.onmessage = async (event) => {
-      console.log("Mensagem recebida do WebSocket:", event.data);
-      let processedMessage: { userName: string, userAvatar: string, messageData: string } | null = null;
       let messageString = "";
-
       if (event.data instanceof Blob) {
         try {
           messageString = await event.data.text();
         } catch (e) {
           console.error("Erro ao ler Blob do WebSocket:", e);
-          processedMessage = { userName: "Erro", userAvatar: "", messageData: "[Erro ao ler Blob]" };
+          messageString = "[Erro ao ler Blob]";
         }
       } else if (typeof event.data === 'string') {
         messageString = event.data;
       } else {
         console.warn("Tipo de mensagem WebSocket desconhecido:", event.data);
-        let unknownDataString = "[Tipo de mensagem desconhecido]";
         try {
-            unknownDataString = JSON.stringify(event.data);
-        } catch {}
-        processedMessage = { userName: "Desconhecido", userAvatar: "", messageData: unknownDataString };
-      }
-
-      if (!processedMessage && messageString) {
-        // Attempt to clean leading non-JSON characters
-        const firstBraceIndex = messageString.indexOf('{');
-        const lastBraceIndex = messageString.lastIndexOf('}');
-        let cleanJsonString = messageString;
-
-        if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-          cleanJsonString = messageString.substring(firstBraceIndex, lastBraceIndex + 1);
-        }
-        
-        processedMessage = parseChatMessage(cleanJsonString);
-
-        // If parseChatMessage couldn't make sense of it as JSON, but the original messageString was non-empty and NOT JSON
-        if (!processedMessage && messageString.trim() !== "" && firstBraceIndex === -1) {
-            processedMessage = { userName: "Texto", userAvatar: "https://placehold.co/32x32.png?text=T", messageData: messageString };
+            messageString = JSON.stringify(event.data);
+        } catch {
+            messageString = "[Tipo de mensagem desconhecido]";
         }
       }
 
+      const processedMessage = parseChatMessage(messageString);
 
       if (processedMessage && processedMessage.messageData && processedMessage.messageData.trim() !== "") {
         setChatMessages(prev => [...prev, {
@@ -220,15 +231,15 @@ export default function HostStreamPage() {
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         }]);
       } else {
-        console.log("Mensagem processada vazia ou nula, não adicionada ao chat:", processedMessage);
+        console.log("Mensagem processada vazia ou nula, não adicionada ao chat:", processedMessage, "Original data:", event.data);
       }
     };
 
     socketRef.current.onerror = (errorEvent) => {
       console.error("Erro no WebSocket:", errorEvent);
       let errorMessage = "Erro na conexão do chat.";
-      if (errorEvent instanceof ErrorEvent && errorEvent.message) {
-        errorMessage = `Erro no chat: ${errorEvent.message}`;
+       if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent && (errorEvent as any).message) {
+        errorMessage = `Erro no chat: ${(errorEvent as any).message}`;
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
@@ -249,24 +260,55 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host, host?.kakoLiveRoomId]);
+  }, [host]); // Re-run if host changes (e.g. navigating to a different host page)
 
+  // Effect to setup scroll listener and initial scroll
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollableViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollableViewport) {
-        scrollableViewport.scrollTop = scrollableViewport.scrollHeight;
+    const viewportElement = document.querySelector('.chat-scroll-area div[data-radix-scroll-area-viewport]');
+    if (viewportElement) {
+      scrollViewportRef.current = viewportElement as HTMLDivElement;
+      scrollViewportRef.current.addEventListener('scroll', handleScroll);
+      
+      // Initial scroll to bottom & check
+      setTimeout(() => {
+        scrollToBottom('auto');
+        handleScroll(); // Call to set initial isAtBottom correctly
+      }, 200); // Increased delay for layout to settle
+
+      return () => {
+        scrollViewportRef.current?.removeEventListener('scroll', handleScroll);
+      };
+    } else {
+      console.warn("Chat scroll viewport not found. Auto-scrolling and unread indicators might not work.");
+    }
+  }, [handleScroll, scrollToBottom]); // Dependencies are memoized
+
+
+  // Effect for handling new messages and auto-scrolling
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const wasAtBottomBeforeUpdate = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + SCROLL_THRESHOLD;
+    
+    const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
+
+    if (newMessagesCount > 0) {
+      if (wasAtBottomBeforeUpdate) {
+        scrollToBottom('auto');
+      } else {
+        setNewUnreadMessages(prev => prev + newMessagesCount);
       }
     }
-  }, [chatMessages]);
+    prevChatMessagesLengthRef.current = chatMessages.length;
+  }, [chatMessages, scrollToBottom]);
+
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const messageToSend = {
-        type: 'chat_message', // This type might need adjustment based on Kako's API
+        type: 'chat_message', 
         content: newMessage.trim(),
-        // You might need to send user details from currentUser if Kako's API expects them
-        // user: { nickname: currentUser?.profileName, userId: currentUser?.uid, avatar: currentUser?.photoURL } 
       };
       socketRef.current.send(JSON.stringify(messageToSend));
 
@@ -295,6 +337,10 @@ export default function HostStreamPage() {
     }
   };
 
+  const handleScrollToNewMessages = () => {
+    scrollToBottom('smooth');
+  };
+
   if (host === undefined) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
@@ -317,22 +363,7 @@ export default function HostStreamPage() {
       </div>
     );
   }
-
-  if (!host.kakoLiveFuid || !host.kakoLiveRoomId) {
-     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
-        <WifiOff className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold mb-2">{host.name} não configurou uma transmissão corretamente.</h1>
-        <p className="text-muted-foreground mb-6">
-          Este host ainda não possui todas as informações necessárias (FUID ou RoomID) para a transmissão Kako Live e/ou chat.
-        </p>
-        <Button asChild variant="outline">
-          <Link href="/hosts">Voltar para Lista de Hosts</Link>
-        </Button>
-      </div>
-    );
-  }
-
+  
   const pageTitle = host.streamTitle || `Ao Vivo: ${host.name}`;
 
   return (
@@ -348,31 +379,38 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div> {/* Placeholder for spacing if needed */}
+        <div className="w-8 h-8"></div> 
       </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Video Player and Host Info */}
         <div className="md:col-span-2 space-y-6">
-          <Card className="shadow-xl overflow-hidden">
+         <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
             </CardHeader>
             <CardContent className="p-0 sm:p-2 md:p-4">
-              <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
-                {/* Kako Live Embed */}
-                <iframe
-                  src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
-                  width="100%"
-                  height="100%"
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  className="border-0"
-                  title={`Transmissão de ${host.name}`}
-                  data-ai-hint="live stream"
-                ></iframe>
-              </div>
+            {host.kakoLiveFuid && host.kakoLiveRoomId ? (
+                <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
+                  <iframe
+                    src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
+                    width="100%"
+                    height="100%"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    className="border-0 aspect-video" // Added aspect-video here too
+                    title={`Transmissão de ${host.name}`}
+                    data-ai-hint="live stream"
+                  ></iframe>
+                </div>
+              ) : (
+                <div className="bg-muted rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-destructive p-4">
+                    <WifiOff className="w-16 h-16 mb-4" />
+                    <p className="text-lg font-semibold">Transmissão Indisponível</p>
+                    <p className="text-sm text-center">Este host não possui as informações (FUID ou RoomID) necessárias para a transmissão.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -454,11 +492,11 @@ export default function HostStreamPage() {
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
                 <UsersIcon className="h-4 w-4 mr-1.5"/>
-                <span>{/* Placeholder for live viewer count */}</span>
+                <span>{/* Placeholder */}</span>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0"> {/* Added min-h-0 */}
-              <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* Added relative for positioning indicator */}
+              <ScrollArea className="h-full chat-scroll-area"> {/* Added chat-scroll-area class */}
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3">
@@ -479,6 +517,19 @@ export default function HostStreamPage() {
                   ))}
                 </div>
               </ScrollArea>
+               {/* New Unread Messages Indicator */}
+              {newUnreadMessages > 0 && !isAtBottom && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
+                  <Button
+                    size="sm"
+                    onClick={handleScrollToNewMessages}
+                    className="rounded-full shadow-md bg-primary/90 hover:bg-primary text-primary-foreground backdrop-blur-sm"
+                  >
+                    <ArrowDownCircle className="mr-2 h-4 w-4" />
+                    {newUnreadMessages} Nova(s)
+                  </Button>
+                </div>
+              )}
             </CardContent>
             <div className="p-4 border-t">
               <div className="flex space-x-2">
