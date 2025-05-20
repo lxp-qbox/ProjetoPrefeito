@@ -47,9 +47,9 @@ interface AdminHost {
 }
 
 const placeholderHosts: AdminHost[] = [
-  { id: "1", avatarUrl: "https://placehold.co/40x40.png?text=JS", isLive: true, kakoId: "kako123", name: "João Silva", whatsapp: "+55 (11) 98765-4321", url: "#", country: "Brasil", status: "Aprovado" },
-  { id: "2", avatarUrl: "https://placehold.co/40x40.png?text=MO", isLive: true, kakoId: "kako456", name: "Maria Oliveira", whatsapp: "+55 (21) 91234-5678", url: undefined, country: "Brasil", status: "Pendente" },
-  { id: "3", avatarUrl: "https://placehold.co/40x40.png?text=CP", isLive: false, kakoId: "kako789", name: "Carlos Pereira", whatsapp: "+55 (31) 99887-7665", url: "#", country: "Brasil", status: "Banido" },
+  { id: "1", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako123", name: "João Silva", whatsapp: "+55 (11) 98765-4321", url: "#", country: "Brasil", status: "Aprovado" },
+  { id: "2", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako456", name: "Maria Oliveira", whatsapp: "+55 (21) 91234-5678", url: undefined, country: "Brasil", status: "Pendente" },
+  { id: "3", avatarUrl: "https://placehold.co/40x40.png", isLive: false, kakoId: "kako789", name: "Carlos Pereira", whatsapp: "+55 (31) 99887-7665", url: "#", country: "Brasil", status: "Banido" },
 ];
 
 const getStatusStyles = (status: AdminHost['status']) => {
@@ -59,11 +59,18 @@ const getStatusStyles = (status: AdminHost['status']) => {
     case 'Pendente':
       return { text: 'Pendente', className: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' };
     case 'Banido':
-      return { text: 'Inativo', className: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200' }; // Mapped to 'Inactive'
+      return { text: 'Inativo', className: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200' }; 
     default:
       return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200' };
   }
 };
+
+const formatWhatsAppLink = (phoneNumber: string) => {
+  if (!phoneNumber) return "#";
+  const digits = phoneNumber.replace(/\D/g, ""); // Remove all non-digit characters
+  return `https://wa.me/${digits}`;
+};
+
 
 export default function AdminHostsPageContent() {
   return (
@@ -127,7 +134,16 @@ export default function AdminHostsPageContent() {
                         {statusInfo.text}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{host.whatsapp}</TableCell>
+                    <TableCell>
+                      <a 
+                        href={formatWhatsAppLink(host.whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {host.whatsapp}
+                      </a>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />
