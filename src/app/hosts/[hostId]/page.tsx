@@ -20,48 +20,47 @@ const generateUniqueId = () => {
   return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
 };
 
-function parseChatMessage(data: any): { userName: string, userAvatar: string, messageData: string } | null {
+type ParsedMessageResult =
+  | { type: 'chat', userName: string, userAvatar: string, messageData: string }
+  | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string }
+  | null; // For unparseable or ignored messages
+
+function parseChatMessage(rawData: string): ParsedMessageResult {
   let parsedJson;
-  let rawStringInput = "";
-
-  if (typeof data === 'string') {
-    rawStringInput = data;
-    const firstBraceIndex = rawStringInput.indexOf('{');
-    const lastBraceIndex = rawStringInput.lastIndexOf('}');
-    let cleanJsonString = rawStringInput;
-
-    if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-      cleanJsonString = rawStringInput.substring(firstBraceIndex, lastBraceIndex + 1);
+  try {
+    parsedJson = JSON.parse(rawData);
+  } catch (e) {
+    // If it's not JSON, but it's non-empty text, treat it as a plain text chat message
+    if (rawData && rawData.trim() !== "") {
+      return { type: 'chat', userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawData };
     }
-    
-    try {
-      parsedJson = JSON.parse(cleanJsonString);
-    } catch (e) {
-      if (rawStringInput.trim() !== "" && firstBraceIndex === -1) {
-         return { userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawStringInput };
-      }
-      return null;
-    }
-  } else if (typeof data === 'object' && data !== null) {
-    parsedJson = data;
-  } else {
-    return null;
+    return null; // Not valid JSON and not plain text
   }
 
   let userName = "Servidor";
   let userAvatar = "";
   let messageData = "";
 
-  // Check for Gift Event Structure
-  if (parsedJson && parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
+  // System Update (Viewers, Likes, Anchor Info)
+  if (parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) {
+    return {
+      type: 'systemUpdate',
+      online: parsedJson.online,
+      likes: parsedJson.likes || 0,
+      anchorNickname: parsedJson.anchor.nickname
+    };
+  }
+  // Gift Event
+  else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
     messageData = `🎁 ${userName} enviou ${parsedJson.giftCount || 1}x Presente ID ${parsedJson.giftId}!`;
     if (parsedJson.user.level) {
         messageData += ` (Nível ${parsedJson.user.level})`;
     }
+    return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Check for Game Event Structure (baishun2 - LavaLink)
+  // Game Event (baishun2 - LavaLink)
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
@@ -72,14 +71,16 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     if (parsedJson.user.level) {
       messageData += ` (Nível ${parsedJson.user.level})`;
     }
+    return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Check for standard chat message structure (like from user example: KAROL❤️WILLIAN🦊FOX)
+  // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
     userName = parsedJson.user.nickname;
     messageData = parsedJson.text;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+    return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Check for User Join/Enter Event with viewer count (ALENE example)
+  // User Join/Enter Event
   else if (
     parsedJson.user && 
     parsedJson.user.nickname && 
@@ -97,56 +98,46 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     if (parsedJson.roomUser && parsedJson.roomUser.fansLevel) {
         joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
     }
-    joinMessage += ` Espectadores: ${parsedJson.count}.`;
+    joinMessage += ` Espectadores: ${parsedJson.count}.`; // This 'count' seems related to viewer after join
     messageData = joinMessage;
+    return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Check for Room Status Update (PRESIDENTE example)
-  else if (parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) {
-    userName = "Sistema";
-    userAvatar = ""; 
-    messageData = `ℹ️ Atualização da Sala: ${parsedJson.online} espectadores online, ${parsedJson.likes || 0} curtidas. Anfitrião: ${parsedJson.anchor.nickname}.`;
-    if (parsedJson.pkStatus && parsedJson.pkStatus.anchors && parsedJson.pkStatus.anchors.length > 0) {
-        messageData += ` Batalha PK em andamento!`;
-    }
-  }
-  // Fallback for other potential user-related structures
+  // Fallback for other potential user-related structures for chat
   else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     userAvatar = parsedJson.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+    return { type: 'chat', userName, userAvatar, messageData };
   } 
-  // System message or generic content
+  // Generic content that might be a system message not caught above, or simple text
   else if (parsedJson.content) {
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
-          userName = "Sistema";
+          userName = "Sistema"; // Could be a generic system message
           userAvatar = ""; 
       }
+      return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Fallback for simple string messages
-  else if (typeof parsedJson === 'string') { 
+  // Final fallback for simple string messages not caught by initial rawData check
+  else if (typeof parsedJson === 'string' && parsedJson.trim() !== "") { 
     messageData = parsedJson;
-    userName = "Anônimo";
-    userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (parsedJson.message && typeof parsedJson.message === 'string') { 
+    userName = "Texto"; // Or "Anônimo"
+    userAvatar = `https://placehold.co/32x32.png?text=T`;
+    return { type: 'chat', userName, userAvatar, messageData };
+  } else if (parsedJson.message && typeof parsedJson.message === 'string' && parsedJson.message.trim() !== "") { 
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (rawStringInput && rawStringInput.trim() !== "" && rawStringInput.indexOf('{') === -1) { 
-    messageData = rawStringInput;
-    userName = "Texto";
-    userAvatar = `https://placehold.co/32x32.png?text=T`;
+    return { type: 'chat', userName, userAvatar, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
+    // If it's JSON but not any known structure, display the stringified JSON in chat (as before)
     messageData = JSON.stringify(parsedJson); 
     userName = "JSON";
     userAvatar = `https://placehold.co/32x32.png?text=J`;
-  } else if (data.toString && typeof data.toString === 'function') { 
-    messageData = data.toString();
-  } else {
-    return null; 
+    return { type: 'chat', userName, userAvatar, messageData };
   }
 
-  return { userName, userAvatar, messageData };
+  return null; // If no specific structure is matched or data is empty
 }
 
 const SCROLL_THRESHOLD = 10; 
@@ -163,6 +154,9 @@ export default function HostStreamPage() {
   const prevChatMessagesLengthRef = useRef<number>(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [newUnreadMessages, setNewUnreadMessages] = useState(0);
+
+  const [onlineViewers, setOnlineViewers] = useState<number | null>(null);
+  const [liveLikes, setLiveLikes] = useState<number | null>(null);
   
   const { currentUser } = useAuth();
 
@@ -175,6 +169,8 @@ export default function HostStreamPage() {
         setNewUnreadMessages(0);
         setIsAtBottom(true);
         prevChatMessagesLengthRef.current = 0;
+        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with placeholder data
+        setLiveLikes(foundHost.likes || 0); // Initialize with placeholder data
       }
     } else {
       setHost(null);
@@ -182,6 +178,8 @@ export default function HostStreamPage() {
   }, [hostId]);
 
   useEffect(() => {
+    // This effect is for simulating gift count updates on the current host
+    // Its dependency should only be host?.id to avoid re-running if other host details change
     if (!host?.id || !host.giftsReceived || host.giftsReceived.length === 0) {
       return;
     }
@@ -201,7 +199,7 @@ export default function HostStreamPage() {
       });
     }, 5000);
     return () => clearInterval(intervalId);
-  }, [host?.id]); 
+  }, [host?.id]); // Only depends on host.id
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -222,14 +220,16 @@ export default function HostStreamPage() {
   }, []);
 
   useEffect(() => {
-    if (host === undefined) {
+    // WebSocket connection effect
+    // Depends only on host.id and host.kakoLiveRoomId
+    if (host === undefined) { // Still loading host data
       return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
-       setChatMessages(prev => {
-        if (prev.length === 0 || (prev.length > 0 && prev[prev.length - 1]?.message !== "Host ou RoomID não configurado para o chat.")) {
-          return [
+       // Only add this system message if host data is resolved (not undefined) and it's truly missing
+       if (host !== undefined && (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
+         setChatMessages(prev => [
             ...prev, 
             {
               id: generateUniqueId(), 
@@ -238,17 +238,21 @@ export default function HostStreamPage() {
               message: "Host ou RoomID não configurado para o chat.", 
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             }
-          ];
-        }
-        return prev;
-      });
+          ]);
+       }
       return;
     }
 
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
     
-    setChatMessages(prev => [{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev.filter(m => m.message !== "Host ou RoomID não configurado para o chat.")]);
+    // Avoid adding "Conectando..." if it's already the last message or if chat is not empty and some other message is last
+    const lastMessageIsConnecting = chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message === `Conectando a ${wsUrl}...`;
+    const lastMessageIsConfigError = chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message === "Host ou RoomID não configurado para o chat.";
+
+    if (!lastMessageIsConnecting && !lastMessageIsConfigError) {
+        setChatMessages(prev => [{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev.filter(m => m.message !== "Host ou RoomID não configurado para o chat.")]);
+    }
 
 
     socketRef.current.onopen = () => {
@@ -259,25 +263,12 @@ export default function HostStreamPage() {
       let messageContentString = "";
       if (event.data instanceof Blob) {
         try {
-          const text = await event.data.text();
-          const firstBraceIndex = text.indexOf('{');
-          const lastBraceIndex = text.lastIndexOf('}');
-          if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-            messageContentString = text.substring(firstBraceIndex, lastBraceIndex + 1);
-          } else if (text.trim() !== "") { 
-            messageContentString = text;
-          }
+          messageContentString = await event.data.text();
         } catch (e) {
           messageContentString = "[Erro ao ler Blob]";
         }
       } else if (typeof event.data === 'string') {
-        const firstBraceIndex = event.data.indexOf('{');
-        const lastBraceIndex = event.data.lastIndexOf('}');
-        if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-            messageContentString = event.data.substring(firstBraceIndex, lastBraceIndex + 1);
-        } else if (event.data.trim() !== "") { 
-            messageContentString = event.data;
-        }
+        messageContentString = event.data;
       } else {
         try {
             messageContentString = JSON.stringify(event.data);
@@ -286,18 +277,32 @@ export default function HostStreamPage() {
         }
       }
       
-      const processedMessage = parseChatMessage(messageContentString);
+      // Clean leading non-JSON characters if any
+      const firstBraceIndex = messageContentString.indexOf('{');
+      const lastBraceIndex = messageContentString.lastIndexOf('}');
+      if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+          messageContentString = messageContentString.substring(firstBraceIndex, lastBraceIndex + 1);
+      }
+      
+      const processedResult = parseChatMessage(messageContentString);
 
-      if (processedMessage && processedMessage.messageData && processedMessage.messageData.trim() !== "") {
-        setChatMessages(prev => [...prev, {
-          id: generateUniqueId(),
-          user: processedMessage.userName,
-          avatar: processedMessage.userAvatar,
-          message: processedMessage.messageData,
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        }]);
-      } else {
-        // console.log("Mensagem processada vazia ou nula, não adicionada ao chat:", processedMessage, "Original data:", event.data, "Cleaned string:", messageContentString);
+      if (processedResult) {
+        if (processedResult.type === 'chat' && processedResult.messageData?.trim() !== "") {
+          setChatMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            user: processedResult.userName,
+            avatar: processedResult.userAvatar,
+            message: processedResult.messageData,
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          }]);
+        } else if (processedResult.type === 'systemUpdate') {
+          setOnlineViewers(processedResult.online);
+          setLiveLikes(processedResult.likes);
+          // Optionally, update host name if anchorNickname differs and you want the main display to update
+          // if (host && host.name !== processedResult.anchorNickname) {
+          //   setHost(prevHost => prevHost ? {...prevHost, name: processedResult.anchorNickname, likes: processedResult.likes } : null);
+          // }
+        }
       }
     };
 
@@ -324,34 +329,32 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]); 
+  }, [host?.id, host?.kakoLiveRoomId]); // Correct dependencies
+
 
   useEffect(() => {
-    const viewportElement = document.querySelector('.chat-scroll-area div[data-radix-scroll-area-viewport]');
-    if (viewportElement) {
-      scrollViewportRef.current = viewportElement as HTMLDivElement;
-      scrollViewportRef.current.addEventListener('scroll', handleScroll);
-      
-      setTimeout(() => {
-        scrollToBottom('auto'); 
-        handleScroll(); 
-      }, 200); 
-
-      return () => {
-        scrollViewportRef.current?.removeEventListener('scroll', handleScroll);
-      };
-    } else {
-      console.warn("Chat scroll viewport not found. Auto-scrolling and unread indicators might not work.");
+    // Scroll management effect, depends on chatMessages length to detect new messages
+    const viewportElement = scrollViewportRef.current; // Use the already captured ref
+    if (!viewportElement) {
+        const el = document.querySelector('.chat-scroll-area div[data-radix-scroll-area-viewport]');
+        if (el) {
+            scrollViewportRef.current = el as HTMLDivElement;
+            scrollViewportRef.current.addEventListener('scroll', handleScroll);
+             // Initial scroll and state check
+            setTimeout(() => {
+                scrollToBottom('auto'); 
+                handleScroll();
+            }, 200);
+        } else {
+            console.warn("Chat scroll viewport not found for event listener attachment.");
+        }
     }
-  }, [handleScroll, scrollToBottom, host?.id]);
-
-
-  useEffect(() => {
+    
+    // Logic for auto-scrolling or showing unread indicator
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
 
     const wasAtBottomBeforeUpdate = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + SCROLL_THRESHOLD;
-    
     const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
 
     if (newMessagesCount > 0) { 
@@ -362,7 +365,11 @@ export default function HostStreamPage() {
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  }, [chatMessages, scrollToBottom]);
+
+    return () => {
+      scrollViewportRef.current?.removeEventListener('scroll', handleScroll);
+    };
+  }, [chatMessages, handleScroll, scrollToBottom]);
 
 
   const handleSendMessage = () => {
@@ -370,6 +377,7 @@ export default function HostStreamPage() {
       const messageToSend = {
         type: 'chat_message', 
         content: newMessage.trim(),
+        // You might need to send other user details from currentUser if the backend expects them
       };
       socketRef.current.send(JSON.stringify(messageToSend));
 
@@ -445,8 +453,22 @@ export default function HostStreamPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
          <Card className="shadow-xl overflow-hidden">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex-row justify-between items-center">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
+              <div className="flex items-center space-x-4 text-sm">
+                {onlineViewers !== null && (
+                  <div className="flex items-center text-muted-foreground">
+                    <UsersIcon className="h-4 w-4 mr-1.5 text-primary" />
+                    <span>{onlineViewers.toLocaleString('pt-BR')}</span>
+                  </div>
+                )}
+                {liveLikes !== null && (
+                  <div className="flex items-center text-muted-foreground">
+                    <Heart className="h-4 w-4 mr-1.5 text-destructive" />
+                    <span>{liveLikes.toLocaleString('pt-BR')}</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0 sm:p-2 md:p-4">
             {host.kakoLiveFuid && host.kakoLiveRoomId ? (
@@ -488,10 +510,10 @@ export default function HostStreamPage() {
               <p><strong>Seguidores:</strong> {host.totalFollowers}</p>
               <p><strong>Visualizações Totais:</strong> {host.totalViews}</p>
               <p><strong>Média de Espectadores:</strong> {host.avgViewers.toLocaleString('pt-BR')}</p>
-              {host.likes !== undefined && (
+              {host.likes !== undefined && ( // Initial likes from host data, liveLikes will update it
                 <div className="flex items-center">
                   <Heart className="h-4 w-4 mr-2 text-destructive" />
-                  <p><strong>Likes:</strong> {host.likes.toLocaleString('pt-BR')}</p>
+                  <p><strong>Likes (inicial):</strong> {(liveLikes !== null ? liveLikes : host.likes).toLocaleString('pt-BR')}</p>
                 </div>
               )}
               <p className="text-xs text-muted-foreground pt-2">
@@ -521,7 +543,7 @@ export default function HostStreamPage() {
                         data-ai-hint={gift.dataAiHint || "gift icon"}
                       />
                       <p className="text-sm font-medium">{gift.name}</p>
-                      <p className="text-xs text-muted-foreground">x {gift.count}</p>
+                      <p className="text-xs text-muted-foreground">x {gift.count.toLocaleString('pt-BR')}</p>
                     </div>
                   ))}
                 </div>
@@ -548,8 +570,12 @@ export default function HostStreamPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
-                <UsersIcon className="h-4 w-4 mr-1.5"/>
-                <span>{/* Placeholder */}</span>
+                {onlineViewers !== null && (
+                    <>
+                        <UsersIcon className="h-4 w-4 mr-1.5"/>
+                        <span>{onlineViewers.toLocaleString('pt-BR')}</span>
+                    </>
+                )}
               </div>
             </CardHeader>
             <CardContent className="flex-grow p-0 min-h-0 relative"> 
@@ -612,3 +638,5 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
+    
