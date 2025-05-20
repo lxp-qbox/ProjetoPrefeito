@@ -18,9 +18,9 @@ import { Crown } from "lucide-react";
 import type { Host } from "@/types";
 import HostRow from "@/components/host/host-row";
 
-// Placeholder data for hosts
-const placeholderHosts: Host[] = [
-  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40/FF00FF/FFFFFF.png?text=LC", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M" },
+// Placeholder data for hosts - EXPORTED for use in dynamic page
+export const placeholderHosts: Host[] = [
+  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40/FF00FF/FFFFFF.png?text=LC", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M", kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b" },
   { id: "2", rankPosition: 2, name: "PAULINHOLOKOBR", avatarUrl: "https://placehold.co/40x40/FFC300/000000.png?text=PL", avgViewers: 37508, timeStreamed: 74.4, allTimePeakViewers: 266793, hoursWatched: "2.79M", rank: 17, followersGained: 35900, totalFollowers: "3.42M", totalViews: "--" },
   { id: "3", rankPosition: 3, name: "GAULES", avatarUrl: "https://placehold.co/40x40/00FFFF/000000.png?text=GA", avgViewers: 5137, timeStreamed: 718.9, allTimePeakViewers: 707648, hoursWatched: "3.69M", rank: 29, followersGained: 13000, totalFollowers: "4.28M", totalViews: "405M" },
   { id: "4", rankPosition: 4, name: "ALANZOKA", avatarUrl: "https://placehold.co/40x40/D3D3D3/000000.png?text=AL", avgViewers: 14131, timeStreamed: 143.8, allTimePeakViewers: 147051, hoursWatched: "2.03M", rank: 56, followersGained: 33000, totalFollowers: "7.66M", totalViews: "206M" },
@@ -107,3 +107,4 @@ export default function HostsPage() {
     </div>
   );
 }
+

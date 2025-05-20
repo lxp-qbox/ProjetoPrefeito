@@ -40,6 +40,7 @@ export interface Host {
   followersGained: number;
   totalFollowers: string; // e.g., "6.55M"
   totalViews: string; // e.g., "50.8M"
+  kakoLiveFuid?: string; // Identifier for Kako Live stream
 }
 
 export interface UserProfile {
@@ -72,3 +73,4 @@ export interface UserProfile {
   createdAt?: any;           // Firestore Timestamp
   updatedAt?: any;           // Firestore Timestamp
 }
+

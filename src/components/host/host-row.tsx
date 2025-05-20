@@ -5,11 +5,7 @@ import type { Host } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import Image from "next/image";
-
-interface HostRowProps {
-  host: Host;
-}
+import Link from "next/link"; // Import Link
 
 // Helper for formatting large numbers, can be expanded
 const formatNumber = (num: number): string => {
@@ -23,13 +19,15 @@ export default function HostRow({ host }: HostRowProps) {
         #{host.rankPosition}
       </TableCell>
       <TableCell className="min-w-[200px]">
-        <div className="flex items-center gap-3">
+        <Link href={`/hosts/${host.id}`} className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
           <Avatar className="h-10 w-10">
             <AvatarImage src={host.avatarUrl} alt={host.name} data-ai-hint="streamer avatar" />
             <AvatarFallback>{host.name.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <span className="font-semibold text-sm whitespace-nowrap">{host.name}</span>
-        </div>
+          <span className="font-semibold text-sm whitespace-nowrap group-hover:text-primary group-hover:underline">
+            {host.name}
+          </span>
+        </Link>
       </TableCell>
       <TableCell className="text-sm font-semibold text-primary whitespace-nowrap text-right">{formatNumber(host.avgViewers)}</TableCell>
       <TableCell className="text-sm text-right whitespace-nowrap">
@@ -54,3 +52,4 @@ export default function HostRow({ host }: HostRowProps) {
     </TableRow>
   );
 }
+
