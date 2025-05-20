@@ -10,6 +10,7 @@ import {
 import {
   Table,
   TableBody,
+  TableCell, // Added TableCell import
   TableHead,
   TableHeader,
   TableRow,
