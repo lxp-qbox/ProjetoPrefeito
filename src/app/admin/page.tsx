@@ -3,54 +3,75 @@
 
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, UserCheck, User } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import AdminHostsPageContent from "./hosts/page-content";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface AdminSubItem {
+interface AdminMenuItem {
   title: string;
   icon: React.ElementType;
   link: string;
+  currentValue?: string;
 }
 
-interface AdminSection {
-  title: string;
-  icon: React.ElementType;
-  link?: string;
-  subItems?: AdminSubItem[];
+interface AdminMenuGroup {
+  groupTitle?: string; // Optional for items like "Sair" or "Entre em contato" that might not be under a title
+  items: AdminMenuItem[];
+  isBottomSection?: boolean; // To handle spacing for Sair/Contato
 }
 
-const adminSections: AdminSection[] = [
-  { title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" }, // Default to hosts view
+const adminMenuGroups: AdminMenuGroup[] = [
   {
-    title: "Usuários",
-    icon: Users,
-    // Link for parent could be e.g., /admin/users, which shows an overview
-    subItems: [
-      { title: "Todos os Usuários", icon: Users, link: "/admin/users/all" },
-      { title: "Gerenciar Hosts", icon: UserCheck, link: "/admin/users/hosts-management" },
-      { title: "Gerenciar Players", icon: User, link: "/admin/users/players-management" },
+    groupTitle: "Conta",
+    items: [
+      { title: "Conta e segurança", icon: UserCircle2, link: "/admin/account-security" },
+      { title: "Configurações de privacidade", icon: ShieldAlert, link: "/admin/privacy-settings" },
     ],
   },
-  { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
-  { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
-  { title: "Configurações", icon: Settings, link: "/admin/settings" },
-  { title: "Meu Perfil", icon: UserCircle2, link: "/profile" },
+  {
+    groupTitle: "Geral",
+    items: [
+      { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
+      { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
+    ],
+  },
+  {
+    groupTitle: "Sobre",
+    items: [
+      { title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
+      { title: "Política de privacidade", icon: FileText, link: "/admin/privacy-policy" },
+      { title: "Contrato de Host", icon: FileText, link: "/admin/host-agreement" },
+      { title: "Sobre Kako Live", icon: Info, link: "/admin/about-kako" },
+    ],
+  },
+  {
+    items: [
+      { title: "Entre em contato conosco", icon: Headphones, link: "/support" },
+    ],
+    isBottomSection: true, // For styling different sections later
+  },
+  {
+    items: [
+      { title: "Sair", icon: LogOut, link: "#logout" }, // Placeholder for logout action
+    ],
+  },
 ];
 
+
 export default function AdminPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter(); // Assuming you might use router for logout
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
+
 
   if (!currentUser || !currentUser.adminLevel) {
     return (
@@ -69,107 +90,87 @@ export default function AdminPage() {
     );
   }
 
-  const isHostManagementView = pathname === "/admin/hosts";
+  const isHostManagementView = pathname === "/admin/hosts" || pathname === "/admin";
 
   return (
     <ProtectedPage>
       <div className="flex flex-col h-full">
         <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
           {/* Admin Navigation Sidebar */}
-          <nav className="w-full md:w-60 flex-shrink-0 border-b md:border-b-0 md:border-r bg-card h-full">
-            <div className="h-full flex flex-col">
-              <div className="p-1 space-y-1 overflow-y-auto">
-                <Accordion type="multiple" className="w-full">
-                  {adminSections.map((section) => {
-                    const isParentActive = 
-                      (section.link === "/admin/hosts" && (pathname === "/admin" || pathname === "/admin/hosts")) || 
-                      (section.link && section.link !== "/admin/hosts" && pathname === section.link) ||
-                      (section.subItems && section.subItems.some(sub => pathname.startsWith(sub.link)));
+          <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
+            <div className="p-4 space-y-4">
+              {adminMenuGroups.map((group, groupIndex) => (
+                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
+                  {group.groupTitle && (
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                      {group.groupTitle}
+                    </h2>
+                  )}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                    {group.items.map((item) => {
+                       const isActive = pathname === item.link;
+                       // Special handling for logout
+                       const isLogout = item.link === "#logout";
+                       const buttonAction = isLogout ? handleLogout : () => {
+                           if (item.link) router.push(item.link);
+                       };
+                       const ButtonComponent = isLogout ? 'button' : Link;
+                       const buttonProps = isLogout ? { onClick: buttonAction } : { href: item.link };
 
-                    if (section.subItems) {
-                      return (
-                        <AccordionItem value={section.title} key={section.title} className="border-none">
-                          <AccordionTrigger
-                            className={cn(
-                              "w-full justify-between text-left h-auto py-2 px-1.5 text-sm font-medium rounded-md flex items-center gap-2 hover:no-underline",
-                              isParentActive
-                                ? "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                                : "text-card-foreground hover:bg-muted"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <section.icon className={cn("h-4 w-4", isParentActive ? "text-secondary-foreground" : "text-muted-foreground")} />
-                              {section.title}
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="pt-1 pb-0 pl-5 pr-1"> {/* Indent sub-items */}
-                            <div className="space-y-0.5">
-                              {section.subItems.map((subItem) => {
-                                const isSubItemActive = pathname.startsWith(subItem.link);
-                                return (
-                                  <Button
-                                    key={subItem.title}
-                                    variant={isSubItemActive ? "secondary" : "ghost"}
-                                    className={cn(
-                                        "w-full justify-start text-left h-auto py-1.5 px-1.5 text-xs font-medium rounded-md",
-                                        isSubItemActive 
-                                            ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                            : "text-card-foreground hover:bg-muted"
-                                    )}
-                                    asChild
-                                  >
-                                    <Link href={subItem.link} className="flex items-center gap-2">
-                                      <subItem.icon className={cn("h-3.5 w-3.5", isSubItemActive ? "text-secondary-foreground":"text-muted-foreground")} />
-                                      {subItem.title}
-                                    </Link>
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    } else {
-                       const isActive = section.link === "/admin/hosts" 
-                                  ? (pathname === "/admin" || pathname === "/admin/hosts") 
-                                  : pathname === section.link;
                       return (
                         <Button
-                          key={section.title}
-                          variant={isActive ? "secondary" : "ghost"}
+                          key={item.title}
+                          variant="ghost"
                           className={cn(
-                            "w-full justify-start text-left h-auto py-2 px-1.5 text-sm font-medium rounded-md",
+                            "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md",
                             isActive
-                              ? "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                              : "text-card-foreground hover:bg-muted"
+                              ? "bg-primary/10 text-primary"
+                              : "text-card-foreground hover:bg-card/80 bg-card shadow-sm"
                           )}
-                          asChild
+                          asChild={!isLogout}
+                          {...(isLogout ? {onClick: buttonAction} : {})}
                         >
-                          <Link href={section.link || "#"} className="flex items-center gap-2">
-                            <section.icon className={cn("h-4 w-4", isActive ? "text-secondary-foreground" : "text-muted-foreground")} />
-                            {section.title}
-                          </Link>
+                          {isLogout ? (
+                             <div className="flex items-center w-full">
+                                <div className="flex items-center gap-3">
+                                  <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                                  {item.title}
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                              </div>
+                          ) : (
+                            <Link href={item.link} className="flex items-center w-full">
+                              <div className="flex items-center gap-3">
+                                <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                                {item.title}
+                              </div>
+                              <div className="flex items-center ml-auto">
+                                {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            </Link>
+                          )}
                         </Button>
                       );
-                    }
-                  })}
-                </Accordion>
-              </div>
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </nav>
 
           {/* Admin Content Area */}
           <main className="flex-grow overflow-y-auto p-6">
-            {isHostManagementView || pathname === "/admin" ? ( // Show hosts content for /admin or /admin/hosts
+            {isHostManagementView ? (
               <AdminHostsPageContent />
             ) : (
               <Card className="shadow-lg h-full">
                 <CardHeader>
                   <CardTitle className="text-xl">
                     Seção: {
-                      adminSections
-                        .flatMap(s => s.subItems ? [s, ...s.subItems] : [s])
-                        .find(s => s.link === pathname)?.title 
+                      adminMenuGroups
+                        .flatMap(g => g.items)
+                        .find(i => i.link === pathname)?.title
                       || pathname.split('/').pop()?.replace(/-/g, ' ')?.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
                       || "Desconhecida"
                     }
@@ -179,6 +180,7 @@ export default function AdminPage() {
                   <p className="text-muted-foreground">
                     O conteúdo para esta seção será exibido aqui quando implementado.
                   </p>
+                  <p className="mt-4 text-xs text-muted-foreground">Caminho atual: {pathname}</p>
                 </CardContent>
               </Card>
             )}
