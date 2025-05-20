@@ -13,24 +13,25 @@ import { cn } from "@/lib/utils";
 import type { ConversationPreview, AppMessage } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 
 // Placeholder Data
 const placeholderConversations: ConversationPreview[] = [
-  { id: "convo1", userId: "user2", userName: "Alice Wonderland", userAvatar: "https://placehold.co/40x40.png?text=AW", lastMessage: "Hey, how are you doing? Long time no see!", lastMessageTime: "10:30 AM", unreadCount: 2 },
-  { id: "convo2", userId: "user3", userName: "Bob The Builder", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Can we build it? Yes, we can!", lastMessageTime: "Yesterday", unreadCount: 0 },
-  { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Good grief! I need some advice.", lastMessageTime: "Mon", unreadCount: 5 },
-  { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Wondering if you're free for a mission.", lastMessageTime: "12/05/2024" },
-  { id: "convo5", userId: "user6", userName: "Edward Scissorhands", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Could you help me with my hedge?", lastMessageTime: "10/05/2024" },
+  { id: "convo1", userId: "user2", userName: "Alice Wonderland", userAvatar: "https://placehold.co/40x40.png?text=AW", lastMessage: "E aí, como você está? Faz tempo que não nos vemos!", lastMessageTime: "10:30", unreadCount: 2 },
+  { id: "convo2", userId: "user3", userName: "Bob O Construtor", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Podemos construir? Sim, nós podemos!", lastMessageTime: "Ontem", unreadCount: 0 },
+  { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Meu Deus! Preciso de um conselho.", lastMessageTime: "Seg", unreadCount: 5 },
+  { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Querendo saber se você está livre para uma missão.", lastMessageTime: "12/05/2024" },
+  { id: "convo5", userId: "user6", userName: "Edward Mãos de Tesoura", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Você poderia me ajudar com minha cerca viva?", lastMessageTime: "10/05/2024" },
 ];
 
 const placeholderMessages: AppMessage[] = [
-  { id: "msg1", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Hey, how are you doing? Long time no see!", timestamp: "10:30 AM" },
-  { id: "msg2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Hi Alice! I'm doing great, thanks for asking. How about you?", timestamp: "10:32 AM" },
-  { id: "msg3", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Pretty good! Just busy with a new project.", timestamp: "10:33 AM" },
-  { id: "msg4", conversationId: "convo2", senderId: "user3", senderName: "Bob The Builder", senderAvatar: "https://placehold.co/40x40.png?text=BB", text: "Can we build it? Yes, we can!", timestamp: "Yesterday" },
-  { id: "msg5", conversationId: "convo3", senderId: "user4", senderName: "Charlie Brown", senderAvatar: "https://placehold.co/40x40.png?text=CB", text: "Good grief! I need some advice.", timestamp: "Mon" },
-  { id: "msg6", conversationId: "convo3", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Sure Charlie, what's up?", timestamp: "Mon" },
+  { id: "msg1", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "E aí, como você está? Faz tempo que não nos vemos!", timestamp: "10:30" },
+  { id: "msg2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Oi Alice! Estou ótimo, obrigado por perguntar. E você?", timestamp: "10:32" },
+  { id: "msg3", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Muito bem! Apenas ocupada com um novo projeto.", timestamp: "10:33" },
+  { id: "msg4", conversationId: "convo2", senderId: "user3", senderName: "Bob O Construtor", senderAvatar: "https://placehold.co/40x40.png?text=BB", text: "Podemos construir? Sim, nós podemos!", timestamp: "Ontem" },
+  { id: "msg5", conversationId: "convo3", senderId: "user4", senderName: "Charlie Brown", senderAvatar: "https://placehold.co/40x40.png?text=CB", text: "Meu Deus! Preciso de um conselho.", timestamp: "Seg" },
+  { id: "msg6", conversationId: "convo3", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Claro Charlie, o que foi?", timestamp: "Seg" },
 ];
 
 
@@ -78,9 +79,14 @@ export default function MessagesPage() {
     // Update last message in conversation list (placeholder logic)
     setConversations(prevConvos => prevConvos.map(c => 
         c.id === selectedConversationId 
-        ? {...c, lastMessage: newMessage.trim(), lastMessageTime: newMsg.timestamp}
+        ? {...c, lastMessage: newMessage.trim(), lastMessageTime: newMsg.timestamp, unreadCount: 0} // Reset unread on send
         : c
-    ));
+    ).sort((a, b) => { // Move active conversation to top
+        if (a.id === selectedConversationId) return -1;
+        if (b.id === selectedConversationId) return 1;
+        // Add other sorting logic if needed, e.g., by lastMessageTime
+        return 0;
+    }));
   };
   
   const getInitials = (name: string) => {
@@ -102,7 +108,7 @@ export default function MessagesPage() {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-[calc(100vh-var(--header-height)-6rem)]"> {/* Adjust height based on header and page padding */}
+      <div className="flex flex-col h-[calc(100vh-var(--header-height,64px)-var(--page-padding,64px)-2px)]"> {/* Approximate height */}
         <Card className="flex-grow flex overflow-hidden shadow-xl">
           {/* Left Pane: Conversation List */}
           <div className="w-full md:w-1/3 lg:w-1/4 border-r border-border flex flex-col bg-card">
@@ -129,7 +135,12 @@ export default function MessagesPage() {
                       "w-full text-left p-4 flex items-start space-x-3 hover:bg-muted/50 transition-colors border-b border-border last:border-b-0",
                       selectedConversationId === convo.id && "bg-muted"
                     )}
-                    onClick={() => setSelectedConversationId(convo.id)}
+                    onClick={() => {
+                        setSelectedConversationId(convo.id);
+                        setConversations(prevConvos => prevConvos.map(c => 
+                            c.id === convo.id ? {...c, unreadCount: 0} : c
+                        ));
+                    }}
                   >
                     <Avatar className="h-10 w-10 border">
                       <AvatarImage src={convo.userAvatar} alt={convo.userName} data-ai-hint="user avatar" />
