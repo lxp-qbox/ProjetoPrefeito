@@ -12,10 +12,13 @@ import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users a
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea, type ScrollAreaProps } from "@/components/ui/scroll-area"; // Import ScrollAreaProps
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area" // For ref typing
+import { ScrollArea } from "@/components/ui/scroll-area";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/hooks/use-auth';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+
 
 const generateUniqueId = () => {
   return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
@@ -39,11 +42,12 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     }
     parsedJson = JSON.parse(jsonString);
   } catch (e) {
+    // If it's not JSON, but it's not an error reading Blob, return it as raw text.
     if (rawData && rawData.trim() !== "" && rawData.trim() !== "[Erro ao ler Blob]") {
-      console.warn("Não foi possível analisar como JSON, exibindo dados brutos:", rawData);
-      return { type: 'chat', userName: "Servidor (Dados Brutos)", messageData: rawData };
+       // console.warn("Não foi possível analisar como JSON, exibindo dados brutos:", rawData);
+      // This case is handled by the onmessage handler now for raw data display
     }
-    return null;
+    return null; // Indicate parsing failed or it's not a structured message we understand
   }
 
   let userName = "Sistema";
@@ -55,11 +59,12 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
+    // Basic logic for medal, can be expanded
     if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0) || messageUser.nickname) {
       userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
   }
-
+  
   // Room Status Update (Viewers, Likes, Anchor Info)
   if (parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
     return {
@@ -79,7 +84,7 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   }
   // Game Event (baishun2 - LavaLink) - TO BE IGNORED
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    return null;
+    return null; // No longer displaying game events in chat
   }
   // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
@@ -91,7 +96,8 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     parsedJson.user && parsedJson.user.nickname &&
     parsedJson.type === 1 && parsedJson.type2 === 1 &&
     !parsedJson.text && !parsedJson.giftId && !parsedJson.game &&
-    !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number')
+    !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number') &&
+    !parsedJson.count // Differentiate from the other join message
   ) {
     let joinMessage = `👋 ${userName} entrou na sala.`;
     if (parsedJson.user.level) {
@@ -138,18 +144,14 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
       }
       return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
-  // Final fallback for simple string messages not caught by initial rawData check
+   // Final fallback for simple string messages not caught by initial rawData check
   else if (typeof parsedJson === 'string' && parsedJson.trim() !== "") {
-    messageData = parsedJson;
-    userName = "Servidor (Texto)";
-    return { type: 'chat', userName, messageData };
+    // This case is usually handled by the raw data display now
   } else if (parsedJson.message && typeof parsedJson.message === 'string' && parsedJson.message.trim() !== "") {
-    messageData = parsedJson.message;
-    userName = "Servidor (Mensagem)";
-    return { type: 'chat', userName, messageData };
+    // This case is usually handled by the raw data display now
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') {
-    console.warn("Mensagem JSON não reconhecida, exibindo como dados brutos:", parsedJson);
-    return { type: 'chat', userName: "Servidor (JSON Desconhecido)", messageData: JSON.stringify(parsedJson) };
+    // console.warn("Mensagem JSON não reconhecida, será exibida como dados brutos:", parsedJson);
+    // This case is handled by the onmessage handler for raw data display
   }
 
   return null;
@@ -168,6 +170,7 @@ export default function HostStreamPage() {
 
   const [onlineViewers, setOnlineViewers] = useState<number | null>(null);
   const [liveLikes, setLiveLikes] = useState<number | null>(null);
+  const [showRawData, setShowRawData] = useState(false);
   
   const { currentUser } = useAuth();
 
@@ -176,10 +179,10 @@ export default function HostStreamPage() {
       const foundHost = placeholderHosts.find(h => h.id === hostId);
       setHost(foundHost);
       if (foundHost) {
-        setChatMessages([]);
+        setChatMessages([]); // Clear previous messages
         prevChatMessagesLengthRef.current = 0;
-        setOnlineViewers(foundHost.avgViewers || 0);
-        setLiveLikes(foundHost.likes || 0);
+        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with host's avg viewers
+        setLiveLikes(foundHost.likes || 0); // Initialize with host's likes
       }
     } else {
       setHost(null);
@@ -195,7 +198,8 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-        if (host?.id && prevHost.id !== host.id) { // Ensure we're updating the correct host
+         // Ensure we're updating the correct host if host prop changes, though unlikely with current setup
+        if (host?.id && prevHost.id !== host.id) {
           return prevHost;
         }
 
@@ -207,13 +211,41 @@ export default function HostStreamPage() {
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
-    }, 5000);
+    }, 5000); // Update every 5 seconds
     return () => clearInterval(intervalId);
   }, [host?.id]); // Dependency only on host.id to avoid resetting on other host data changes
 
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const scrollAreaElement = scrollAreaRef.current;
+    if (scrollAreaElement) {
+      const viewport = scrollAreaElement.querySelector('div[data-radix-scroll-area-viewport]') as HTMLDivElement;
+      if (viewport) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
+    if (newMessagesCount > 0) {
+      scrollToBottom('auto');
+    }
+    prevChatMessagesLengthRef.current = chatMessages.length;
+  }, [chatMessages, scrollToBottom]);
+
+  useEffect(() => {
+    // Initial scroll after mount and messages potentially load
+    const timer = setTimeout(() => {
+      scrollToBottom('auto');
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [scrollToBottom]);
+
+
   useEffect(() => {
     if (host === undefined) {
-      return;
+      return; // Wait for host data to be resolved
     }
 
     if (!host || !host.kakoLiveRoomId) {
@@ -247,7 +279,7 @@ export default function HostStreamPage() {
           messageContentString = event.data;
         } else {
           try {
-              messageContentString = JSON.stringify(event.data);
+              messageContentString = JSON.stringify(event.data); // For non-string, non-blob data
           } catch {
               messageContentString = "[Tipo de mensagem desconhecido]";
           }
@@ -263,22 +295,33 @@ export default function HostStreamPage() {
               avatar: processedResult.userAvatar,
               userMedalUrl: processedResult.userMedalUrl,
               message: processedResult.messageData,
-              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              rawData: messageContentString,
             }]);
           } else if (processedResult.type === 'systemUpdate') {
             setOnlineViewers(processedResult.online);
             setLiveLikes(processedResult.likes);
+            // Optionally, add a subtle system message if needed, or just update stats
           }
         } else if (messageContentString && messageContentString.trim() !== "" && messageContentString !== "[Erro ao ler Blob]") {
+          // If parseChatMessage returns null, but we have some raw string, display it
           setChatMessages(prev => [...prev, {
             id: generateUniqueId(),
             user: "Servidor (Dados Brutos)",
-            message: messageContentString,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            message: messageContentString, // Show the raw string
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            rawData: messageContentString,
           }]);
         }
       } catch (e) {
         console.error("WebSocket: Erro fatal ao processar mensagem:", e);
+        setChatMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          user: "Sistema",
+          message: "Erro ao processar mensagem do WebSocket.",
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          rawData: `Erro: ${(e as Error).message}`,
+        }]);
       }
     };
 
@@ -290,7 +333,7 @@ export default function HostStreamPage() {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
       console.error("WebSocket: Erro na conexão:", errorEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: JSON.stringify(errorEvent) }]);
     };
 
     socketRef.current.onclose = (closeEvent) => {
@@ -301,61 +344,42 @@ export default function HostStreamPage() {
         closeMessage += ` (Código: ${closeEvent.code})`;
       }
       console.log("WebSocket: Desconectado.", closeEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}` }]);
     };
 
+    // Cleanup function
     return () => {
       if (socketRef.current) {
         console.log(`WebSocket: Fechando conexão para hostId: ${host?.id}, roomID: ${host?.kakoLiveRoomId}`);
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    const scrollAreaElement = scrollAreaRef.current;
-    if (scrollAreaElement) {
-      const viewport = scrollAreaElement.querySelector('div[data-radix-scroll-area-viewport]') as HTMLDivElement;
-      if (viewport) {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const newMessagesCount = chatMessages.length - prevChatMessagesLengthRef.current;
-    if (newMessagesCount > 0) {
-      scrollToBottom('auto');
-    }
-    prevChatMessagesLengthRef.current = chatMessages.length;
-  }, [chatMessages, scrollToBottom]);
-
-  useEffect(() => {
-    // Initial scroll after mount and messages potentially load
-    const timer = setTimeout(() => {
-      scrollToBottom('auto');
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [scrollToBottom]); // Run only on mount or if scrollToBottom changes
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id, host?.kakoLiveRoomId]); // Removed chatMessages from dependencies
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      // Kako specific message format for sending text
       const messageToSend = {
-        type: 'chat_message',
+        type: 0, // Type 0 seems to be for text messages based on some platform conventions
         content: newMessage.trim(),
+        // You might need to send other fields like userId, nickname, avatar from currentUser
+        // user: { nickname: currentUser?.profileName || "Você", avatar: currentUser?.photoURL, level: currentUser?.level }
       };
-      socketRef.current.send(JSON.stringify(messageToSend));
+      // For Kako, it might expect a raw stringified JSON
+      socketRef.current.send(JSON.stringify({ text: newMessage.trim() })); // Simplified, might need more fields
 
+      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
           id: generateUniqueId(),
           user: currentUser?.profileName || 'Você',
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
-          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png',
+          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal for sent messages
           message: newMessage.trim(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          rawData: JSON.stringify({ text: newMessage.trim(), sent: true }),
         }
       ]);
       setNewMessage("");
@@ -366,7 +390,8 @@ export default function HostStreamPage() {
               id: generateUniqueId(),
               user: 'Sistema',
               message: "Não conectado ao chat para enviar mensagem.",
-              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              rawData: "Attempted send while disconnected",
             }
           ]);
     }
@@ -399,6 +424,7 @@ export default function HostStreamPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/hosts">
@@ -409,11 +435,14 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div>
+        <div className="w-8 h-8"></div> {/* Placeholder for spacing if needed */}
       </div>
 
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Column: Video & Host Info */}
         <div className="md:col-span-2 space-y-6">
+         {/* Video Player Card */}
          <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2 flex-row justify-between items-center">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
@@ -456,6 +485,7 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
+          {/* About Host Card */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -484,6 +514,7 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
+          {/* Gifts Received Card */}
           {host.giftsReceived && host.giftsReceived.length > 0 && (
             <Card className="shadow-lg">
               <CardHeader>
@@ -527,8 +558,9 @@ export default function HostStreamPage() {
           )}
         </div>
 
+        {/* Right Column: Chat */}
         <div className="md:col-span-1">
-          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
+          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> {/* max-h to constrain height */}
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
@@ -538,11 +570,20 @@ export default function HostStreamPage() {
                         <span>{onlineViewers.toLocaleString('pt-BR')}</span>
                     </>
                 )}
+                <div className="flex items-center space-x-2 ml-4">
+                    <Switch
+                        id="show-raw-data"
+                        checked={showRawData}
+                        onCheckedChange={setShowRawData}
+                        aria-label="Mostrar dados brutos"
+                    />
+                    <Label htmlFor="show-raw-data" className="text-xs cursor-pointer">Dados Brutos</Label>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative">
-              <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area">
-                <div className="p-4 space-y-4">
+            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* p-0 to allow ScrollArea to manage padding */}
+              <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area"> {/* h-full to take available space */}
+                <div className="p-4 space-y-4"> {/* Padding applied to inner content */}
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3">
                       <Avatar className="h-8 w-8 border">
@@ -551,7 +592,7 @@ export default function HostStreamPage() {
                         ) : null}
                         <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
                       </Avatar>
-                      <div>
+                      <div className="flex-1"> {/* flex-1 to allow text to wrap */}
                         <div className="flex items-center space-x-2">
                           {item.userMedalUrl && (
                             <Image
@@ -559,7 +600,7 @@ export default function HostStreamPage() {
                               alt="Medalha"
                               width={16}
                               height={16}
-                              className="h-4 w-auto mr-1.5 align-middle"
+                              className="h-4 w-auto mr-0.5 align-middle" // slightly less margin
                               data-ai-hint="user medal"
                             />
                           )}
@@ -567,12 +608,24 @@ export default function HostStreamPage() {
                           <span className="text-xs text-muted-foreground">{item.timestamp}</span>
                         </div>
                         <p className="text-sm text-foreground/90 break-all">{item.message}</p>
+                        {showRawData && item.rawData && (
+                          <pre className="mt-1 text-xs bg-muted/30 p-2 rounded-md overflow-x-auto border border-muted/50">
+                            {(() => {
+                              try {
+                                // Attempt to parse and then pretty-print if it's JSON
+                                return JSON.stringify(JSON.parse(item.rawData), null, 2);
+                              } catch (e) {
+                                // If not valid JSON, show the raw string directly
+                                return item.rawData;
+                              }
+                            })()}
+                          </pre>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
-              {/* Removed "New Messages" button */}
             </CardContent>
             <div className="p-4 border-t">
               <div className="flex space-x-2">
@@ -582,7 +635,7 @@ export default function HostStreamPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-grow"
-                  disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !newMessage.trim()}
+                  disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
                 />
                 <Button
                   onClick={handleSendMessage}
@@ -599,3 +652,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+

@@ -94,4 +94,6 @@ export interface ChatMessage {
   message: string;
   timestamp: string;
   userMedalUrl?: string; // Added for user badge/medal
+  rawData?: string; // To store the original raw message string
 }
+
