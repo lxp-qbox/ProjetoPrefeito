@@ -9,7 +9,7 @@ import { Users, Gamepad2, MailQuestion, ShieldAlert, ArrowRight, LayoutDashboard
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import AdminHostsPageContent from "./hosts/page-content"; // Import the content component
+import AdminHostsPageContent from "./hosts/page-content";
 
 export default function AdminPage() {
   const { currentUser } = useAuth();
@@ -33,7 +33,7 @@ export default function AdminPage() {
   }
 
   const adminSections = [
-    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, 
+    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
     { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
     { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
     { title: "Configurações", icon: Settings, link: "/admin/settings" },
@@ -60,7 +60,7 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row gap-6">
           <nav className="w-full md:w-72 flex-shrink-0">
             <Card className="shadow-lg">
-              <CardContent className="p-2 space-y-1">
+              <CardContent className="p-1 space-y-1"> {/* Reduced padding from p-2 to p-1 */}
                 {adminSections.map((section) => {
                   const isActive = pathname === section.link;
                   return (
@@ -68,15 +68,15 @@ export default function AdminPage() {
                       key={section.title}
                       variant={isActive ? "default" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left h-auto py-2.5 px-3 text-sm font-medium rounded-md", // Adjusted padding
+                        "w-full justify-start text-left h-auto py-2.5 px-2 text-sm font-medium rounded-md", // Reduced horizontal padding from px-3 to px-2
                         isActive
                           ? "bg-primary text-primary-foreground hover:bg-primary/90"
                           : "text-card-foreground hover:bg-muted"
                       )}
                       asChild
                     >
-                      <Link href={section.link} className="flex items-center gap-2.5"> {/* Adjusted gap */}
-                        <section.icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} /> {/* Adjusted icon size */}
+                      <Link href={section.link} className="flex items-center gap-2.5">
+                        <section.icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
                         {section.title}
                       </Link>
                     </Button>
