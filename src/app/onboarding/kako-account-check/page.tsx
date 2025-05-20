@@ -18,12 +18,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
+  const { currentUser } = useAuth(); // Not used directly for saving, but good for context/checks if needed
+  const { toast } = useToast(); // Not used in current logic, but available
 
   const handleHasAccount = () => {
     router.push("/onboarding/kako-id-input"); 
@@ -93,7 +95,7 @@ export default function KakoAccountCheckPage() {
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t">
-        <Progress value={100} className="h-1.5 w-full" aria-label="Progresso do onboarding 100%" />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </Card>
   );

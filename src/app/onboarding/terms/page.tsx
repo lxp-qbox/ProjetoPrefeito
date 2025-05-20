@@ -14,7 +14,7 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, CheckCircle } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
 
 const placeholderTerms = `
 Bem-vindo à The Presidential Agency!
@@ -40,6 +40,9 @@ Este é um texto de placeholder. Em uma aplicação real, este seria substituíd
 É crucial que você leia e entenda nossos termos completos antes de prosseguir.
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
   `.trim().repeat(3);
+
+  const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+
 
 export default function TermsPage() {
   const [agreed, setAgreed] = useState(false);
@@ -97,14 +100,12 @@ export default function TermsPage() {
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6 pt-0">
+      <CardFooter className="p-6 pt-0 flex-col gap-4">
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
         </Button>
-      </CardFooter>
-       <CardFooter className="p-4 border-t">
-        <Progress value={25} className="h-1.5 w-full" aria-label="Progresso do onboarding 25%" />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
       </CardFooter>
     </Card>
   );

@@ -12,7 +12,7 @@ interface StepCircleProps {
 
 const StepCircle: React.FC<StepCircleProps> = ({ stepNumber, isCompleted, isCurrent }) => {
   const circleClasses = cn(
-    "w-8 h-8 rounded-full flex items-center justify-center font-semibold border-2",
+    "w-6 h-6 rounded-full flex items-center justify-center font-semibold border-2 text-xs", // Reduced size, added text-xs
     isCompleted
       ? "bg-emerald-600 text-white border-emerald-600"
       : isCurrent
@@ -30,7 +30,7 @@ interface StepLabelProps {
 
 const StepLabel: React.FC<StepLabelProps> = ({ label, isCompleted, isCurrent }) => {
   const textClasses = cn(
-    "mt-2 text-xs sm:text-sm text-center break-words w-16 sm:w-20",
+    "mt-1 text-xs text-center break-words w-14", // Reduced margin-top, width, kept text-xs
     (isCompleted || isCurrent)
       ? "font-medium"
       : "font-normal",
@@ -49,7 +49,7 @@ interface ConnectingLineProps {
 
 const ConnectingLine: React.FC<ConnectingLineProps> = ({ isCompleted }) => {
   const lineClasses = cn(
-    "h-1 flex-1", // Takes full width of its parent, height is 1px
+    "h-1 flex-1",
     isCompleted ? "bg-emerald-600" : "bg-border"
   );
   return <div className={lineClasses} />;
@@ -64,7 +64,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ steps, currentSte
   if (!steps || steps.length === 0) return null;
 
   return (
-    <div className="flex justify-between items-start w-full px-2 sm:px-4">
+    <div className="flex justify-between items-start w-full px-1"> {/* Reduced overall padding */}
       {steps.map((label, index) => {
         const stepNumber = index + 1;
         const isCompleted = stepNumber < currentStep;
@@ -86,7 +86,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ steps, currentSte
               />
             </div>
             {!isLastStep && (
-              <div className="flex-grow flex items-center h-8 mx-1"> {/* Container for the line, height matches circle, centers line */}
+              <div className="flex-grow flex items-center h-6 mx-0.5"> {/* Reduced height and margin */}
                  <ConnectingLine isCompleted={isCompleted} />
               </div>
             )}

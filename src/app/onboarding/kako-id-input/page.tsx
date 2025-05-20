@@ -21,7 +21,9 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
@@ -155,7 +157,7 @@ export default function KakoIdInputPage() {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-6 border-t mt-auto">
+      <CardFooter className="p-6 border-t mt-auto flex-col gap-4">
         <Button
           onClick={handleContinue}
           className="w-full"
@@ -168,9 +170,7 @@ export default function KakoIdInputPage() {
           )}
           Continuar e Finalizar
         </Button>
-      </CardFooter>
-       <CardFooter className="p-4 border-t">
-        <Progress value={100} className="h-1.5 w-full" aria-label="Progresso do onboarding 100%" />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </Card>
   );

@@ -39,7 +39,9 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import new stepper
+
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
@@ -268,7 +270,7 @@ export default function AgeVerificationPage() {
           )}
         </div>
       </CardContent>
-      <CardFooter className="p-6 pt-2">
+      <CardFooter className="p-6 pt-2 flex-col gap-4">
         <Button
           onClick={handleContinue}
           className="w-full"
@@ -281,9 +283,7 @@ export default function AgeVerificationPage() {
           )}
           Continuar
         </Button>
-      </CardFooter>
-       <CardFooter className="p-4 border-t">
-        <Progress value={75} className="h-1.5 w-full" aria-label="Progresso do onboarding 75%" />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </Card>
   );
