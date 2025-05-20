@@ -14,7 +14,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: 'The Presidential Agency',
-  description: 'Participe de jogos de bingo emocionantes e gerencie seu perfil com The Presidential Agency.',
+  description: 'Sua plataforma web para jogos de bingo emocionantes e gerenciamento de perfil com The Presidential Agency.',
   icons: {
     icon: '/favicon.ico',
   },
