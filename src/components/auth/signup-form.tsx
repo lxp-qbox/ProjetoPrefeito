@@ -10,7 +10,7 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
+  // FormLabel, // Removed
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -51,11 +51,10 @@ export default function SignupForm() {
     const atIndex = email.indexOf('@');
     if (atIndex !== -1) {
       let profileName = email.substring(0, atIndex);
-      // Capitalize first letter and ensure it's a reasonable length
       profileName = profileName.charAt(0).toUpperCase() + profileName.slice(1);
       return profileName.length > 30 ? profileName.substring(0, 30) : profileName;
     }
-    return "Usuário"; // Fallback
+    return "Usuário";
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -65,18 +64,17 @@ export default function SignupForm() {
       const user = userCredential.user;
       const derivedProfileName = deriveProfileNameFromEmail(values.email);
 
-      // Update Firebase Auth profile
       await updateProfile(user, {
         displayName: derivedProfileName,
       });
 
-      // Create Firestore document
       const userDocRef = doc(db, "users", user.uid);
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
         profileName: derivedProfileName,
-        kakoLiveId: "", // Set to empty string as it's removed from form
+        displayName: derivedProfileName, // Ensure displayName is also set in Firestore
+        kakoLiveId: "",
         role: 'player',
         isVerified: false,
         createdAt: serverTimestamp(),
@@ -87,7 +85,7 @@ export default function SignupForm() {
         photos: [],
         socialLinks: {},
         themePreference: 'system',
-        accentColor: '#4285F4', // Default accent
+        accentColor: '#4285F4',
       };
       await setDoc(userDocRef, newUserProfile);
 
@@ -116,9 +114,9 @@ export default function SignupForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              {/* <FormLabel>Email</FormLabel> */}
               <FormControl>
-                <Input placeholder="voce@exemplo.com" {...field} />
+                <Input placeholder="Digite seu email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -129,22 +127,22 @@ export default function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Senha</FormLabel>
+              {/* <FormLabel>Senha</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
+                    placeholder="Digite sua senha" 
                     {...field} 
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                   </Button>
                 </div>
               </FormControl>
@@ -157,22 +155,22 @@ export default function SignupForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirmar Senha</FormLabel>
+              {/* <FormLabel>Confirmar Senha</FormLabel> */}
               <FormControl>
                 <div className="relative">
                    <Input 
                     type={showConfirmPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
+                    placeholder="Confirme sua senha" 
                     {...field} 
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                   </Button>
                 </div>
               </FormControl>
