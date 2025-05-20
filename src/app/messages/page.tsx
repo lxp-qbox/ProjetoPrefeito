@@ -57,7 +57,16 @@ export default function MessagesPage() {
     return messages
       .filter(msg => msg.conversationId === selectedConversationId)
       .map(msg => ({ ...msg, isCurrentUser: msg.senderId === currentUserId }))
-      .sort((a,b) => new Date(0).setHours(...a.timestamp.split(':').map(Number)) - new Date(0).setHours(...b.timestamp.split(':').map(Number))); // Basic time sort
+      .sort((a,b) => {
+         // Basic time sort, assuming HH:MM format for placeholders
+         const timeA = a.timestamp.split(':').map(Number);
+         const timeB = b.timestamp.split(':').map(Number);
+         if (timeA.length === 2 && timeB.length === 2) {
+           if (timeA[0] !== timeB[0]) return timeA[0] - timeB[0];
+           return timeA[1] - timeB[1];
+         }
+         return 0; // Fallback for non-standard time formats
+      });
   }, [messages, selectedConversationId, currentUserId]);
 
   const handleSendMessage = () => {
@@ -187,7 +196,7 @@ export default function MessagesPage() {
                       })}
                     >
                       {!msg.isCurrentUser && (
-                        <Avatar className="h-8 w-8 border self-start">
+                        <Avatar className="h-8 w-8 border self-start shrink-0">
                           <AvatarImage src={msg.senderAvatar} alt={msg.senderName} data-ai-hint="sender avatar" />
                           <AvatarFallback>{getInitials(msg.senderName)}</AvatarFallback>
                         </Avatar>
@@ -201,14 +210,14 @@ export default function MessagesPage() {
                         )}
                       >
                         {!msg.isCurrentUser && <p className="text-xs font-semibold mb-0.5 text-primary">{msg.senderName}</p>}
-                        <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
                         <p className={cn(
                             "text-xs mt-1.5",
                             msg.isCurrentUser ? "text-primary-foreground/70 text-right" : "text-muted-foreground text-right"
                         )}>{msg.timestamp}</p>
                       </div>
                       {msg.isCurrentUser && (
-                        <Avatar className="h-8 w-8 border self-start">
+                        <Avatar className="h-8 w-8 border self-start shrink-0">
                           <AvatarImage src={currentUser?.photoURL || msg.senderAvatar} alt={currentUser?.profileName || msg.senderName} data-ai-hint="my avatar" />
                           <AvatarFallback>{getInitials(currentUser?.profileName || msg.senderName)}</AvatarFallback>
                         </Avatar>
@@ -251,3 +260,5 @@ export default function MessagesPage() {
     </ProtectedPage>
   );
 }
+
+    

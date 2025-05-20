@@ -127,7 +127,7 @@ export interface ChatMessage { // For Host Stream Chat
   userLevel?: number; 
 }
 
-// For P2P Messages Page
+// For P2P Messages Page - Types for UI
 export interface ConversationPreview {
   id: string;
   userId: string; // ID of the other user in the conversation
@@ -138,13 +138,34 @@ export interface ConversationPreview {
   unreadCount?: number;
 }
 
-export interface AppMessage { // Renamed from Message to avoid conflicts
+export interface AppMessage {
   id: string;
   conversationId: string;
   senderId: string; // UID of the sender
   senderName: string;
   senderAvatar: string;
   text: string;
-  timestamp: string;
+  timestamp: any; // Firestore Timestamp or string for placeholder
   isCurrentUser?: boolean; // Determined at render time
 }
+
+// Types for Firestore data structure (P2P Messages)
+export interface FirestoreConversation {
+  id?: string; // Document ID, usually auto-generated
+  participants: string[]; // Array of User UIDs
+  participantNames: { [uid: string]: string }; // For quick display in conversation list
+  participantAvatars: { [uid: string]: string | null }; // For quick display
+  lastMessageText?: string;
+  lastMessageTimestamp?: any; // Firestore Server Timestamp
+  lastMessageSenderId?: string; // UID of the sender of the last message
+  createdAt: any; // Firestore Server Timestamp
+  updatedAt: any; // Firestore Server Timestamp
+  // Optional: for managing unread counts per user more robustly on the backend
+  // unreadCounts?: { [uid: string]: number }; 
+}
+
+// Message documents would reside in a subcollection:
+// /conversations/{conversationId}/messages/{messageId}
+// Structure will be similar to AppMessage, but `timestamp` will be a Firestore Timestamp.
+
+    
