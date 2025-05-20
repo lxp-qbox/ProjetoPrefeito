@@ -8,12 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond } from "lucide-react"; // Added Diamond
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
-import { countries } from "@/lib/countries"; 
+import { countries } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,29 +35,31 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return ""; 
+  if (!value.trim()) return "";
 
   const originalStartsWithPlus = value.charAt(0) === '+';
-  
+  // Remove all non-digits, except for a leading +
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
-  
-  digitsOnly = digitsOnly.slice(0, 12); 
+
+  digitsOnly = digitsOnly.slice(0, 15); // Max 15 digits after potential plus
   const len = digitsOnly.length;
 
   if (len === 0) {
-    return originalStartsWithPlus ? "+" : "";
+    return originalStartsWithPlus ? "+" : ""; // Return "+" if user typed only that, or "" if empty
   }
 
-  let formatted = "+";
+  let formatted = "+"; // Always start with + if there are digits
 
-  if (len <= 2) { 
+  if (len <= 2) { // Country code part, e.g., +55
     formatted += digitsOnly;
-  } else if (len <= 4) { 
+  } else if (len <= 4) { // Area code part, e.g., +55 (19
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else if (len <= 8) { 
+  } else if (len <= 9) { // First part of main number, e.g., +55 (19) 99636 (for a 9-digit local number after area code)
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  } else { 
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
+  } else { // Second part of main number, and allows for longer numbers
+             // e.g., +55 (19) 99636-4022 for 13 digits total after +
+             // or   +55 (19) 99636-40221 for 14 digits total after +
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   }
   return formatted;
 };
@@ -85,23 +87,25 @@ export default function ProfilePage() {
         try {
             let parsedDate: Date | null = null;
             if (typeof currentUser.birthDate === 'string') {
+              // Try parsing YYYY-MM-DD first
               const dateParts = currentUser.birthDate.split('-');
               if (dateParts.length === 3) {
                   const year = parseInt(dateParts[0], 10);
                   const month = parseInt(dateParts[1], 10) - 1; 
                   const day = parseInt(dateParts[2], 10);
                   if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                    parsedDate = new Date(year, month, day);
+                    const tempDate = new Date(Date.UTC(year, month, day)); // Use UTC to avoid timezone shifts
+                    if (isValid(tempDate)) parsedDate = tempDate;
                   }
               }
+              // If YYYY-MM-DD parsing failed or wasn't the format, try ISO parsing
               if (!parsedDate || !isValid(parsedDate)) {
-                  // Try parsing as ISO string if YYYY-MM-DD failed or was not the format
                   parsedDate = parseISO(currentUser.birthDate);
               }
-            } else if (currentUser.birthDate instanceof Date) { // If it's already a Date object
+            } else if (currentUser.birthDate instanceof Date) { 
               parsedDate = currentUser.birthDate;
             }
-            // @ts-ignore Check if it's a Firestore Timestamp-like object
+            // @ts-ignore Check for Firestore Timestamp-like object
             else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
                 // @ts-ignore
                 parsedDate = currentUser.birthDate.toDate();
@@ -229,7 +233,7 @@ export default function ProfilePage() {
                       <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
                       <div className="flex items-center text-sm">
                           <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <Badge variant="destructive"> 
+                          <Badge variant="destructive">
                           {currentUser.adminLevel.charAt(0).toUpperCase() + currentUser.adminLevel.slice(1)}
                           </Badge>
                       </div>
@@ -243,7 +247,7 @@ export default function ProfilePage() {
                       <Input
                           id="phone-number-profile"
                           type="tel"
-                          placeholder="+00 (00) 0000-0000"
+                          placeholder="+00 (00) 00000-0000"
                           value={editablePhoneNumber}
                           onChange={(e) => setEditablePhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                           className="pl-10 h-12"
@@ -357,5 +361,3 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
-
-    

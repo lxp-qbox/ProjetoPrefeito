@@ -38,32 +38,35 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return ""; 
+  if (!value.trim()) return "";
 
   const originalStartsWithPlus = value.charAt(0) === '+';
-  
+  // Remove all non-digits, except for a leading +
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
-  
-  digitsOnly = digitsOnly.slice(0, 12); 
+
+  digitsOnly = digitsOnly.slice(0, 15); // Max 15 digits after potential plus
   const len = digitsOnly.length;
 
   if (len === 0) {
-    return originalStartsWithPlus ? "+" : "";
+    return originalStartsWithPlus ? "+" : ""; // Return "+" if user typed only that, or "" if empty
   }
 
-  let formatted = "+";
+  let formatted = "+"; // Always start with + if there are digits
 
-  if (len <= 2) { 
+  if (len <= 2) { // Country code part, e.g., +55
     formatted += digitsOnly;
-  } else if (len <= 4) { 
+  } else if (len <= 4) { // Area code part, e.g., +55 (19
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else if (len <= 8) { 
+  } else if (len <= 9) { // First part of main number, e.g., +55 (19) 99636 (for a 9-digit local number after area code)
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  } else { 
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
+  } else { // Second part of main number, and allows for longer numbers
+             // e.g., +55 (19) 99636-4022 for 13 digits total after +
+             // or   +55 (19) 99636-40221 for 14 digits total after +
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   }
   return formatted;
 };
+
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
@@ -107,7 +110,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!phoneNumber.trim()) {
+     if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -201,7 +204,7 @@ export default function AgeVerificationPage() {
           <span className="sr-only">Voltar</span>
         </Link>
       </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <UserCheck className="h-8 w-8 text-primary" />
         </div>
@@ -213,7 +216,6 @@ export default function AgeVerificationPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
-          
           <div>
             <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
               Celular (WhatsApp)
@@ -223,14 +225,14 @@ export default function AgeVerificationPage() {
                 <Input
                     id="phone-number"
                     type="tel"
-                    placeholder="+00 (00) 0000-0000"
+                    placeholder="+00 (00) 00000-0000"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                     className="pl-10 h-12"
                 />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
