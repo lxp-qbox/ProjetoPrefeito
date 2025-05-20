@@ -12,9 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle } from "lucide-react"; // Removido ArrowLeft
+import { FileText, CheckCircle } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-// Removido Link pois o botão voltar foi removido
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
@@ -80,9 +79,8 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
-      {/* Botão Voltar Removido */}
-      <CardHeader className="text-center pt-10 pb-4"> {/* pt-10 mantido para consistência visual, mesmo sem botão */}
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+      <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <FileText className="h-8 w-8 text-primary" />
         </div>
@@ -91,17 +89,17 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
       </CardHeader>
       <Separator className="mb-4" />
       <CardContent className="flex-grow px-6 pt-0 pb-4 flex flex-col">
-        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
+        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px] mb-4">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
+        <div className="flex justify-center items-center space-x-2 mt-auto pt-4">
           <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
           <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
             Li e estou de acordo
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6 pt-0"> {/* Removido border-t para tirar a linha */}
+      <CardFooter className="p-6 pt-2">
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar

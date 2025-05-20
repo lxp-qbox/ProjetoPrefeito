@@ -105,12 +105,7 @@ export default function KakoIdInputPage() {
         className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
         title="Voltar"
       >
-        {/* 
-          This back button ideally should go to age-verification if host, 
-          or kako-account-check if player. For simplicity now, it goes to kako-account-check.
-          A host reaching here from age-verification would see the choice again if they go back.
-        */}
-        <Link href="/onboarding/kako-account-check">
+        <Link href={currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check"}>
           <ArrowLeft className="h-8 w-8" />
           <span className="sr-only">Voltar</span>
         </Link>
@@ -125,8 +120,8 @@ export default function KakoIdInputPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
-        <div className="w-full max-w-xs space-y-6">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-xs mx-auto space-y-6">
           <div>
             <Label htmlFor="kakoId" className="text-sm font-medium mb-2 block text-left">
               ID do Kako Live

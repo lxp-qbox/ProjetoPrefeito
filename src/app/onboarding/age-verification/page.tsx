@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, UserCircle2, Users, Globe, ArrowLeft } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -135,6 +135,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Fallback for other roles or if role isn't defined yet, though it should be by this stage.
         router.push("/profile"); 
       }
     } catch (error) {
@@ -177,8 +178,8 @@ export default function AgeVerificationPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
-        <div className="w-full max-w-xs space-y-6">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-xs mx-auto space-y-6">
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
               Sexo
@@ -270,7 +271,7 @@ export default function AgeVerificationPage() {
           )}
         </div>
       </CardContent>
-      <CardFooter className="p-6">
+      <CardFooter className="p-6 pt-2">
         <Button
           onClick={handleContinue}
           className="w-full"
