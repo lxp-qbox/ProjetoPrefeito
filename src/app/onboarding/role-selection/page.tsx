@@ -103,7 +103,7 @@ export default function RoleSelectionPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
             <p className="text-sm text-muted-foreground">
-              Faço parte da agência
+              Faço parte da agência do presidente
             </p>
             {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
@@ -127,7 +127,7 @@ export default function RoleSelectionPage() {
           </Card>
         </div>
       </CardContent>
-      <CardFooter className="p-4 border-t">
+       <CardFooter className="p-4 border-t">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
     </Card>
