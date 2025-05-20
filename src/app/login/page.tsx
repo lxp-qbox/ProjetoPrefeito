@@ -63,12 +63,9 @@ export default function LoginPage() {
         <CardFooter className="flex-col p-0">
           <div className="w-full border-t border-border" />
           <div className="w-full bg-muted p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Não tem uma conta?{" "}
-              <Link href="/signup" className="font-medium text-primary hover:underline">
-                Cadastre-se
-              </Link>
-            </p>
+            <Link href="/signup" className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline">
+              Não tem uma conta? Cadastre-se
+            </Link>
           </div>
         </CardFooter>
       </Card>
