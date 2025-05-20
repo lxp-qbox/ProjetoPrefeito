@@ -137,7 +137,7 @@ export interface ConversationPreview {
   lastMessageTime: string;
   unreadCount?: number;
   isOnline?: boolean;
-  isPinned?: boolean; // Placeholder for future pinning
+  isPinned?: boolean;
 }
 
 export interface AppMessage {
@@ -189,5 +189,18 @@ export interface FeedPost {
   };
 }
     
+// For Twitter-like right sidebar
+export interface Trend {
+  id: string;
+  category: string;
+  topic: string;
+  posts: string;
+}
 
-    
+export interface SuggestedUser {
+  id: string;
+  name: string;
+  handle: string;
+  avatarUrl: string;
+  dataAiHint?: string;
+}

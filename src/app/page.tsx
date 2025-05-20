@@ -6,11 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, ListChecks, Smile, MapPin } from "lucide-react"; // Removed unused icons
+import { ImagePlus, ListChecks, Smile, MapPin } from "lucide-react"; 
 import type { FeedPost } from "@/types";
-import PostCard from "@/components/feed/post-card"; // Corrected import path
+import PostCard from "@/components/feed/post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RightSidebar from "@/components/feed/RightSidebar"; // Import the new sidebar
 
 const placeholderPosts: FeedPost[] = [
   {
@@ -19,7 +20,7 @@ const placeholderPosts: FeedPost[] = [
       name: "Elon Musk",
       handle: "@elonmusk",
       avatarUrl: "https://placehold.co/48x48.png",
-      dataAiHint: "man tech", // Added hint
+      dataAiHint: "man tech",
     },
     content: "Doge to the moon! 🚀",
     timestamp: "2h",
@@ -33,7 +34,7 @@ const placeholderPosts: FeedPost[] = [
       name: "Ada Lovelace",
       handle: "@adalovelace",
       avatarUrl: "https://placehold.co/48x48.png",
-      dataAiHint: "woman portrait", // Added hint
+      dataAiHint: "woman portrait",
     },
     content: "Just published my notes on the Analytical Engine. I believe it could be used to compose complex music, to produce graphics, and for both scientific and practical use. #programming #history",
     timestamp: "1d",
@@ -45,7 +46,7 @@ const placeholderPosts: FeedPost[] = [
       name: "Agência Presidencial",
       handle: "@thepresidential",
       avatarUrl: "https://placehold.co/48x48.png",
-      dataAiHint: "agency logo", // Added hint
+      dataAiHint: "agency logo",
     },
     content: "Bem-vindos à nossa nova plataforma! Fiquem ligados para jogos de bingo emocionantes e muito mais. #novidades #bingo",
     timestamp: "5m",
@@ -67,85 +68,90 @@ export default function HomePage() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      {/* What's happening input area */}
-      <Card className="mb-4 shadow-sm rounded-xl">
-        <div className="p-4">
-          <div className="flex space-x-3">
-            <Avatar className="h-12 w-12 border">
-              <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
-              <AvatarFallback>{getInitials(currentUser?.displayName || currentUser?.email)}</AvatarFallback>
-            </Avatar>
-            <Textarea
-              placeholder="O que está acontecendo?"
-              className="flex-1 resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[80px] text-lg"
-              value={newPostText}
-              onChange={(e) => setNewPostText(e.target.value)}
-            />
-          </div>
-          <div className="mt-3 flex justify-between items-center">
-            <div className="flex space-x-1 text-primary">
-              <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                <ImagePlus className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                <ListChecks className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                <Smile className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                <MapPin className="h-5 w-5" />
-              </Button>
+    <div className="flex justify-center w-full">
+      <div className="flex w-full max-w-[990px]"> {/* Max width for overall content area */}
+        {/* Main Feed Content */}
+        <div className="w-full lg:w-[600px] border-r border-l border-border min-h-screen">
+          {/* What's happening input area */}
+          <Card className="mb-0 shadow-none rounded-none border-x-0 border-t-0">
+            <div className="p-4">
+              <div className="flex space-x-3">
+                <Avatar className="h-12 w-12 border">
+                  <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
+                  <AvatarFallback>{getInitials(currentUser?.displayName || currentUser?.email)}</AvatarFallback>
+                </Avatar>
+                <Textarea
+                  placeholder="O que está acontecendo?"
+                  className="flex-1 resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[80px] text-lg"
+                  value={newPostText}
+                  onChange={(e) => setNewPostText(e.target.value)}
+                />
+              </div>
+              <div className="mt-3 flex justify-between items-center">
+                <div className="flex space-x-1 text-primary">
+                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                    <ImagePlus className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                    <ListChecks className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                    <Smile className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                    <MapPin className="h-5 w-5" />
+                  </Button>
+                </div>
+                <Button
+                  disabled={!newPostText.trim()}
+                  className="rounded-full font-semibold px-6"
+                >
+                  Postar
+                </Button>
+              </div>
             </div>
-            <Button
-              disabled={!newPostText.trim()}
-              className="rounded-full font-semibold px-6"
-            >
-              Postar
-            </Button>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
-      {/* Tabs for feed types */}
-      <Tabs defaultValue="for-you" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card border-b">
-          <TabsTrigger
-            value="for-you"
-            className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Pra Você
-          </TabsTrigger>
-          <TabsTrigger
-            value="following"
-            className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Seguindo
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="for-you" className="mt-0"> {/* Removed top margin for closer fit */}
-          <div className="space-y-0">
-            {placeholderPosts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="following" className="mt-0"> {/* Removed top margin for closer fit */}
-          <div className="space-y-0">
-            {/* Placeholder - In a real app, this would be a different feed */}
-            {placeholderPosts.map((post) => (
-              <PostCard key={`${post.id}-following`} post={post} />
-            ))}
-             <div className="text-center py-8 text-muted-foreground">
-                <p>Você ainda não está seguindo ninguém.</p>
-                <p className="text-sm">Postagens de contas que você segue aparecerão aqui.</p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+          {/* Tabs for feed types */}
+          <Tabs defaultValue="for-you" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card border-b">
+              <TabsTrigger
+                value="for-you"
+                className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+              >
+                Pra Você
+              </TabsTrigger>
+              <TabsTrigger
+                value="following"
+                className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+              >
+                Seguindo
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="for-you" className="mt-0">
+              <div className="space-y-0">
+                {placeholderPosts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="following" className="mt-0">
+              <div className="space-y-0">
+                {placeholderPosts.map((post) => (
+                  <PostCard key={`${post.id}-following`} post={post} />
+                ))}
+                <div className="text-center py-8 text-muted-foreground">
+                    <p>Você ainda não está seguindo ninguém.</p>
+                    <p className="text-sm">Postagens de contas que você segue aparecerão aqui.</p>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Sidebar */}
+        <RightSidebar />
+      </div>
     </div>
   );
 }
-
-    
