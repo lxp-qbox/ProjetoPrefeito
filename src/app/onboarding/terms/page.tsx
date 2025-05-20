@@ -85,11 +85,11 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         <CardDescription>Por favor, leia e aceite nossos termos para continuar.</CardDescription>
       </CardHeader>
       <Separator className="mb-4" />
-      <CardContent className="flex-grow px-6 py-0 flex flex-col">
+      <CardContent className="flex-grow px-6 pt-0 pb-4 flex flex-col"> {/* Adjusted pb for overall spacing */}
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30 h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex items-center space-x-2 mt-4 mb-2">
+        <div className="flex justify-center items-center space-x-2 mt-6 mb-4"> {/* Centered and increased margin */}
           <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
           <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
             Li e estou de acordo
