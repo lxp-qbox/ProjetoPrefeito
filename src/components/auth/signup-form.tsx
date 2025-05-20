@@ -19,12 +19,10 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus, ShieldQuestion, UserSquare2 } from "lucide-react";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
 import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
-  profileName: z.string().min(3, { message: "Nome de Perfil deve ter pelo menos 3 caracteres." }).max(30, { message: "Nome de Perfil não pode exceder 30 caracteres." }),
-  kakoLiveId: z.string().min(3, {message: "Passaporte (ID do Kako Live) deve ter pelo menos 3 caracteres."}).max(50, { message: "Passaporte (ID do Kako Live) não pode exceder 50 caracteres."}).optional().or(z.literal("")),
   email: z.string().email({ message: "Endereço de email inválido." }),
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
   confirmPassword: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
@@ -43,23 +41,33 @@ export default function SignupForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      profileName: "",
-      kakoLiveId: "",
       email: "",
       password: "",
       confirmPassword: "",
     },
   });
 
+  function deriveProfileNameFromEmail(email: string): string {
+    const atIndex = email.indexOf('@');
+    if (atIndex !== -1) {
+      let profileName = email.substring(0, atIndex);
+      // Capitalize first letter and ensure it's a reasonable length
+      profileName = profileName.charAt(0).toUpperCase() + profileName.slice(1);
+      return profileName.length > 30 ? profileName.substring(0, 30) : profileName;
+    }
+    return "Usuário"; // Fallback
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
+      const derivedProfileName = deriveProfileNameFromEmail(values.email);
 
       // Update Firebase Auth profile
       await updateProfile(user, {
-        displayName: values.profileName,
+        displayName: derivedProfileName,
       });
 
       // Create Firestore document
@@ -67,8 +75,8 @@ export default function SignupForm() {
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
-        profileName: values.profileName,
-        kakoLiveId: values.kakoLiveId || "",
+        profileName: derivedProfileName,
+        kakoLiveId: "", // Set to empty string as it's removed from form
         role: 'player',
         isVerified: false,
         createdAt: serverTimestamp(),
@@ -79,6 +87,7 @@ export default function SignupForm() {
         photos: [],
         socialLinks: {},
         themePreference: 'system',
+        accentColor: '#4285F4', // Default accent
       };
       await setDoc(userDocRef, newUserProfile);
 
@@ -102,38 +111,6 @@ export default function SignupForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="profileName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome de Perfil</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Seu nome de usuário" {...field} className="pl-10" />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="kakoLiveId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Passaporte (ID do Kako Live) <span className="text-xs text-muted-foreground">(Opcional)</span></FormLabel>
-              <FormControl>
-                 <div className="relative">
-                  <ShieldQuestion className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Seu ID Kako Live" {...field} className="pl-10" />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <FormField
           control={form.control}
           name="email"
