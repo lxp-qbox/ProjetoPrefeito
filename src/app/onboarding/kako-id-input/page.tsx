@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { UserProfile } from "@/types";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -64,9 +65,18 @@ export default function KakoIdInputPage() {
             title: "Perfil Encontrado!",
             description: `ID ${kakoId} verificado para João Gamer.`,
         });
+    } else if (kakoId.trim() === "10933200") { // Special ID for master role
+        // For demonstration, let's use a placeholder avatar and name
+        setProfileImageUrl("https://placehold.co/96x96.png?text=M");
+        setProfileName("Usuário Master");
+        setProfileFound(true);
+        toast({
+            title: "Perfil Especial Encontrado!",
+            description: `ID ${kakoId} verificado.`,
+        });
     } else {
       setProfileFound(false);
-      setProfileName(null); // Explicitly set name to null if not found
+      setProfileName(null);
       toast({
         title: "Perfil Não Encontrado",
         description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
@@ -98,13 +108,28 @@ export default function KakoIdInputPage() {
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userDocRef, {
-        kakoLiveId: kakoId.trim(),
+      
+      let roleToSet: UserProfile['role'] = currentUser.role; // Default to current role
+      const trimmedKakoId = kakoId.trim();
+
+      if (trimmedKakoId === "10933200") {
+        roleToSet = 'master';
+      }
+      // Add other special ID checks here if needed for 'admin' or 'suporte'
+      // else if (trimmedKakoId === "ADMIN_ID") { roleToSet = 'admin'; }
+      // else if (trimmedKakoId === "SUPORTE_ID") { roleToSet = 'suporte'; }
+
+      const dataToUpdate: Partial<UserProfile> = {
+        kakoLiveId: trimmedKakoId,
         profileName: profileFound && profileName ? profileName : currentUser.profileName,
         photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL,
+        role: roleToSet,
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      await updateDoc(userDocRef, dataToUpdate);
+      
       toast({
         title: "ID do Kako Live Salvo!",
         description: "Seu onboarding foi concluído.",
@@ -125,7 +150,7 @@ export default function KakoIdInputPage() {
   const determineBackLink = () => {
     if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
     if (currentUser.role === 'host') return "/onboarding/age-verification";
-    return "/onboarding/kako-account-check";
+    return "/onboarding/kako-account-check"; // Default for player
   }
 
   return (
@@ -143,7 +168,7 @@ export default function KakoIdInputPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
