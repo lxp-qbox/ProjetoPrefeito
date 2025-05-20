@@ -1,6 +1,6 @@
 {
   "name": "The Presidential Agency",
-  "short_name": "Presidential",
+  "short_name": "PresAgency",
   "description": "Sua plataforma web para jogos de bingo emocionantes e gerenciamento de perfil com The Presidential Agency.",
   "start_url": "/",
   "display": "standalone",
@@ -18,13 +18,13 @@
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-maskable-192x192.png",
+      "src": "/icons/maskable-icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-maskable-512x512.png",
+      "src": "/icons/maskable-icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
