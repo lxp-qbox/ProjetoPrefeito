@@ -36,6 +36,9 @@ export default function ProfilePage() {
   };
 
   if (!currentUser) {
+    // It's better to return null or a loading state if currentUser is not yet available
+    // ProtectedPage already handles redirection if not authenticated,
+    // but this check is for when currentUser might be null during initial auth context loading.
     return null; 
   }
 
@@ -54,7 +57,7 @@ export default function ProfilePage() {
               <CardTitle className="text-3xl font-bold">
                 {displayName}
               </CardTitle>
-              {currentUser.isVerified && <ShieldCheck className="h-7 w-7 text-blue-500" />}
+              {currentUser.isVerified && <ShieldCheck className="h-7 w-7 text-primary" />} {/* Changed to text-primary */}
             </div>
             <CardDescription>Gerencie os detalhes e preferências da sua conta.</CardDescription>
           </CardHeader>
@@ -74,7 +77,7 @@ export default function ProfilePage() {
                     <strong>Passaporte:</strong>&nbsp;{currentUser.kakoLiveId}
                   </p>
                 )}
-                <div className="flex items-center text-sm"> {/* Changed p to div here */}
+                <div className="flex items-center text-sm">
                   <BadgeCent className="mr-2 h-4 w-4 text-muted-foreground" />
                   <strong>Role:</strong>&nbsp;
                   <Badge variant={currentUser.role === 'admin' || currentUser.role === 'master' ? 'destructive' : 'secondary'}>
