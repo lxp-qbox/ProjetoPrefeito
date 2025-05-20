@@ -12,10 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, setDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
-type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
-type MinimumAccessLevel = UserRole | 'nobody';
+// Exporting types and initial data for use in AppContentWrapper demo
+export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
+export type MinimumAccessLevel = UserRole | 'nobody';
 
-interface SiteModule {
+export interface SiteModule {
   id: string;
   name: string;
   icon: React.ElementType;
@@ -46,10 +47,10 @@ const minimumAccessLevelOptions: { value: MinimumAccessLevel; label: string }[] 
   { value: 'admin', label: "Admin e abaixo" },
   { value: 'suporte', label: "Suporte e abaixo" },
   { value: 'host', label: "Host e abaixo" },
-  { value: 'player', label: "Somente Players" }, // Changed label from "Todos"
+  { value: 'player', label: "Somente Players" },
 ];
 
-const initialModuleStatuses: SiteModule[] = [
+export const initialModuleStatuses: SiteModule[] = [
   {
     id: 'home',
     name: "Página Inicial (Home)",
@@ -67,7 +68,7 @@ const initialModuleStatuses: SiteModule[] = [
     minimumAccessLevelWhenOffline: 'player',
   },
   {
-    id: 'games',
+    id: 'games', // Covers /games and /bingo
     name: "Página de Jogos (Bingo)",
     icon: TicketIcon,
     globallyOffline: false,
@@ -116,31 +117,27 @@ export default function AdminMaintenanceOfflinePage() {
         const docSnap = await getDoc(maintenanceRulesDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // Ensure the fetched data is correctly typed and defaults are applied if fields are missing
           const fetchedRules = (data.rules as Partial<Omit<SiteModule, 'icon'>>[] || []).map(fr => ({
-            ...initialModuleStatuses.find(im => im.id === fr.id), // get defaults for icon and initial values
-            ...fr, // override with fetched values
+            ...initialModuleStatuses.find(im => im.id === fr.id),
+            ...fr,
           })) as SiteModule[];
-
 
           const newModuleStatuses = initialModuleStatuses.map(initialModule => {
             const fetchedModule = fetchedRules.find(fr => fr.id === initialModule.id);
             return fetchedModule ? {
-              ...initialModule, // Start with initial defaults (includes icon)
-              ...fetchedModule, // Override with fetched data
-              // Ensure required fields have fallbacks if not in fetched data or initialModule has changed
+              ...initialModule, 
+              ...fetchedModule, 
               globallyOffline: fetchedModule.globallyOffline ?? initialModule.globallyOffline ?? false,
               isHiddenFromMenu: fetchedModule.isHiddenFromMenu ?? initialModule.isHiddenFromMenu ?? false,
               minimumAccessLevelWhenOffline: fetchedModule.minimumAccessLevelWhenOffline ?? initialModule.minimumAccessLevelWhenOffline ?? 'player',
             } : {
-              ...initialModule, // Use full initial module if not found in fetched data
+              ...initialModule,
               globallyOffline: initialModule.globallyOffline ?? false,
               isHiddenFromMenu: initialModule.isHiddenFromMenu ?? false,
               minimumAccessLevelWhenOffline: initialModule.minimumAccessLevelWhenOffline ?? 'player',
             };
           });
 
-          // Add any modules from Firestore that aren't in initialModuleStatuses (e.g., if new ones were added directly to DB)
           fetchedRules.forEach(fetchedModule => {
             if (!newModuleStatuses.some(nms => nms.id === fetchedModule.id)) {
               const correspondingInitial = initialModuleStatuses.find(im => im.id === fetchedModule.id);
@@ -206,7 +203,6 @@ export default function AdminMaintenanceOfflinePage() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // Filter out the 'icon' property before saving, as it's not serializable to Firestore
       const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest);
       await setDoc(maintenanceRulesDocRef, { rules: statusesToSave, lastUpdated: serverTimestamp() });
       toast({
@@ -336,3 +332,5 @@ export default function AdminMaintenanceOfflinePage() {
     </div>
   );
 }
+
+    
