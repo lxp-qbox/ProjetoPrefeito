@@ -29,7 +29,7 @@ export const placeholderHosts: Host[] = [
   { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M" },
   { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M" },
   {
-    id: "new-test-host-1",
+    id: "new-test-host-1", // Was HostAPIKako, now PRESIDENTE
     rankPosition: 9,
     name: "PRESIDENTE",
     avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
@@ -37,21 +37,21 @@ export const placeholderHosts: Host[] = [
     timeStreamed: 60.0,
     allTimePeakViewers: 30000,
     hoursWatched: "1.5M",
-    rank: 39,
+    rank: 39, // from data.user.level
     followersGained: 8000,
     totalFollowers: "750K",
     totalViews: "3.0M",
-    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a",
-    kakoLiveRoomId: "67b9ed5fa4e716a084a23765",
-    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.",
-    streamTitle: "Dominando as Arenas!",
-    likes: 276997,
+    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a", // from data.user.userId
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // from data.roomId
+    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.", // from data.user.signature
+    streamTitle: "Dominando as Arenas!", // from data.title
+    likes: 276997, // from data.like
     giftsReceived: [
-      { id: "gift1", name: "Rosa Vermelha", iconUrl: "https://placehold.co/48x48.png", count: 150 , dataAiHint: "rose flower" },
-      { id: "gift2", name: "Coroa Dourada", iconUrl: "https://placehold.co/48x48.png", count: 25, dataAiHint: "gold crown" },
-      { id: "gift3", name: "Carro Esportivo", iconUrl: "https://placehold.co/48x48.png", count: 5, dataAiHint: "sportscar" },
-      { id: "gift4", name: "Castelo Mágico", iconUrl: "https://placehold.co/48x48.png", count: 1, dataAiHint: "castle" },
-      { id: "gift5", name: "Diamante Azul", iconUrl: "https://placehold.co/48x48.png", count: 75, dataAiHint: "diamond" },
+      { id: "40", name: "Miau", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", count: 150 , dataAiHint: "miau" },
+      { id: "1", name: "Amor", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", count: 75, dataAiHint: "amor" },
+      { id: "26", name: "Rosas", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", count: 50, dataAiHint: "rosas" },
+      { id: "46", name: "Sol", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", count: 20, dataAiHint: "sol" },
+      { id: "31", name: "Sorvete", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", count: 100, dataAiHint: "sorvete" },
     ]
   },
 ];
