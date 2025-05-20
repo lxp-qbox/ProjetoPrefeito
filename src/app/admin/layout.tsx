@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon, Database } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, Database } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
