@@ -46,7 +46,7 @@ const minimumAccessLevelOptions: { value: MinimumAccessLevel; label: string }[] 
   { value: 'admin', label: "Admin e abaixo" },
   { value: 'suporte', label: "Suporte e abaixo" },
   { value: 'host', label: "Host e abaixo" },
-  { value: 'player', label: "Todos" },
+  { value: 'player', label: "Somente Players" }, // Changed label from "Todos"
 ];
 
 const initialModuleStatuses: SiteModule[] = [
@@ -206,6 +206,7 @@ export default function AdminMaintenanceOfflinePage() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
+      // Filter out the 'icon' property before saving, as it's not serializable to Firestore
       const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest);
       await setDoc(maintenanceRulesDocRef, { rules: statusesToSave, lastUpdated: serverTimestamp() });
       toast({
