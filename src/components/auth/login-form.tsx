@@ -11,18 +11,18 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  // FormLabel, // No longer used
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, GoogleAuthProvider } from "@/lib/firebase";
+import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase"; // Added db, doc, getDoc
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
+import type { UserProfile } from "@/types"; // Added UserProfile type
 
 // Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -58,19 +58,37 @@ export default function LoginForm() {
     },
   });
 
-  const handleRedirect = () => {
-    router.push("/profile"); // Always redirect to profile
+  const handleRedirect = async (userId: string) => {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userProfile = userDocSnap.data() as UserProfile;
+        if (!userProfile.hasCompletedOnboarding) {
+          router.push("/onboarding/terms");
+        } else {
+          router.push("/profile");
+        }
+      } else {
+        // Should not happen if signup process is correct, but as a fallback:
+        router.push("/onboarding/terms"); 
+      }
+    } catch (error) {
+      console.error("Error fetching user profile for redirect:", error);
+      toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
+      router.push("/profile"); // Fallback to profile
+    }
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: "Login Bem-sucedido",
         description: "Bem-vindo(a) de volta!",
       });
-      handleRedirect();
+      await handleRedirect(userCredential.user.uid);
     } catch (error: any) {
       console.error("Email/Password login error:", error);
       toast({
@@ -87,12 +105,12 @@ export default function LoginForm() {
     setGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
       toast({
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      handleRedirect();
+      await handleRedirect(userCredential.user.uid);
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({

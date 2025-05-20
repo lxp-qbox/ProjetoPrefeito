@@ -89,6 +89,8 @@ export interface UserProfile {
   };
   themePreference?: 'light' | 'dark' | 'system'; // mudar o tema do site
   accentColor?: string;      // escolher a cor padrao que se destaca no site (hex)
+  hasCompletedOnboarding?: boolean; // New field for onboarding
+  agreedToTermsAt?: any; // Firestore Timestamp for terms agreement
   createdAt?: any;           // Firestore Timestamp
   updatedAt?: any;           // Firestore Timestamp
 }
@@ -101,5 +103,9 @@ export interface ChatMessage {
   timestamp: string;
   userMedalUrl?: string;
   rawData?: string;
-  displayFormatted: boolean; 
+  displayFormatted: boolean;
+  extractedRoomId?: string; // Added for room-specific filtering
+  userId?: string; // User ID of the message sender
+  userLevel?: number; // Level of the message sender
 }
+
