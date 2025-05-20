@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User } from "lucide-react"; // Added User
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -26,10 +26,11 @@ interface AdminMenuGroup {
 
 const adminMenuGroups: AdminMenuGroup[] = [
   {
-    groupTitle: "Conta",
+    groupTitle: "Usuários",
     items: [
-      { title: "Conta e segurança", icon: UserCircle2, link: "/admin/account-security" },
-      { title: "Configurações de privacidade", icon: ShieldAlert, link: "/admin/privacy-settings" },
+      { title: "Contas de Hosts", icon: Users, link: "/admin/hosts" },
+      { title: "Contas de Players", icon: User, link: "/admin/users/players" },
+      { title: "Contas de Suporte", icon: Headphones, link: "/admin/users/support" },
     ],
   },
   {
@@ -99,7 +100,7 @@ export default function AdminPage() {
         <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
           {/* Admin Navigation Sidebar */}
           <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-4 space-y-4">
+            <div className="p-1 space-y-4"> {/* Reduced padding for encostado look */}
               {adminMenuGroups.map((group, groupIndex) => (
                 <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
                   {group.groupTitle && (
@@ -107,7 +108,7 @@ export default function AdminPage() {
                       {group.groupTitle}
                     </h2>
                   )}
-                  <div className={cn("space-y-2", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Changed space-y-1 to space-y-2 */}
+                  <div className={cn("space-y-2", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
                        const isActive = pathname === item.link;
                        const isLogout = item.link === "#logout";
@@ -130,7 +131,7 @@ export default function AdminPage() {
                         >
                           {isLogout ? (
                              <div className="flex items-center w-full">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3"> {/* Original gap */}
                                   <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
                                   {item.title}
                                 </div>
@@ -138,7 +139,7 @@ export default function AdminPage() {
                               </div>
                           ) : (
                             <Link href={item.link} className="flex items-center w-full">
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3"> {/* Original gap */}
                                 <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
                                 {item.title}
                               </div>
