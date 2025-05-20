@@ -53,7 +53,6 @@ const generateBingoCardData = (): BingoGrid => {
   const card: BingoGrid = Array(3).fill(null).map(() => Array(9).fill(null));
   const numbersOnCard = new Set<number>();
 
-  // Helper to generate a unique random number for a specific column
   const getRandomNumberForColumn = (colIndex: number): number => {
     let num;
     let min, max_range_size;
@@ -65,30 +64,21 @@ const generateBingoCardData = (): BingoGrid => {
     } else { // Cols 2-8: e.g. 10-19, 20-29, ...
       min = colIndex * 10; max_range_size = 10;
     }
-
-    // Ensure the number is within the exact column decade for cols 1-8 (0-indexed)
-    // For col 0: 1-9. For col 1: 10-19... For col 8: 80-90
-    if (colIndex > 0 && colIndex < 8) { // Adjust min for standard decades 10-19, 20-29, etc.
-        min = colIndex * 10; 
-    }
     
     let attempts = 0;
     do {
       num = min + Math.floor(Math.random() * max_range_size);
-      // Ensure 80-90 for last column (index 8)
       if (colIndex === 8 && num > 90) num = 80 + Math.floor(Math.random() * 11);
-      // Ensure 1-9 for first column (index 0)
       if (colIndex === 0 && (num < 1 || num > 9)) num = 1 + Math.floor(Math.random()*9);
 
       attempts++;
-      if (attempts > 50) throw new Error("Could not generate unique number for column."); // Failsafe
+      if (attempts > 50) throw new Error("Could not generate unique number for column."); 
     } while (numbersOnCard.has(num));
     
     numbersOnCard.add(num);
     return num;
   };
 
-  // Step 1: For each row, decide which 5 columns will have numbers.
   const cellsToFill: { r: number, c: number }[] = [];
   for (let r = 0; r < 3; r++) {
     const colsInThisRow = new Set<number>();
@@ -98,32 +88,27 @@ const generateBingoCardData = (): BingoGrid => {
     Array.from(colsInThisRow).forEach(c => cellsToFill.push({ r, c }));
   }
 
-  // Step 2: Assign numbers to these 15 chosen cells.
   const tempNumbers: { r: number, c: number, val: number }[] = [];
   cellsToFill.forEach(cell => {
     tempNumbers.push({ r: cell.r, c: cell.c, val: getRandomNumberForColumn(cell.c) });
   });
 
-  // Step 3: Populate the card and sort numbers within each column.
   tempNumbers.forEach(item => {
     card[item.r][item.c] = item.val;
   });
 
   for (let c = 0; c < 9; c++) {
     const colValues: number[] = [];
-    // Extract numbers from column
     for (let r = 0; r < 3; r++) {
       if (card[r][c] !== null) {
         colValues.push(card[r][c] as number);
-        card[r][c] = null; // Clear for re-insertion
+        card[r][c] = null; 
       }
     }
-    colValues.sort((a, b) => a - b); // Sort them
+    colValues.sort((a, b) => a - b); 
 
-    // Put sorted numbers back into the original cells that had numbers
     let valueIdx = 0;
     for (let r = 0; r < 3; r++) {
-      // Check if this cell was originally chosen to have a number for this column
       const wasChosen = tempNumbers.some(item => item.r === r && item.c === c);
       if (wasChosen && valueIdx < colValues.length) {
         card[r][c] = colValues[valueIdx++];
@@ -211,26 +196,26 @@ export default function BingoPlayPage({ params }: { params: { gameId: string } }
         </Card>
       ) : bingoCard && (
         <Card className="shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl font-semibold text-primary">Sua Cartela de Bingo (90 Bolas)</CardTitle>
+          <CardHeader className="text-center pt-4 pb-2">
+            <CardTitle className="text-lg font-semibold uppercase tracking-wider text-primary">BINGO-5K6LMD</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <div className="grid grid-cols-9 gap-px bg-border border border-border rounded-md w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl overflow-x-auto p-1">
+          <CardContent className="flex flex-col items-center px-2 sm:px-4 md:px-6">
+            <div className="grid grid-cols-9 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl overflow-x-auto">
               {bingoCard.map((row, rowIndex) =>
                 row.map((cell, colIndex) => (
                   <div
                     key={`${rowIndex}-${colIndex}`}
-                    className={`flex items-center justify-center h-10 sm:h-12 text-sm sm:text-base font-medium border-border 
-                                ${colIndex < 8 ? 'border-r' : ''} ${rowIndex < 2 ? 'border-b' : ''}
-                                ${ (rowIndex % 2 === colIndex % 2) ? 'bg-card' : 'bg-muted/50' }
-                                ${ cell === null ? 'bg-background/30' : '' }`} // Style blank cells
+                    className={`
+                      flex items-center justify-center h-10 sm:h-12 md:h-14 text-sm sm:text-base font-medium aspect-square
+                      ${cell === null ? 'bg-primary/10' : 'bg-card text-primary'}
+                    `}
                   >
                     {cell !== null ? cell : ""}
                   </div>
                 ))
               )}
             </div>
-            <p className="text-muted-foreground mt-4 text-sm">Boa sorte!</p>
+            <p className="text-muted-foreground mt-3 text-center text-sm">Clique nos números para marcá-los</p>
           </CardContent>
         </Card>
       )}
@@ -245,4 +230,3 @@ export default function BingoPlayPage({ params }: { params: { gameId: string } }
     </div>
   );
 }
-
