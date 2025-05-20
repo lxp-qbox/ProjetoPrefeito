@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 // This is a temporary solution for fetching host data.
@@ -71,6 +71,7 @@ export default function HostStreamPage() {
   }
   
   const embedUrl = `https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`;
+  const pageTitle = host.streamTitle || `Ao Vivo: ${host.name}`;
 
   return (
     <div className="space-y-6">
@@ -82,7 +83,7 @@ export default function HostStreamPage() {
           </Link>
         </Button>
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
-          Ao Vivo: {host.name}
+          {pageTitle}
         </h1>
         <div className="w-8 h-8"></div> {/* Spacer for balance if needed */}
       </div>
@@ -112,12 +113,24 @@ export default function HostStreamPage() {
         <CardHeader>
           <CardTitle>Sobre {host.name}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1 text-sm">
+        <CardContent className="space-y-3 text-sm">
+          {host.bio && (
+            <div className="flex items-start">
+              <Info className="h-4 w-4 mr-2 mt-0.5 text-primary flex-shrink-0" />
+              <p><strong>Bio:</strong> {host.bio}</p>
+            </div>
+          )}
           <p><strong>Rank da Agência:</strong> #{host.rankPosition}</p>
           <p><strong>Rank Geral:</strong> {host.rank}</p>
           <p><strong>Seguidores:</strong> {host.totalFollowers}</p>
           <p><strong>Visualizações Totais:</strong> {host.totalViews}</p>
            <p><strong>Média de Espectadores:</strong> {host.avgViewers.toLocaleString('pt-BR')}</p>
+           {host.likes !== undefined && (
+            <div className="flex items-center">
+              <Heart className="h-4 w-4 mr-2 text-destructive" />
+              <p><strong>Likes:</strong> {host.likes.toLocaleString('pt-BR')}</p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground pt-2">
             Mais detalhes e estatísticas do host serão exibidos aqui em breve.
           </p>
@@ -126,3 +139,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+

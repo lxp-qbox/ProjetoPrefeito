@@ -36,12 +36,15 @@ export interface Host {
   timeStreamed: number; // in hours
   allTimePeakViewers: number;
   hoursWatched: string; // e.g., "3.88M"
-  rank: number; // The actual rank number, e.g., 10
+  rank: number; // The actual rank number, e.g., 10 (can map to level from API)
   followersGained: number;
   totalFollowers: string; // e.g., "6.55M"
   totalViews: string; // e.g., "50.8M"
-  kakoLiveFuid?: string; // Identifier for Kako Live stream fuid
-  kakoLiveRoomId?: string; // Identifier for Kako Live stream room/session ID
+  kakoLiveFuid?: string; // Identifier for Kako Live stream fuid (maps to data.user.userId)
+  kakoLiveRoomId?: string; // Identifier for Kako Live stream room/session ID (maps to data.roomId)
+  bio?: string; // Host's signature or bio (maps to data.user.signature)
+  streamTitle?: string; // Current stream title (maps to data.title)
+  likes?: number; // Number of likes (maps to data.like)
 }
 
 export interface UserProfile {

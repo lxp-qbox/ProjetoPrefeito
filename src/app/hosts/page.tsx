@@ -20,7 +20,7 @@ import HostRow from "@/components/host/host-row";
 
 // Placeholder data for hosts - EXPORTED for use in dynamic page
 export const placeholderHosts: Host[] = [
-  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M", kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b", kakoLiveRoomId: "67b9ed5fa4e716a084a23765" },
+  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M", kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b", kakoLiveRoomId: "67b9ed5fa4e716a084a23765", streamTitle: "Ao Vivo com Coringa!", bio: "Streamer oficial da LOUD." },
   { id: "2", rankPosition: 2, name: "PAULINHOLOKOBR", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 37508, timeStreamed: 74.4, allTimePeakViewers: 266793, hoursWatched: "2.79M", rank: 17, followersGained: 35900, totalFollowers: "3.42M", totalViews: "--" },
   { id: "3", rankPosition: 3, name: "GAULES", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 5137, timeStreamed: 718.9, allTimePeakViewers: 707648, hoursWatched: "3.69M", rank: 29, followersGained: 13000, totalFollowers: "4.28M", totalViews: "405M" },
   { id: "4", rankPosition: 4, name: "ALANZOKA", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 14131, timeStreamed: 143.8, allTimePeakViewers: 147051, hoursWatched: "2.03M", rank: 56, followersGained: 33000, totalFollowers: "7.66M", totalViews: "206M" },
@@ -29,20 +29,23 @@ export const placeholderHosts: Host[] = [
   { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M" },
   { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M" },
   { 
-    id: "new-test-host-1", 
-    rankPosition: 9, 
-    name: "HostAPIKako", 
-    avatarUrl: "https://placehold.co/40x40.png", 
-    avgViewers: 12345, 
-    timeStreamed: 50.0, 
-    allTimePeakViewers: 25000, 
-    hoursWatched: "1.1M", 
-    rank: 120, 
-    followersGained: 7500, 
-    totalFollowers: "500K", 
-    totalViews: "2.5M", 
-    kakoLiveFuid: "fuidFromKakoAPI", // This would come from the API response
-    kakoLiveRoomId: "67b9ed5fa4e716a084a23765" // Using the Room ID you provided
+    id: "new-test-host-1", // Keeping existing ID for the placeholder
+    rankPosition: 9, // Keep placeholder rank position
+    name: "PRESIDENTE", // from API: data.user.nickname
+    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200", // from API: data.user.avatar
+    avgViewers: 15000, // Placeholder, adjust if desired
+    timeStreamed: 60.0, // Placeholder
+    allTimePeakViewers: 30000, // Placeholder
+    hoursWatched: "1.5M", // Placeholder
+    rank: 39, // from API: data.user.level
+    followersGained: 8000, // Placeholder
+    totalFollowers: "750K", // Placeholder
+    totalViews: "3.0M", // Placeholder
+    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a", // from API: data.user.userId
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // from API: data.roomId
+    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.", // from API: data.user.signature
+    streamTitle: "Dominando as Arenas!", // from API: data.title
+    likes: 276997, // from API: data.like
   },
 ];
 
