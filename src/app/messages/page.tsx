@@ -2,28 +2,239 @@
 "use client";
 
 import ProtectedPage from "@/components/auth/protected-page";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Send, MessageSquare, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { ConversationPreview, AppMessage } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+
+// Placeholder Data
+const placeholderConversations: ConversationPreview[] = [
+  { id: "convo1", userId: "user2", userName: "Alice Wonderland", userAvatar: "https://placehold.co/40x40.png?text=AW", lastMessage: "Hey, how are you doing? Long time no see!", lastMessageTime: "10:30 AM", unreadCount: 2 },
+  { id: "convo2", userId: "user3", userName: "Bob The Builder", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Can we build it? Yes, we can!", lastMessageTime: "Yesterday", unreadCount: 0 },
+  { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Good grief! I need some advice.", lastMessageTime: "Mon", unreadCount: 5 },
+  { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Wondering if you're free for a mission.", lastMessageTime: "12/05/2024" },
+  { id: "convo5", userId: "user6", userName: "Edward Scissorhands", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Could you help me with my hedge?", lastMessageTime: "10/05/2024" },
+];
+
+const placeholderMessages: AppMessage[] = [
+  { id: "msg1", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Hey, how are you doing? Long time no see!", timestamp: "10:30 AM" },
+  { id: "msg2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Hi Alice! I'm doing great, thanks for asking. How about you?", timestamp: "10:32 AM" },
+  { id: "msg3", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Pretty good! Just busy with a new project.", timestamp: "10:33 AM" },
+  { id: "msg4", conversationId: "convo2", senderId: "user3", senderName: "Bob The Builder", senderAvatar: "https://placehold.co/40x40.png?text=BB", text: "Can we build it? Yes, we can!", timestamp: "Yesterday" },
+  { id: "msg5", conversationId: "convo3", senderId: "user4", senderName: "Charlie Brown", senderAvatar: "https://placehold.co/40x40.png?text=CB", text: "Good grief! I need some advice.", timestamp: "Mon" },
+  { id: "msg6", conversationId: "convo3", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Sure Charlie, what's up?", timestamp: "Mon" },
+];
+
 
 export default function MessagesPage() {
+  const { currentUser } = useAuth();
+  const [conversations, setConversations] = useState<ConversationPreview[]>(placeholderConversations);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(placeholderConversations[0]?.id || null);
+  const [messages, setMessages] = useState<AppMessage[]>(placeholderMessages);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newMessage, setNewMessage] = useState("");
+
+  const currentUserId = currentUser?.uid || "currentUser"; // Fallback for placeholder
+
+  const filteredConversations = useMemo(() => {
+    if (!searchTerm) return conversations;
+    return conversations.filter(convo =>
+      convo.userName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [conversations, searchTerm]);
+
+  const activeMessages = useMemo(() => {
+    if (!selectedConversationId) return [];
+    return messages
+      .filter(msg => msg.conversationId === selectedConversationId)
+      .map(msg => ({ ...msg, isCurrentUser: msg.senderId === currentUserId }))
+      .sort((a,b) => new Date(0).setHours(...a.timestamp.split(':').map(Number)) - new Date(0).setHours(...b.timestamp.split(':').map(Number))); // Basic time sort
+  }, [messages, selectedConversationId, currentUserId]);
+
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedConversationId) return;
+    const msgId = `msg${Date.now()}`;
+    const newMsg: AppMessage = {
+      id: msgId,
+      conversationId: selectedConversationId,
+      senderId: currentUserId,
+      senderName: currentUser?.profileName || "Você",
+      senderAvatar: currentUser?.photoURL || "https://placehold.co/40x40.png?text=ME",
+      text: newMessage.trim(),
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isCurrentUser: true,
+    };
+    setMessages(prev => [...prev, newMsg]);
+    setNewMessage("");
+
+    // Update last message in conversation list (placeholder logic)
+    setConversations(prevConvos => prevConvos.map(c => 
+        c.id === selectedConversationId 
+        ? {...c, lastMessage: newMessage.trim(), lastMessageTime: newMsg.timestamp}
+        : c
+    ));
+  };
+  
+  const getInitials = (name: string) => {
+    if (!name) return "?";
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1 && nameParts[0] && nameParts[1]) {
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+
+  if (!currentUser) {
+    return <ProtectedPage><div className="flex justify-center items-center h-full">Carregando...</div></ProtectedPage>;
+  }
+  
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+
+
   return (
     <ProtectedPage>
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-xl">
-          <CardHeader className="text-center">
-            <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
-              <MessageCircle className="h-10 w-10 text-primary" />
+      <div className="flex flex-col h-[calc(100vh-var(--header-height)-6rem)]"> {/* Adjust height based on header and page padding */}
+        <Card className="flex-grow flex overflow-hidden shadow-xl">
+          {/* Left Pane: Conversation List */}
+          <div className="w-full md:w-1/3 lg:w-1/4 border-r border-border flex flex-col bg-card">
+            <div className="p-4 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar conversas..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-            <CardTitle className="text-3xl font-bold">Minhas Mensagens</CardTitle>
-            <CardDescription>
-              Veja e gerencie suas conversas aqui. (Funcionalidade em desenvolvimento)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-muted-foreground">
-              A caixa de entrada de mensagens e o chat em tempo real estarão disponíveis em breve!
-            </p>
-          </CardContent>
+            <ScrollArea className="flex-grow">
+              {filteredConversations.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">Nenhuma conversa encontrada.</div>
+              ) : (
+                filteredConversations.map((convo) => (
+                  <button
+                    key={convo.id}
+                    className={cn(
+                      "w-full text-left p-4 flex items-start space-x-3 hover:bg-muted/50 transition-colors border-b border-border last:border-b-0",
+                      selectedConversationId === convo.id && "bg-muted"
+                    )}
+                    onClick={() => setSelectedConversationId(convo.id)}
+                  >
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarImage src={convo.userAvatar} alt={convo.userName} data-ai-hint="user avatar" />
+                      <AvatarFallback>{getInitials(convo.userName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-sm truncate">{convo.userName}</h3>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{convo.lastMessageTime}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{convo.lastMessage}</p>
+                      {convo.unreadCount && convo.unreadCount > 0 && (
+                        <Badge variant="destructive" className="mt-1 float-right">{convo.unreadCount}</Badge>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </ScrollArea>
+          </div>
+
+          {/* Right Pane: Message View */}
+          <div className="flex-1 flex flex-col bg-background">
+            {selectedConversationId && selectedConversation ? (
+              <>
+                <CardHeader className="p-4 border-b border-border bg-card">
+                    <div className="flex items-center space-x-3">
+                        <Avatar className="h-10 w-10 border">
+                            <AvatarImage src={selectedConversation.userAvatar} alt={selectedConversation.userName} data-ai-hint="user avatar chat" />
+                            <AvatarFallback>{getInitials(selectedConversation.userName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <h2 className="text-lg font-semibold">{selectedConversation.userName}</h2>
+                            <p className="text-xs text-muted-foreground">Online</p> {/* Placeholder status */}
+                        </div>
+                    </div>
+                </CardHeader>
+                <ScrollArea className="flex-grow p-4 space-y-4">
+                  {activeMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={cn("flex items-end space-x-2", {
+                        "justify-end": msg.isCurrentUser,
+                      })}
+                    >
+                      {!msg.isCurrentUser && (
+                        <Avatar className="h-8 w-8 border self-start">
+                          <AvatarImage src={msg.senderAvatar} alt={msg.senderName} data-ai-hint="sender avatar" />
+                          <AvatarFallback>{getInitials(msg.senderName)}</AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div
+                        className={cn(
+                          "max-w-[70%] p-3 rounded-xl shadow-sm",
+                          msg.isCurrentUser
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-card border border-border text-card-foreground rounded-bl-none"
+                        )}
+                      >
+                        {!msg.isCurrentUser && <p className="text-xs font-semibold mb-0.5 text-primary">{msg.senderName}</p>}
+                        <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                        <p className={cn(
+                            "text-xs mt-1.5",
+                            msg.isCurrentUser ? "text-primary-foreground/70 text-right" : "text-muted-foreground text-right"
+                        )}>{msg.timestamp}</p>
+                      </div>
+                      {msg.isCurrentUser && (
+                        <Avatar className="h-8 w-8 border self-start">
+                          <AvatarImage src={currentUser?.photoURL || msg.senderAvatar} alt={currentUser?.profileName || msg.senderName} data-ai-hint="my avatar" />
+                          <AvatarFallback>{getInitials(currentUser?.profileName || msg.senderName)}</AvatarFallback>
+                        </Avatar>
+                      )}
+                    </div>
+                  ))}
+                </ScrollArea>
+                <div className="p-4 border-t border-border bg-card">
+                  <div className="flex items-center space-x-2">
+                    <Textarea
+                      placeholder="Digite sua mensagem..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      rows={1}
+                      className="flex-1 resize-none min-h-[40px] max-h-[120px]"
+                    />
+                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                      <Send className="h-4 w-4" />
+                      <span className="sr-only">Enviar</span>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <MessageSquare className="h-16 w-16 text-muted-foreground mb-4" />
+                <h2 className="text-xl font-semibold text-foreground">Selecione uma conversa</h2>
+                <p className="text-muted-foreground">Escolha alguém da lista para começar a conversar.</p>
+              </div>
+            )}
+          </div>
         </Card>
       </div>
     </ProtectedPage>

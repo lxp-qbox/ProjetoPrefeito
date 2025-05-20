@@ -113,7 +113,7 @@ export interface KakoProfile {
 }
 
 
-export interface ChatMessage {
+export interface ChatMessage { // For Host Stream Chat
   id: string;
   user: string;
   avatar?: string;
@@ -125,4 +125,26 @@ export interface ChatMessage {
   extractedRoomId?: string; 
   userId?: string; 
   userLevel?: number; 
+}
+
+// For P2P Messages Page
+export interface ConversationPreview {
+  id: string;
+  userId: string; // ID of the other user in the conversation
+  userName: string;
+  userAvatar: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount?: number;
+}
+
+export interface AppMessage { // Renamed from Message to avoid conflicts
+  id: string;
+  conversationId: string;
+  senderId: string; // UID of the sender
+  senderName: string;
+  senderAvatar: string;
+  text: string;
+  timestamp: string;
+  isCurrentUser?: boolean; // Determined at render time
 }
