@@ -14,6 +14,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -86,30 +88,9 @@ export default function AdminHostsPageContent() {
           <h1 className="text-2xl font-semibold text-foreground">Gerenciamento de Hosts</h1>
           <p className="text-sm text-muted-foreground">Visualize e gerencie os hosts da agência.</p>
         </div>
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
-          </div>
-          <div className="flex items-center gap-2 mt-4 sm:mt-0">
-            <Button variant="outline">
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Ações
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Banir Host</DropdownMenuItem>
-                <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
-                <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
         </div>
       </div>
 
@@ -171,10 +152,27 @@ export default function AdminHostsPageContent() {
                       </a>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Ações para {host.name}</span>
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Ações para {host.name}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar Host
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                             <XCircle className="mr-2 h-4 w-4" />
+                            Banir Host
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
+                          <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );
@@ -195,4 +193,3 @@ export default function AdminHostsPageContent() {
     </div>
   );
 }
-
