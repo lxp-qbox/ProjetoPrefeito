@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check } from "lucide-react"; // Added Check
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -88,32 +88,33 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (currentUser) {
-      setEditableCountry(currentUser.country || undefined);
+      setEditableCountry(currentUser.country || "");
       setEditableGender(currentUser.gender || 'preferNotToSay');
       setEditablePhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
       if (currentUser.birthDate) {
         try {
             let parsedDate: Date | null = null;
             if (typeof currentUser.birthDate === 'string') {
+              // Try parsing YYYY-MM-DD first
               const dateParts = currentUser.birthDate.split('-');
               if (dateParts.length === 3) {
                   const year = parseInt(dateParts[0], 10);
-                  const month = parseInt(dateParts[1], 10) - 1; 
+                  const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
                   const day = parseInt(dateParts[2], 10);
                   if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                    const tempDate = new Date(Date.UTC(year, month, day)); 
+                    const tempDate = new Date(Date.UTC(year, month, day)); // Use UTC to avoid timezone shifts from string
                     if (isValid(tempDate)) parsedDate = tempDate;
                   }
               }
               if (!parsedDate || !isValid(parsedDate)) {
-                  // Attempt parsing with parseISO as a fallback for 'YYYY-MM-DD'
+                  // Attempt parsing with parseISO as a fallback for more general ISO strings
                   const isoDate = parseISO(currentUser.birthDate);
                   if(isValid(isoDate)) parsedDate = isoDate;
               }
-            } else if (currentUser.birthDate instanceof Date) { 
+            } else if (currentUser.birthDate instanceof Date) { // If it's already a Date object
               parsedDate = currentUser.birthDate;
-            // @ts-ignore Cannot find name 'Timestamp'. Did you mean 'NodeJS.Timeout'?ts(2591)
-            } else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
+            // @ts-ignore
+            } else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { // Firestore Timestamp
                 // @ts-ignore
                 parsedDate = currentUser.birthDate.toDate();
             }
@@ -121,6 +122,7 @@ export default function ProfilePage() {
             if (parsedDate && isValid(parsedDate)) {
                  setEditableBirthDate(parsedDate);
             } else {
+                console.warn("Failed to parse birthDate from currentUser, setting to undefined. Original value:", currentUser.birthDate);
                 setEditableBirthDate(undefined);
             }
         } catch (error) {
