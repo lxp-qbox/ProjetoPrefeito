@@ -216,7 +216,7 @@ const Sidebar = React.forwardRef<
       >
         <div
           className={cn(
-            "duration-500 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear", // Updated duration
+            "duration-500 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-in-out",
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -226,7 +226,7 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            "duration-500 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex", // Updated duration
+            "duration-500 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-in-out md:flex", 
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -483,7 +483,7 @@ const SidebarMenu = React.forwardRef<
   <ul
     ref={ref}
     data-sidebar="menu"
-    className={cn("flex w-full min-w-0 flex-col items-center gap-1 mt-2", className)} 
+    className={cn("flex w-full min-w-0 flex-col items-center gap-1", className)} 
     {...props}
   />
 ))
@@ -504,7 +504,7 @@ SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
   cn(
-    "peer/menu-button flex w-full items-center rounded-md text-xs outline-none ring-sidebar-ring transition-all duration-500 ease-in-out", // Updated transition
+    "peer/menu-button flex w-full items-center rounded-md text-xs outline-none ring-sidebar-ring transition-all duration-500 ease-in-out",
     "text-sidebar-foreground/80 hover:text-primary", 
     "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground", 
     "disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50",
@@ -763,3 +763,4 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
