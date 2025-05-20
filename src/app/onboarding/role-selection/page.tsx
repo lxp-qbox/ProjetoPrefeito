@@ -101,7 +101,7 @@ export default function RoleSelectionPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
             <p className="text-sm text-muted-foreground">
-              Faço parte da agência e quero gerenciar jogos e eventos.
+              Faço parte da agência
             </p>
             {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
@@ -119,7 +119,7 @@ export default function RoleSelectionPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Sou participante.</h3>
             <p className="text-sm text-muted-foreground">
-              Quero participar dos jogos e eventos da agência.
+              Quero participar dos jogos
             </p>
             {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
