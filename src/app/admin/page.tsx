@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones } from "lucide-react"; // Added Headphones
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -19,9 +19,9 @@ interface AdminMenuItem {
 }
 
 interface AdminMenuGroup {
-  groupTitle?: string; // Optional for items like "Sair" or "Entre em contato" that might not be under a title
+  groupTitle?: string;
   items: AdminMenuItem[];
-  isBottomSection?: boolean; // To handle spacing for Sair/Contato
+  isBottomSection?: boolean;
 }
 
 const adminMenuGroups: AdminMenuGroup[] = [
@@ -52,11 +52,11 @@ const adminMenuGroups: AdminMenuGroup[] = [
     items: [
       { title: "Entre em contato conosco", icon: Headphones, link: "/support" },
     ],
-    isBottomSection: true, // For styling different sections later
+    isBottomSection: true,
   },
   {
     items: [
-      { title: "Sair", icon: LogOut, link: "#logout" }, // Placeholder for logout action
+      { title: "Sair", icon: LogOut, link: "#logout" },
     ],
   },
 ];
@@ -90,6 +90,7 @@ export default function AdminPage() {
     );
   }
 
+  // Default to host management if the path is /admin
   const isHostManagementView = pathname === "/admin/hosts" || pathname === "/admin";
 
   return (
@@ -109,13 +110,10 @@ export default function AdminPage() {
                   <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
                        const isActive = pathname === item.link;
-                       // Special handling for logout
                        const isLogout = item.link === "#logout";
                        const buttonAction = isLogout ? handleLogout : () => {
                            if (item.link) router.push(item.link);
                        };
-                       const ButtonComponent = isLogout ? 'button' : Link;
-                       const buttonProps = isLogout ? { onClick: buttonAction } : { href: item.link };
 
                       return (
                         <Button
@@ -124,8 +122,8 @@ export default function AdminPage() {
                           className={cn(
                             "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md",
                             isActive
-                              ? "bg-primary/10 text-primary"
-                              : "text-card-foreground hover:bg-card/80 bg-card shadow-sm"
+                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" // Active state with hover
+                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm" // Inactive state with hover
                           )}
                           asChild={!isLogout}
                           {...(isLogout ? {onClick: buttonAction} : {})}
