@@ -67,7 +67,7 @@ export default function LoginPage() {
         <CardFooter className="flex-col p-0">
           <div className="w-full border-t border-border" />
           <div className="w-full bg-muted p-6 text-center">
-            <Link href="/signup" className="text-sm font-medium hover:text-primary hover:underline">
+            <Link href="/signup" className="text-sm font-medium no-underline hover:text-primary hover:underline">
               Não tem uma conta? Cadastre-se
             </Link>
           </div>
@@ -76,4 +76,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

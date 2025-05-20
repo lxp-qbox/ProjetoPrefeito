@@ -180,7 +180,7 @@ export default function LoginForm() {
               </FormItem>
             )}
           />
-          <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/forgot-password" className="text-sm font-medium text-primary no-underline hover:underline">
             Esqueceu a senha?
           </Link>
         </div>
@@ -199,7 +199,13 @@ export default function LoginForm() {
           </div>
         </div>
 
-        <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
+        <Button 
+          variant="outline" 
+          type="button" 
+          className="w-full hover:bg-muted hover:text-secondary-foreground" 
+          onClick={handleGoogleSignIn} 
+          disabled={loading || googleLoading}
+        >
           {googleLoading ? "Entrando com Google..." : (
             <>
               <GoogleIcon className="mr-2 h-6 w-6" />
@@ -211,5 +217,3 @@ export default function LoginForm() {
     </Form>
   );
 }
-
-    
