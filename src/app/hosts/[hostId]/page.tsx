@@ -23,18 +23,17 @@ const generateUniqueId = () => {
 type ParsedMessageResult =
   | { type: 'chat', userName: string, userAvatar: string, messageData: string }
   | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string }
-  | null; // For unparseable or ignored messages
+  | null;
 
 function parseChatMessage(rawData: string): ParsedMessageResult {
   let parsedJson;
   try {
     parsedJson = JSON.parse(rawData);
   } catch (e) {
-    // If it's not JSON, but it's non-empty text, treat it as a plain text chat message
     if (rawData && rawData.trim() !== "") {
       return { type: 'chat', userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawData };
     }
-    return null; // Not valid JSON and not plain text
+    return null;
   }
 
   let userName = "Servidor";
@@ -80,7 +79,30 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     return { type: 'chat', userName, userAvatar, messageData };
   }
-  // User Join/Enter Event
+  // User Join/Enter Event (type 1, type2: 1 variant - no 'count' field)
+  else if (
+    parsedJson.user &&
+    parsedJson.user.nickname &&
+    parsedJson.type === 1 &&
+    parsedJson.type2 === 1 &&
+    !parsedJson.text && 
+    !parsedJson.giftId && 
+    !parsedJson.game &&
+    !(parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) 
+  ) {
+    userName = parsedJson.user.nickname;
+    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+    let joinMessage = `👋 ${userName} entrou na sala.`;
+    if (parsedJson.user.level) {
+      joinMessage += ` (Nível ${parsedJson.user.level})`;
+    }
+    if (parsedJson.roomUser && parsedJson.roomUser.fansLevel) {
+        joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
+    }
+    messageData = joinMessage;
+    return { type: 'chat', userName, userAvatar, messageData };
+  }
+  // User Join/Enter Event (with 'count' field)
   else if (
     parsedJson.user && 
     parsedJson.user.nickname && 
@@ -88,11 +110,11 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     !parsedJson.text && 
     !parsedJson.giftId && 
     !parsedJson.game &&
-    !(parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) // Ensure it's not a systemUpdate
+    !(parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined)
   ) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    let joinMessage = `👋 Entrou na sala.`;
+    let joinMessage = `👋 ${userName} entrou na sala.`;
     if (parsedJson.user.level) {
       joinMessage += ` (Nível ${parsedJson.user.level})`;
     }
@@ -116,6 +138,9 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema"; 
           userAvatar = ""; 
+      } else if (parsedJson.user && parsedJson.user.nickname) { // if content exists with user
+          userName = parsedJson.user.nickname;
+          userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
       }
       return { type: 'chat', userName, userAvatar, messageData };
   }
@@ -131,9 +156,10 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     userAvatar = `https://placehold.co/32x32.png?text=A`;
     return { type: 'chat', userName, userAvatar, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
-    messageData = JSON.stringify(parsedJson); 
-    userName = "JSON";
-    userAvatar = `https://placehold.co/32x32.png?text=J`;
+    console.warn("Unparsed JSON object:", parsedJson);
+    messageData = "Mensagem JSON não reconhecida."; // Avoid stringifying large unknown objects
+    userName = "Sistema";
+    userAvatar = "";
     return { type: 'chat', userName, userAvatar, messageData };
   }
 
@@ -267,6 +293,7 @@ export default function HostStreamPage() {
         }
       }
       
+      // Attempt to clean potential non-JSON prefix
       const firstBraceIndex = messageContentString.indexOf('{');
       const lastBraceIndex = messageContentString.lastIndexOf('}');
       if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
@@ -317,7 +344,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]); 
+  }, [host?.id, host?.kakoLiveRoomId]); // Removed chatMessages from dependencies
 
 
   useEffect(() => {
@@ -351,10 +378,11 @@ export default function HostStreamPage() {
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
 
-    return () => {
-      scrollViewportRef.current?.removeEventListener('scroll', handleScroll);
-    };
-  }, [chatMessages, handleScroll, scrollToBottom]);
+    // No need for explicit cleanup of event listener here if it's setup once and viewport ref doesn't change
+    // But if viewportElement could change dynamically, cleanup would be needed.
+    // For now, assuming viewport ref once found is stable.
+
+  }, [chatMessages, handleScroll, scrollToBottom]); // Dependencies remain crucial for this effect
 
 
   const handleSendMessage = () => {
@@ -622,3 +650,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
