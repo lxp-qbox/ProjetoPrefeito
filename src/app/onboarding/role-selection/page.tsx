@@ -20,7 +20,9 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import type { UserProfile } from "@/types";
-import { Progress } from "@/components/ui/progress";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+
+const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +51,7 @@ export default function RoleSelectionPage() {
         title: "Função Selecionada",
         description: `Sua função foi definida como ${role === 'host' ? 'Anfitrião' : 'Participante'}.`,
       });
-      router.push("/onboarding/age-verification");
+      router.push("/onboarding/terms"); // Navigate to Terms page next
     } catch (error) {
       console.error("Erro ao salvar função:", error);
       toast({
@@ -69,12 +71,10 @@ export default function RoleSelectionPage() {
             variant="ghost"
             size="icon"
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar para Termos"
+            title="Voltar para Termos" // This might be confusing if terms is next. Consider removing or making dynamic.
         >
-            <Link href="/onboarding/terms">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
+            {/* For now, no back button here as it's the first configurable step */}
+            <span /> 
         </Button>
       <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
@@ -125,8 +125,8 @@ export default function RoleSelectionPage() {
           </Card>
         </div>
       </CardContent>
-      <CardFooter className="p-6 border-t">
-        <Progress value={10} aria-label="Progresso do onboarding 10%" />
+      <CardFooter className="p-4 border-t">
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
       </CardFooter>
     </Card>
   );

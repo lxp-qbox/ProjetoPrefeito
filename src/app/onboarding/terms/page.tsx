@@ -12,8 +12,12 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle } from "lucide-react";
+import { FileText, CheckCircle, ArrowLeft } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import Link from "next/link";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+
+const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
 
 export default function TermsPage() {
   const [agreed, setAgreed] = useState(false);
@@ -66,7 +70,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/role-selection"); 
+      router.push("/onboarding/age-verification"); 
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -77,8 +81,20 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
+       <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            title="Voltar"
+        >
+            <Link href="/onboarding/role-selection">
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+        </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <FileText className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Termos de Uso e Privacidade</CardTitle>
@@ -101,6 +117,9 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
         </Button>
+      </CardFooter>
+       <CardFooter className="p-4 border-t">
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
     </Card>
   );

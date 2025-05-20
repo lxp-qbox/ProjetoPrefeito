@@ -19,6 +19,9 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+
+const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -80,10 +83,10 @@ export default function KakoAccountCheckPage() {
             </Link>
         </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold mt-8">Conta Kako Live</CardTitle>
+        <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>
         <CardDescription>
           Você já possui uma conta no aplicativo Kako Live?
         </CardDescription>
@@ -127,7 +130,9 @@ export default function KakoAccountCheckPage() {
           </Card>
         </div>
       </CardContent>
-      {/* Stepper UI from image omitted for now */}
+       <CardFooter className="p-4 border-t">
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+      </CardFooter>
     </Card>
   );
 }

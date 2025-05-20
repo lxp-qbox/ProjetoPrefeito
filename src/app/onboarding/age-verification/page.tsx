@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,7 +38,10 @@ import { format, subYears, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress"; // Import Progress
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+import Link from "next/link";
+
+const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
@@ -142,8 +145,20 @@ export default function AgeVerificationPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+       <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            title="Voltar"
+        >
+            <Link href="/onboarding/terms">
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+        </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <LucideCalendarIcon className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
@@ -259,8 +274,8 @@ export default function AgeVerificationPage() {
           Continuar
         </Button>
       </CardFooter>
-       <CardFooter className="p-6 border-t">
-        <Progress value={30} aria-label="Progresso do onboarding 30%" />
+       <CardFooter className="p-4 border-t">
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </Card>
   );

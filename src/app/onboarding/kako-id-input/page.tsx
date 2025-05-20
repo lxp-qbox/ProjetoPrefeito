@@ -21,6 +21,9 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+
+const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
@@ -41,7 +44,10 @@ export default function KakoIdInputPage() {
     }
     setIsSearching(true);
     
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate API call or validation
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
+    // In a real app, you'd validate the ID here.
+    // For now, we'll just assume it's found if not empty.
     setIsSearching(false);
     toast({
       title: "Perfil Encontrado (Simulado)",
@@ -161,7 +167,9 @@ export default function KakoIdInputPage() {
           Continuar e Finalizar
         </Button>
       </CardFooter>
-      {/* Stepper UI from image omitted for now */}
+       <CardFooter className="p-4 border-t">
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+      </CardFooter>
     </Card>
   );
 }
