@@ -33,6 +33,30 @@ export default function HostStreamPage() {
     }
   }, [hostId]);
 
+  // Effect to simulate gift updates
+  React.useEffect(() => {
+    if (!host || !host.giftsReceived || host.giftsReceived.length === 0) {
+      return; // Don't start interval if no host or no gifts
+    }
+
+    const intervalId = setInterval(() => {
+      setHost(prevHost => {
+        if (!prevHost || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
+          return prevHost;
+        }
+        // Create a deep copy to avoid state mutation issues
+        const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
+        const randomIndex = Math.floor(Math.random() * updatedGifts.length);
+        updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + 1; // Increment count of a random gift
+
+        return { ...prevHost, giftsReceived: updatedGifts };
+      });
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, [host]); // Rerun effect if host data changes (e.g., initial load or if host object itself is replaced)
+
+
   if (host === undefined) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
@@ -156,7 +180,7 @@ export default function HostStreamPage() {
                     width={48} 
                     height={48} 
                     className="rounded-md mb-2"
-                    data-ai-hint={gift.dataAiHint || "gift icon"} // Added data-ai-hint
+                    data-ai-hint={gift.dataAiHint || "gift icon"}
                   />
                   <p className="text-sm font-medium">{gift.name}</p>
                   <p className="text-xs text-muted-foreground">x {gift.count}</p>
@@ -182,4 +206,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-
