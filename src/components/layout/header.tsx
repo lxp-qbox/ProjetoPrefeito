@@ -35,8 +35,8 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-card sticky top-0 z-40 border-b border-border"> {/* Removed shadow-md */}
-      <div className="px-6 h-16 flex justify-between items-center">
+    <header className="bg-card sticky top-0 z-40 border-b border-border h-16 flex items-center">
+      <div className="px-6 w-full flex justify-between items-center">
         <div className="flex items-center gap-2">
           {/* This trigger is for mobile when the main sidebar is collapsed. The main sidebar has its own trigger. */}
           <SidebarTrigger className="md:hidden" />
