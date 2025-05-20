@@ -33,21 +33,20 @@ export default function AdminPage() {
   }
 
   const adminSections = [
-    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, // "Dashboard" now renders Host Management
+    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
     { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
     { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
     { title: "Configurações", icon: Settings, link: "/admin/settings" },
-    { title: "Meu Perfil", icon: UserCircle2, link: "/profile" }, // This still points to main profile
+    { title: "Meu Perfil", icon: UserCircle2, link: "/profile" },
   ];
 
-  // Determine what content to show based on the path
   const isHostManagementView = pathname === "/admin";
 
 
   return (
     <ProtectedPage>
-      <div className="space-y-6">
-        <section className="bg-card p-6 rounded-lg shadow-md">
+      <div className="flex flex-col h-full">
+        <section className="bg-card p-6 shadow-md border-b"> {/* Added border-b for separation */}
           <h1 className="text-3xl font-bold text-primary mb-2 flex items-center">
             <Users className="mr-3 h-8 w-8" />
             Admin Panel
@@ -57,11 +56,11 @@ export default function AdminPage() {
           </p>
         </section>
 
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden"> {/* Removed gap, handled by borders now */}
           {/* Admin Navigation Sidebar */}
-          <nav className="w-full md:w-72 flex-shrink-0">
-            <div className="bg-card rounded-lg shadow-md border border-border">
-              <div className="p-2 space-y-1">
+          <nav className="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r bg-card"> {/* Added bg-card and borders */}
+            <div className="h-full flex flex-col">
+              <div className="p-1 space-y-1 overflow-y-auto">
                 {adminSections.map((section) => {
                   const isActive = pathname === section.link || (section.link === "/admin" && pathname.startsWith("/admin/hosts"));
                   return (
@@ -69,9 +68,9 @@ export default function AdminPage() {
                       key={section.title}
                       variant={isActive ? "secondary" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left h-auto py-2.5 px-3 text-sm font-medium rounded-md",
+                        "w-full justify-start text-left h-auto py-2.5 px-2 text-sm font-medium rounded-md", // Reduced px
                         isActive
-                          ? "bg-secondary text-secondary-foreground hover:bg-secondary/90" // Using secondary for active state
+                          ? "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                           : "text-card-foreground hover:bg-muted"
                       )}
                       asChild
@@ -88,7 +87,7 @@ export default function AdminPage() {
           </nav>
 
           {/* Admin Content Area */}
-          <main className="flex-grow">
+          <main className="flex-grow overflow-y-auto p-6"> {/* Added padding here */}
             {isHostManagementView ? (
               <AdminHostsPageContent />
             ) : (
