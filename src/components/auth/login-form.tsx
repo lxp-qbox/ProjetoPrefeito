@@ -200,13 +200,13 @@ export default function LoginForm() {
         <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
           {googleLoading ? "Entrando com Google..." : (
             <>
-              <GoogleIcon className="mr-2 h-5 w-5" />
+              <GoogleIcon className="mr-2 h-6 w-6" /> {/* Changed size to h-6 w-6 */}
               Entrar com Google
             </>
           )}
         </Button>
-        {/* "Não tem uma conta?" and Star icon removed from here */}
       </form>
     </Form>
   );
 }
+
