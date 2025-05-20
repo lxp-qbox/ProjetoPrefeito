@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, Database } from "lucide-react";
+import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import AdminHostsPageContent from "@/app/admin/hosts/page-content";
 import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
 import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
 import AdminBansPage from "@/app/admin/actions/bans/page";
-import AdminKakoLiveDataListPage from "@/app/admin/kako-live/data-list/page";
+import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content"; // Updated import
 
 
 interface AdminMenuItem {
@@ -38,7 +38,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
   {
     groupTitle: "Geral",
     items: [
-      { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
+      { title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" }, // Link to hosts as default dashboard
       { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
       { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
     ],
@@ -106,16 +106,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     } else if (pathname === "/admin/actions/bans") {
       setContentToRender(<AdminBansPage />);
     } else if (pathname === "/admin/kako-live/data-list") {
-        setContentToRender(<AdminKakoLiveDataListPage />);
+        setContentToRender(<AdminKakoLiveDataListPageContent />); // Updated to use new component
     }
-    // Add other else if blocks for other specific admin pages
-    // Example:
-    // else if (pathname === "/admin/language") {
-    //   setContentToRender(<div className="p-6 bg-card rounded-lg shadow-lg h-full"><h1 className="text-2xl font-semibold">Configurações de Idioma</h1><p>Esta seção está em desenvolvimento.</p></div>);
-    // }
     else {
-      // Fallback to children for pages not explicitly handled or for nested routes
-      setContentToRender(children);
+      setContentToRender(
+        <div className="p-6 bg-card rounded-lg shadow-lg h-full">
+          <h1 className="text-2xl font-semibold">Seção em Desenvolvimento</h1>
+          <p>O conteúdo para <code className="text-sm bg-muted px-1 py-0.5 rounded">{pathname}</code> aparecerá aqui em breve.</p>
+        </div>
+      );
     }
   }, [pathname, children]);
 
@@ -161,7 +160,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = pathname === item.link || (item.link === "/admin" && pathname === "/admin/hosts");
+                        const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin");
                         const isLogout = item.link === "#logout";
 
                         const buttonAction = isLogout ? handleLogout : () => {
