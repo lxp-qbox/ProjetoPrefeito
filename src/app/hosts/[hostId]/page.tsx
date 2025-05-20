@@ -58,9 +58,9 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
 
   // Try to extract user info and message from common structures
   // Prioritize structure from the provided example: user.nickname, user.avatar, text
-  if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.text) {
+  if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message)) {
     userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
-    messageData = parsedJson.text;
+    messageData = parsedJson.text || parsedJson.message;
     if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
       userAvatar = parsedJson.user.avatar;
     } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') { // Common alternative
@@ -90,13 +90,13 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema";
-          userAvatar = ""; 
+          userAvatar = "";
       }
-  } else if (typeof parsedJson === 'string') { 
+  } else if (typeof parsedJson === 'string') {
     messageData = parsedJson;
-    userName = "Anônimo"; 
+    userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (parsedJson.message && typeof parsedJson.message === 'string') { 
+  } else if (parsedJson.message && typeof parsedJson.message === 'string') {
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
@@ -106,14 +106,14 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     userAvatar = `https://placehold.co/32x32.png?text=T`;
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') {
     messageData = JSON.stringify(parsedJson);
-    userName = "JSON"; 
+    userName = "JSON";
     userAvatar = `https://placehold.co/32x32.png?text=J`;
   } else if (data.toString && typeof data.toString === 'function') {
     messageData = data.toString();
   } else {
     return null; // No usable data found
   }
-  
+
   return { userName, userAvatar, messageData };
 }
 
@@ -126,7 +126,7 @@ export default function HostStreamPage() {
   const [newMessage, setNewMessage] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuth(); // For optimistic chat sender
 
   useEffect(() => {
     if (hostId) {
@@ -147,7 +147,7 @@ export default function HostStreamPage() {
           return prevHost;
         }
         if (!prevHost) return prevHost;
-        
+
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
         const randomIndex = Math.floor(Math.random() * updatedGifts.length);
         if (updatedGifts[randomIndex]) {
@@ -161,7 +161,7 @@ export default function HostStreamPage() {
 
   useEffect(() => {
     if (!host || !host.kakoLiveRoomId) {
-      setChatMessages([{id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
       return;
     }
 
@@ -251,7 +251,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host, host?.kakoLiveRoomId]); 
+  }, [host, host?.kakoLiveRoomId]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -265,11 +265,11 @@ export default function HostStreamPage() {
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const messageToSend = {
-        type: 'chat_message', 
+        type: 'chat_message',
         content: newMessage.trim(),
       };
       socketRef.current.send(JSON.stringify(messageToSend));
-      
+
       setChatMessages(prev => [
         ...prev,
         {
@@ -332,7 +332,7 @@ export default function HostStreamPage() {
       </div>
     );
   }
-  
+
   const pageTitle = host.streamTitle || `Ao Vivo: ${host.name}`;
 
   return (
@@ -360,7 +360,7 @@ export default function HostStreamPage() {
               <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
                 <video
                   playsInline
-                  webkit-playsinline="" 
+                  webkit-playsinline=""
                   x5-playsinline="true"
                   x5-video-player-type="h5"
                   x-webkit-airplay="allow"
@@ -378,7 +378,7 @@ export default function HostStreamPage() {
                 <div>
                   <p className="font-semibold">Player de Vídeo Genérico Ativado</p>
                   <p>
-                    Para reproduzir o conteúdo, este player requer uma URL de stream de vídeo direta (ex: .mp4, HLS .m3u8). 
+                    Para reproduzir o conteúdo, este player requer uma URL de stream de vídeo direta (ex: .mp4, HLS .m3u8).
                     A URL WebSocket (`wss://...`) para o chat não é uma fonte de vídeo compatível para este player. A funcionalidade de transmissão ao vivo do Kako Live não funcionará com este player genérico.
                   </p>
                 </div>
@@ -426,11 +426,11 @@ export default function HostStreamPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {host.giftsReceived.map((gift) => (
                     <div key={gift.id} className="flex flex-col items-center text-center p-2 border rounded-lg shadow-sm bg-muted/20">
-                      <Image 
-                        src={gift.iconUrl} 
-                        alt={gift.name} 
-                        width={48} 
-                        height={48} 
+                      <Image
+                        src={gift.iconUrl}
+                        alt={gift.name}
+                        width={48}
+                        height={48}
                         className="rounded-md mb-2"
                         data-ai-hint={gift.dataAiHint || "gift icon"}
                       />
@@ -491,16 +491,16 @@ export default function HostStreamPage() {
             </CardContent>
             <div className="p-4 border-t">
               <div className="flex space-x-2">
-                <Input 
-                  placeholder="Diga algo..." 
+                <Input
+                  placeholder="Diga algo..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-grow"
                   disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
                 />
-                <Button 
-                  onClick={handleSendMessage} 
+                <Button
+                  onClick={handleSendMessage}
                   disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !newMessage.trim()}
                 >
                   <Send className="h-4 w-4"/>
