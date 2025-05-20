@@ -30,9 +30,9 @@ interface StepLabelProps {
 
 const StepLabel: React.FC<StepLabelProps> = ({ label, isCompleted, isCurrent }) => {
   const textClasses = cn(
-    "mt-2 text-xs sm:text-sm text-center break-words w-16 sm:w-20", // Added break-words and fixed width
+    "mt-2 text-xs sm:text-sm text-center break-words w-16 sm:w-20",
     (isCompleted || isCurrent)
-      ? "font-medium" // Make current and completed labels medium weight
+      ? "font-medium"
       : "font-normal",
     isCompleted
       ? "text-emerald-600"
@@ -49,7 +49,7 @@ interface ConnectingLineProps {
 
 const ConnectingLine: React.FC<ConnectingLineProps> = ({ isCompleted }) => {
   const lineClasses = cn(
-    "h-1 flex-1 mx-1", // Adjusted for flex-1 to fill space
+    "h-1 flex-1", // Takes full width of its parent, height is 1px
     isCompleted ? "bg-emerald-600" : "bg-border"
   );
   return <div className={lineClasses} />;
@@ -86,7 +86,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ steps, currentSte
               />
             </div>
             {!isLastStep && (
-              <div className="flex-grow self-center"> 
+              <div className="flex-grow flex items-center h-8 mx-1"> {/* Container for the line, height matches circle, centers line */}
                  <ConnectingLine isCompleted={isCompleted} />
               </div>
             )}
