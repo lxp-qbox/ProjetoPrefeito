@@ -24,7 +24,6 @@ import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
 import type { UserProfile } from "@/types";
 
-// Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 48 48" {...props}>
     <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -34,7 +33,6 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path fill="none" d="M0 0h48v48H0z"></path>
   </svg>
 );
-
 
 const formSchema = z.object({
   email: z.string().email({ message: "Endereço de email inválido." }),
@@ -65,10 +63,10 @@ export default function LoginForm() {
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        if (!userProfile.role) {
-          router.push("/onboarding/role-selection");
-        } else if (!userProfile.agreedToTermsAt) {
+        if (!userProfile.agreedToTermsAt) {
           router.push("/onboarding/terms");
+        } else if (!userProfile.role) {
+          router.push("/onboarding/role-selection");
         } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
           router.push("/onboarding/age-verification");
         } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
@@ -78,8 +76,8 @@ export default function LoginForm() {
           router.push("/profile");
         }
       } else {
-        // New user created via Google Sign-In, start onboarding from role selection
-        router.push("/onboarding/role-selection"); 
+        // New user created via Google Sign-In or if somehow doc doesn't exist
+        router.push("/onboarding/terms"); 
       }
     } catch (error) {
       console.error("Error fetching user profile for redirect:", error);
@@ -136,7 +134,7 @@ export default function LoginForm() {
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      await handleRedirect(userCredential.user.uid); // This will handle onboarding checks
+      await handleRedirect(userCredential.user.uid); 
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({
@@ -157,7 +155,6 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -173,7 +170,6 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

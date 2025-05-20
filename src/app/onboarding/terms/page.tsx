@@ -66,7 +66,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/age-verification"); 
+      router.push("/onboarding/role-selection"); 
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -85,11 +85,11 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         <CardDescription>Por favor, leia e aceite nossos termos para continuar.</CardDescription>
       </CardHeader>
       <Separator className="mb-4" />
-      <CardContent className="flex-grow px-6 pt-0 pb-4 flex flex-col"> {/* Adjusted pb for overall spacing */}
+      <CardContent className="flex-grow px-6 pt-0 pb-4 flex flex-col">
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30 h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex justify-center items-center space-x-2 mt-6 mb-4"> {/* Centered and increased margin */}
+        <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
           <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
           <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
             Li e estou de acordo

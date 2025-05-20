@@ -48,7 +48,7 @@ export default function RoleSelectionPage() {
         title: "Função Selecionada",
         description: `Sua função foi definida como ${role === 'host' ? 'Anfitrião' : 'Participante'}.`,
       });
-      router.push("/onboarding/terms");
+      router.push("/onboarding/age-verification");
     } catch (error) {
       console.error("Erro ao salvar função:", error);
       toast({
@@ -63,7 +63,6 @@ export default function RoleSelectionPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
-      {/* No back button for the very first onboarding step based on image */}
       <CardHeader className="text-center pt-10 pb-4">
         <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
         <CardDescription className="mt-2">
@@ -110,7 +109,6 @@ export default function RoleSelectionPage() {
           </Card>
         </div>
       </CardContent>
-      {/* Stepper UI from image omitted for now */}
     </Card>
   );
 }

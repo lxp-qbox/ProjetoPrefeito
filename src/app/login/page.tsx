@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import Link from "next/link";
 import { LogIn, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
@@ -15,14 +15,13 @@ import { Button } from "@/components/ui/button";
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!loading && currentUser) {
-      if (!currentUser.role) {
-        router.replace("/onboarding/role-selection");
-      } else if (!currentUser.agreedToTermsAt) {
+      if (!currentUser.agreedToTermsAt) {
         router.replace("/onboarding/terms");
+      } else if (!currentUser.role) {
+        router.replace("/onboarding/role-selection");
       } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country) {
         router.replace("/onboarding/age-verification");
       } else if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
