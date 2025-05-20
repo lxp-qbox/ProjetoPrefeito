@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff, Info, Heart } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import Image from 'next/image';
 
 // This is a temporary solution for fetching host data.
 // In a real app, this would come from a database/API.
@@ -111,14 +112,14 @@ export default function HostStreamPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Sobre {host.name}</CardTitle>
+          <CardTitle className="text-lg flex items-center">
+            <Info className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
+            Sobre {host.name}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {host.bio && (
-            <div className="flex items-start">
-              <Info className="h-4 w-4 mr-2 mt-0.5 text-primary flex-shrink-0" />
-              <p><strong>Bio:</strong> {host.bio}</p>
-            </div>
+            <p><strong>Bio:</strong> {host.bio}</p>
           )}
           <p><strong>Rank da Agência:</strong> #{host.rankPosition}</p>
           <p><strong>Rank Geral:</strong> {host.rank}</p>
@@ -136,6 +137,48 @@ export default function HostStreamPage() {
           </p>
         </CardContent>
       </Card>
+
+      {host.giftsReceived && host.giftsReceived.length > 0 && (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center">
+                <GiftIcon className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
+                Presentes Recebidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {host.giftsReceived.map((gift) => (
+                <div key={gift.id} className="flex flex-col items-center text-center p-2 border rounded-lg shadow-sm bg-muted/20">
+                  <Image 
+                    src={gift.iconUrl} 
+                    alt={gift.name} 
+                    width={48} 
+                    height={48} 
+                    className="rounded-md mb-2"
+                    data-ai-hint={gift.dataAiHint || "gift icon"} // Added data-ai-hint
+                  />
+                  <p className="text-sm font-medium">{gift.name}</p>
+                  <p className="text-xs text-muted-foreground">x {gift.count}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+       {(!host.giftsReceived || host.giftsReceived.length === 0) && (
+         <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                    <GiftIcon className="h-5 w-5 mr-2 text-primary flex-shrink-0" />
+                    Presentes Recebidos
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground text-sm">Nenhum presente recebido ainda.</p>
+            </CardContent>
+         </Card>
+       )}
     </div>
   );
 }

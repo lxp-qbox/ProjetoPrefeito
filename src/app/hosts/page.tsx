@@ -29,23 +29,30 @@ export const placeholderHosts: Host[] = [
   { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M" },
   { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M" },
   { 
-    id: "new-test-host-1", // Keeping existing ID for the placeholder
-    rankPosition: 9, // Keep placeholder rank position
-    name: "PRESIDENTE", // from API: data.user.nickname
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200", // from API: data.user.avatar
-    avgViewers: 15000, // Placeholder, adjust if desired
-    timeStreamed: 60.0, // Placeholder
-    allTimePeakViewers: 30000, // Placeholder
-    hoursWatched: "1.5M", // Placeholder
-    rank: 39, // from API: data.user.level
-    followersGained: 8000, // Placeholder
-    totalFollowers: "750K", // Placeholder
-    totalViews: "3.0M", // Placeholder
-    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a", // from API: data.user.userId
-    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // from API: data.roomId
-    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.", // from API: data.user.signature
-    streamTitle: "Dominando as Arenas!", // from API: data.title
-    likes: 276997, // from API: data.like
+    id: "new-test-host-1", 
+    rankPosition: 9, 
+    name: "PRESIDENTE", 
+    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200", 
+    avgViewers: 15000, 
+    timeStreamed: 60.0, 
+    allTimePeakViewers: 30000, 
+    hoursWatched: "1.5M", 
+    rank: 39, 
+    followersGained: 8000, 
+    totalFollowers: "750K", 
+    totalViews: "3.0M", 
+    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a", 
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", 
+    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.", 
+    streamTitle: "Dominando as Arenas!", 
+    likes: 276997,
+    giftsReceived: [
+      { id: "gift1", name: "Rosa Vermelha", iconUrl: "https://placehold.co/32x32.png", count: 150 , dataAiHint: "rose flower" },
+      { id: "gift2", name: "Coroa Dourada", iconUrl: "https://placehold.co/32x32.png", count: 25, dataAiHint: "gold crown" },
+      { id: "gift3", name: "Carro Esportivo", iconUrl: "https://placehold.co/32x32.png", count: 5, dataAiHint: "sportscar" },
+      { id: "gift4", name: "Castelo Mágico", iconUrl: "https://placehold.co/32x32.png", count: 1, dataAiHint: "castle" },
+      { id: "gift5", name: "Diamante Azul", iconUrl: "https://placehold.co/32x32.png", count: 75, dataAiHint: "diamond" },
+    ]
   },
 ];
 

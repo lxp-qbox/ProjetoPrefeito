@@ -27,6 +27,13 @@ export interface SupportTicket {
   createdAt: Date;
 }
 
+export interface ReceivedGift {
+  id: string;
+  name: string;
+  iconUrl: string;
+  count: number;
+}
+
 export interface Host {
   id: string;
   rankPosition: number; // #1, #2
@@ -45,6 +52,7 @@ export interface Host {
   bio?: string; // Host's signature or bio (maps to data.user.signature)
   streamTitle?: string; // Current stream title (maps to data.title)
   likes?: number; // Number of likes (maps to data.like)
+  giftsReceived?: ReceivedGift[];
 }
 
 export interface UserProfile {
