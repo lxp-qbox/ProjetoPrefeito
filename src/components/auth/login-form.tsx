@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
@@ -45,6 +45,7 @@ const formSchema = z.object({
 export default function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -62,29 +63,26 @@ export default function LoginForm() {
     try {
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
+      
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         if (!userProfile.agreedToTermsAt) {
           router.push("/onboarding/terms");
-        } else if (!userProfile.birthDate) {
+        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
           router.push("/onboarding/age-verification");
         } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-          // This will be the placeholder for future onboarding steps.
-          // For now, if they have birthDate, we assume they're past current onboarding.
-          // If we had a "kakoID" step, we'd check for that here.
-          // If all steps are done, this field 'hasCompletedOnboarding' would be true.
-          router.push("/profile"); // Fallback if hasCompletedOnboarding isn't explicitly true yet but other steps are done.
-        } else {
+          router.push("/onboarding/kako-account-check");
+        }
+         else {
           router.push("/profile");
         }
       } else {
-        // Should not happen if signup process is correct, but as a fallback:
         router.push("/onboarding/terms"); 
       }
     } catch (error) {
       console.error("Error fetching user profile for redirect:", error);
       toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
-      router.push("/profile"); // Fallback to profile
+      router.push("/profile"); 
     }
   };
 
@@ -99,8 +97,6 @@ export default function LoginForm() {
           variant: "destructive",
           duration: 9000,
         });
-        // Optionally resend verification email if desired
-        // await sendEmailVerification(userCredential.user); 
         setLoading(false);
         return;
       }
@@ -159,7 +155,6 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -175,7 +170,6 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

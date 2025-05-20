@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -26,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
-import { countries } from "@/lib/countries"; // Import countries list
+import { countries } from "@/lib/countries"; 
 import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -112,14 +111,12 @@ export default function AgeVerificationPage() {
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
         updatedAt: serverTimestamp(),
-        // Note: hasCompletedOnboarding is not set here. It should be set at the end of the *entire* onboarding flow.
       });
       toast({
         title: "Informações Salvas",
         description: "Suas informações foram registradas com sucesso.",
       });
-      // Next step: kako ID or profile if no more steps
-      router.push("/profile"); 
+      router.push("/onboarding/kako-account-check"); 
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
@@ -250,4 +247,3 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
-
