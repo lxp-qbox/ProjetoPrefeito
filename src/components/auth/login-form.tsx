@@ -14,6 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -25,6 +26,7 @@ import { Eye, EyeOff, LogInIcon } from "lucide-react";
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  rememberMe: z.boolean().optional(),
 });
 
 export default function LoginForm() {
@@ -38,6 +40,7 @@ export default function LoginForm() {
     defaultValues: {
       email: "",
       password: "",
+      rememberMe: false,
     },
   });
 
@@ -49,7 +52,7 @@ export default function LoginForm() {
         title: "Login Successful",
         description: "Welcome back!",
       });
-      router.push("/profile");
+      router.push("/profile"); // Or a redirect path if provided
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -83,7 +86,7 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Senha</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Input 
@@ -106,14 +109,33 @@ export default function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Logging in..." : <> <LogInIcon className="mr-2 h-4 w-4" /> Login </>}
-        </Button>
-        <div className="text-sm text-center">
-          <Link href="/forgot-password" className="font-medium text-primary hover:underline">
-            Forgot password?
+        <div className="flex items-center justify-between">
+          <FormField
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="leading-none">
+                  <FormLabel className="font-normal">
+                    Lembrar de mim
+                  </FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+          <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+            Esqueceu a senha?
           </Link>
         </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Entrando..." : <> <LogInIcon className="mr-2 h-4 w-4" /> Entrar </>}
+        </Button>
       </form>
     </Form>
   );

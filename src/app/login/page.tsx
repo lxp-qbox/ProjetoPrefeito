@@ -12,15 +12,15 @@ export default function LoginPage() {
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Login</CardTitle>
-          <CardDescription>Access your Presidential Agency account.</CardDescription>
+          <CardTitle className="text-3xl font-bold">Entrar</CardTitle>
+          <CardDescription>Acesse sua conta para continuar.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm />
           <p className="mt-6 text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Não tem uma conta?{" "}
             <Link href="/signup" className="font-medium text-primary hover:underline">
-              Sign up
+              Cadastre-se
             </Link>
           </p>
         </CardContent>
