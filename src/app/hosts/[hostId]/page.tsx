@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, UserProfile, ReceivedGift, ChatMessage } from '@/types';
+import type { Host, ChatMessage } from '@/types';
 import { placeholderHosts } from '../page'; // Import placeholderHosts
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -55,7 +55,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
   let userAvatar = "";
   let messageData = "";
 
-  // Check for Gift Event Structure (as per user example)
+  // Check for Gift Event Structure
   if (parsedJson && parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
     userName = parsedJson.user.nickname;
     userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
@@ -140,27 +140,28 @@ export default function HostStreamPage() {
   }, [hostId]);
 
   useEffect(() => {
-    if (!host?.giftsReceived || host.giftsReceived.length === 0) {
+    // Only run if host is loaded and has gifts to update
+    if (!host || !host.giftsReceived || host.giftsReceived.length === 0) {
       return;
     }
     const intervalId = setInterval(() => {
       setHost(prevHost => {
-        if (!prevHost?.giftsReceived || prevHost.giftsReceived.length === 0) {
+        // Check if prevHost is null or if giftsReceived is missing/empty, might happen if navigating away
+        if (!prevHost || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-        if (!prevHost) return prevHost;
 
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
         const randomIndex = Math.floor(Math.random() * updatedGifts.length);
-        if (updatedGifts[randomIndex]) {
+        
+        if (updatedGifts[randomIndex]) { // Ensure randomIndex is valid
             updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + Math.floor(Math.random() * 3) + 1;
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
     }, 5000);
     return () => clearInterval(intervalId);
-  }, [host]);
-
+  }, [host?.id]); // Changed dependency from [host] to [host?.id]
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -182,22 +183,37 @@ export default function HostStreamPage() {
 
   // Effect for WebSocket connection
   useEffect(() => {
+    // If host is still undefined, it means the useEffect depending on hostId hasn't completed setting it.
+    // Wait for host to be resolved to either a Host object or null.
+    if (host === undefined) {
+      return;
+    }
+
     if (!host || !host.kakoLiveRoomId) {
-      if (host !== undefined) { // Only add message if host is loaded but no room ID
-        setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
-      }
+      // Host is resolved (either null or an object), but still no valid room ID
+      setChatMessages(prev => {
+        // Avoid duplicate system messages if this effect re-runs for some reason
+        if (prev.length === 0 || prev[prev.length -1]?.message !== "Host ou RoomID não configurado para o chat.") {
+          return [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Host ou RoomID não configurado para o chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}];
+        }
+        return prev;
+      });
       return;
     }
 
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
-    // Clear previous messages if any from a different host, for new connection
-    setChatMessages([{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
-
+    
+    setChatMessages(prev => {
+        if (prev.length === 0 || (prev.length > 0 && prev[0]?.message !== `Conectando a ${wsUrl}...` && prev[0]?.message !== "Conectado ao chat!")) {
+          return [{id: generateUniqueId(), user: "Sistema", avatar: "", message: `Conectando a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev];
+        }
+        return prev;
+    });
 
     socketRef.current.onopen = () => {
       console.log("WebSocket conectado para chat: " + wsUrl);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [{id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}, ...prev.filter(m => m.message !== `Conectando a ${wsUrl}...`)]);
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -219,7 +235,7 @@ export default function HostStreamPage() {
             messageString = "[Tipo de mensagem desconhecido]";
         }
       }
-
+      
       const processedMessage = parseChatMessage(messageString);
 
       if (processedMessage && processedMessage.messageData && processedMessage.messageData.trim() !== "") {
@@ -260,7 +276,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host]); // Re-run if host changes (e.g. navigating to a different host page)
+  }, [host?.id, host?.kakoLiveRoomId]); // Corrected dependencies
 
   // Effect to setup scroll listener and initial scroll
   useEffect(() => {
@@ -269,11 +285,10 @@ export default function HostStreamPage() {
       scrollViewportRef.current = viewportElement as HTMLDivElement;
       scrollViewportRef.current.addEventListener('scroll', handleScroll);
       
-      // Initial scroll to bottom & check
       setTimeout(() => {
         scrollToBottom('auto');
-        handleScroll(); // Call to set initial isAtBottom correctly
-      }, 200); // Increased delay for layout to settle
+        handleScroll(); 
+      }, 200); 
 
       return () => {
         scrollViewportRef.current?.removeEventListener('scroll', handleScroll);
@@ -281,7 +296,7 @@ export default function HostStreamPage() {
     } else {
       console.warn("Chat scroll viewport not found. Auto-scrolling and unread indicators might not work.");
     }
-  }, [handleScroll, scrollToBottom]); // Dependencies are memoized
+  }, [handleScroll, scrollToBottom]);
 
 
   // Effect for handling new messages and auto-scrolling
@@ -399,7 +414,7 @@ export default function HostStreamPage() {
                     height="100%"
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
-                    className="border-0 aspect-video" // Added aspect-video here too
+                    className="border-0 aspect-video" 
                     title={`Transmissão de ${host.name}`}
                     data-ai-hint="live stream"
                   ></iframe>
@@ -495,8 +510,8 @@ export default function HostStreamPage() {
                 <span>{/* Placeholder */}</span>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* Added relative for positioning indicator */}
-              <ScrollArea className="h-full chat-scroll-area"> {/* Added chat-scroll-area class */}
+            <CardContent className="flex-grow p-0 min-h-0 relative"> 
+              <ScrollArea className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3">
@@ -517,7 +532,6 @@ export default function HostStreamPage() {
                   ))}
                 </div>
               </ScrollArea>
-               {/* New Unread Messages Indicator */}
               {newUnreadMessages > 0 && !isAtBottom && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
                   <Button
