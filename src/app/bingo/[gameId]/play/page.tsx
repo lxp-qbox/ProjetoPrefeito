@@ -3,7 +3,7 @@
 
 import type { Game } from "@/types";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Users, LayoutGrid, Clock, Trophy, ChevronDown } from "lucide-react";
+import { ArrowLeft, Users, LayoutGrid, Clock, Trophy, ChevronDown, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import {
 const gameData: Game = {
   id: "next-1",
   title: "Bingo Beneficente",
-  startTime: new Date(Date.now() + 2 * 60 * 60 * 1000), 
+  startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
   status: "Aberta",
   participants: 24,
   generatedCards: 30,
@@ -46,19 +46,73 @@ const StatItem: React.FC<StatItemProps> = ({ icon: Icon, label, value }) => (
   </div>
 );
 
+type BingoCell = number | 'FREE';
+type BingoGrid = BingoCell[][]; // Represents the 5x5 card, row by row
+
+// Function to generate unique random numbers for a column
+const generateColumnNumbers = (min: number, max: number, count: number): number[] => {
+  const numbers = new Set<number>();
+  while (numbers.size < count) {
+    numbers.add(Math.floor(Math.random() * (max - min + 1)) + min);
+  }
+  return Array.from(numbers).sort((a, b) => a - b); // Optional: sort numbers
+};
+
+const generateBingoCardData = (): BingoGrid => {
+  const card: BingoGrid = Array(5).fill(null).map(() => Array(5).fill(0));
+  const columns = {
+    B: generateColumnNumbers(1, 15, 5),
+    I: generateColumnNumbers(16, 30, 5),
+    N: generateColumnNumbers(31, 45, 4), // 4 numbers for N, center is FREE
+    G: generateColumnNumbers(46, 60, 5),
+    O: generateColumnNumbers(61, 75, 5),
+  };
+
+  for (let row = 0; row < 5; row++) {
+    card[row][0] = columns.B[row];
+    card[row][1] = columns.I[row];
+    if (row === 2) { // Center row
+      card[row][2] = 'FREE';
+      card[row][2] = columns.N[row < 2 ? row : row -1]; // place N numbers around FREE
+    } else {
+      card[row][2] = columns.N[row < 2 ? row : row -1];
+    }
+    card[row][3] = columns.G[row];
+    card[row][4] = columns.O[row];
+  }
+   // Manually insert FREE space in the middle of N column (index 2)
+  const nColNumbers = columns.N;
+  card[0][2] = nColNumbers[0];
+  card[1][2] = nColNumbers[1];
+  card[2][2] = 'FREE';
+  card[3][2] = nColNumbers[2];
+  card[4][2] = nColNumbers[3];
+
+
+  return card;
+};
+
 
 export default function BingoPlayPage({ params }: { params: { gameId: string } }) {
-  // In a real app, fetch game data using params.gameId
   const [game, setGame] = useState<Game>(gameData);
   const [countdown, setCountdown] = useState(game.countdownSeconds || 0);
+  const [bingoCard, setBingoCard] = useState<BingoGrid | null>(null);
+  const [cardGenerated, setCardGenerated] = useState(false);
 
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-    // Optionally, handle countdown reaching zero (e.g., start game)
   }, [countdown]);
+
+  const handleGetFreeCard = () => {
+    const newCard = generateBingoCardData();
+    setBingoCard(newCard);
+    setCardGenerated(true);
+  };
+
+  const bingoLetters = ['B', 'I', 'N', 'G', 'O'];
 
   return (
     <div className="space-y-6">
@@ -104,19 +158,50 @@ export default function BingoPlayPage({ params }: { params: { gameId: string } }
         </AccordionItem>
       </Accordion>
 
-
-      {/* Participate Card */}
-      <Card className="bg-muted/30 shadow-lg">
-        <CardHeader className="text-center pb-2">
-          <CardTitle className="text-xl font-semibold">Participe deste bingo!</CardTitle>
-        </CardHeader>
-        <CardContent className="text-center">
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
-            Gere sua cartela grátis e participe deste bingo. Você poderá adquirir cartelas adicionais mais tarde.
-          </p>
-          <Button size="lg" className="w-full sm:w-auto">Obter Cartela Grátis</Button>
-        </CardContent>
-      </Card>
+      {!cardGenerated ? (
+        <Card className="bg-muted/30 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-xl font-semibold">Participe deste bingo!</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
+              Gere sua cartela grátis e participe deste bingo. Você poderá adquirir cartelas adicionais mais tarde.
+            </p>
+            <Button size="lg" className="w-full sm:w-auto" onClick={handleGetFreeCard}>Obter Cartela Grátis</Button>
+          </CardContent>
+        </Card>
+      ) : bingoCard && (
+        <Card className="shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl font-semibold text-primary">Sua Cartela de Bingo</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            <div className="grid grid-cols-5 gap-1 mb-2 w-full max-w-sm">
+              {bingoLetters.map((letter) => (
+                <div key={letter} className="flex items-center justify-center h-10 bg-primary text-primary-foreground font-bold text-lg rounded-t-md">
+                  {letter}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-5 gap-px bg-border border border-border rounded-b-md w-full max-w-sm">
+              {bingoCard.map((row, rowIndex) =>
+                row.map((cell, colIndex) => (
+                  <div
+                    key={`${rowIndex}-${colIndex}`}
+                    className={`flex items-center justify-center h-14 sm:h-16 text-lg sm:text-xl font-medium border-border 
+                                ${colIndex < 4 ? 'border-r' : ''} ${rowIndex < 4 ? 'border-b' : ''}
+                                ${ (rowIndex % 2 === colIndex % 2) ? 'bg-card' : 'bg-muted/50' }
+                                ${ cell === 'FREE' ? 'bg-accent text-accent-foreground' : '' }`}
+                  >
+                    {cell === 'FREE' ? <Star className="h-6 w-6" /> : cell}
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-muted-foreground mt-4 text-sm">Boa sorte!</p>
+          </CardContent>
+        </Card>
+      )}
       <style jsx>{`
         .accordion-chevron {
             transition: transform 0.2s ease-in-out;
@@ -128,4 +213,3 @@ export default function BingoPlayPage({ params }: { params: { gameId: string } }
     </div>
   );
 }
-
