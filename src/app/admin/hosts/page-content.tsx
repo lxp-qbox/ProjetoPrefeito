@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Clock, CheckCircle, XCircle, Edit, ChevronDown, User, MoreHorizontal, Trash2 } from "lucide-react";
+import { Search, Users, Clock, CheckCircle, XCircle, Edit, ChevronDown, User, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -147,7 +147,7 @@ export default function AdminHostsPageContent() {
       await updateDoc(userDocRef, {
         role: 'player',
         adminLevel: null,
-        hostStatus: 'pending_review',
+        hostStatus: 'pending_review', // Or another appropriate default
         updatedAt: serverTimestamp(),
       });
 
@@ -173,12 +173,12 @@ export default function AdminHostsPageContent() {
         const userDocRef = doc(db, "users", hostId);
         await updateDoc(userDocRef, {
             hostStatus: 'banned',
-            isBanned: true,
+            isBanned: true, // You might have a general isBanned field too
             bannedAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
         toast({ title: "Host Banido", description: "O status do host foi atualizado para banido."});
-        fetchHosts(); 
+        fetchHosts(); // Refresh list
     } catch (error) {
         console.error("Erro ao banir host:", error);
         toast({ title: "Erro ao Banir", description: "Não foi possível banir o host.", variant: "destructive"});
@@ -234,7 +234,7 @@ export default function AdminHostsPageContent() {
 
   return (
     <>
-      <div className="space-y-6 h-full flex flex-col p-6">
+      <div className="p-6 space-y-6 h-full flex flex-col">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Gerenciamento de Hosts</h1>
@@ -314,9 +314,11 @@ export default function AdminHostsPageContent() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                              <Edit className="h-3 w-3 mr-1" />
-                              Editar
+                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" asChild>
+                              <Link href={`/admin/hosts/${host.id}/edit`}>
+                                <Edit className="h-3 w-3 mr-1" />
+                                Editar
+                              </Link>
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -399,7 +401,5 @@ export default function AdminHostsPageContent() {
     </>
   );
 }
-
-    
 
     

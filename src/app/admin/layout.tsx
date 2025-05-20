@@ -15,9 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // Import page content components for conditional rendering
 import AdminHostsPageContent from "@/app/admin/hosts/page-content";
 import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
-import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
+import AdminAdminsPageContent from "@/app/admin/users/admin/page-content"; // Corrected import
 import AdminBansPage from "@/app/admin/actions/bans/page";
-import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content"; // Updated import
+import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content";
+// Import the new EditHostPage if you want it to be part of this conditional rendering (optional)
+// import EditHostPage from "@/app/admin/hosts/[hostId]/edit/page";
 
 
 interface AdminMenuItem {
@@ -38,7 +40,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
   {
     groupTitle: "Geral",
     items: [
-      { title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" }, // Link to hosts as default dashboard
+      { title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" },
       { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
       { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
     ],
@@ -96,7 +98,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Specific page content rendering based on pathname
+    // THIS LOGIC FOR contentToRender MIGHT BECOME OBSOLETE OR SIMPLIFIED
+    // if Next.js correctly handles rendering the child page components.
+    // For now, it's a way to show specific content for exact matches.
     if (pathname === "/admin" || pathname === "/admin/hosts") {
       setContentToRender(<AdminHostsPageContent />);
     } else if (pathname === "/admin/users/players") {
@@ -106,15 +110,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     } else if (pathname === "/admin/actions/bans") {
       setContentToRender(<AdminBansPage />);
     } else if (pathname === "/admin/kako-live/data-list") {
-        setContentToRender(<AdminKakoLiveDataListPageContent />); // Updated to use new component
+        setContentToRender(<AdminKakoLiveDataListPageContent />);
+    }
+    // If children are being rendered by Next.js routing for specific pages
+    // (like /admin/hosts/[hostId]/edit), then `contentToRender` should just be `children`.
+    // The logic below handles unmatched routes or general admin pages.
+    else if (pathname.startsWith("/admin/hosts/") && pathname.endsWith("/edit")) {
+      // Let Next.js handle rendering the children for dynamic edit routes
+      setContentToRender(children);
     }
     else {
-      setContentToRender(
-        <div className="p-6 bg-card rounded-lg shadow-lg h-full">
-          <h1 className="text-2xl font-semibold">Seção em Desenvolvimento</h1>
-          <p>O conteúdo para <code className="text-sm bg-muted px-1 py-0.5 rounded">{pathname}</code> aparecerá aqui em breve.</p>
-        </div>
-      );
+      // For other admin routes or unmatched ones, show the default content
+      // or the children passed to the layout (which should be the matched page component)
+      setContentToRender(children);
     }
   }, [pathname, children]);
 
@@ -160,7 +168,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin");
+                        const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin") || (item.link !== "/admin" && pathname.startsWith(item.link) && item.link !== "/admin/hosts");
                         const isLogout = item.link === "#logout";
 
                         const buttonAction = isLogout ? handleLogout : () => {
@@ -234,6 +242,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </nav>
 
             <main className="flex-grow overflow-y-auto">
+              {/* Now contentToRender should correctly be the child page component */}
               {contentToRender}
             </main>
           </div>
@@ -242,3 +251,5 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
+
+    
