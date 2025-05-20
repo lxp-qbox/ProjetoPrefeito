@@ -32,7 +32,7 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: "hidden", // Changed from "text-sm font-medium"
         caption_dropdowns: "flex justify-center gap-1",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
@@ -83,9 +83,8 @@ function Calendar({
                   handleChange(value)
                 }
               }}
-              {...dropdownProps}
             >
-              <SelectTrigger className="h-7 w-auto rounded-md border border-input bg-background px-2 py-1 text-xs focus:ring-0 focus:ring-offset-0 data-[state=open]:ring-0 data-[state=open]:ring-offset-0">
+              <SelectTrigger className="h-7 w-auto rounded-md border border-input bg-background px-2 py-1 text-xs focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 data-[state=open]:ring-0 data-[state=open]:ring-offset-0">
                 <SelectValue>{selected?.props?.children}</SelectValue>
               </SelectTrigger>
               <SelectContent position="popper">
@@ -113,4 +112,3 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
-
