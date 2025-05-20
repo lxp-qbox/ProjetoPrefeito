@@ -6,10 +6,10 @@ import { useParams } from 'next/navigation';
 import type { Host } from '@/types';
 import { placeholderHosts } from '../page'; // Import placeholderHosts
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
+// AspectRatio removed as iframe is being replaced
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, VideoOff } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 
@@ -95,7 +95,6 @@ export default function HostStreamPage() {
     );
   }
   
-  const embedUrl = `https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`;
   const pageTitle = host.streamTitle || `Ao Vivo: ${host.name}`;
 
   return (
@@ -118,19 +117,29 @@ export default function HostStreamPage() {
           <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-2 md:p-4">
-          <AspectRatio ratio={16 / 9} className="bg-black rounded-md overflow-hidden shadow-inner">
-            <iframe
-              src={embedUrl}
-              title={`Transmissão ao vivo de ${host.name}`}
-              className="w-full h-full"
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              frameBorder="0"
-            />
-          </AspectRatio>
-          <p className="text-xs text-muted-foreground mt-3 text-center px-4 pb-2">
-            Se o vídeo não carregar, o host pode não estar ao vivo ou pode haver restrições de incorporação.
-          </p>
+          <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
+            <video
+              controls
+              width="100%"
+              poster="https://placehold.co/1280x720.png?text=Player+de+V%C3%ADdeo"
+              className="w-full h-full object-contain"
+            >
+              {/* 
+                A valid video source URL (e.g., .mp4, .webm, HLS .m3u8, DASH .mpd) is required here.
+                WebSocket URLs (wss://...) are not direct video sources for this player.
+              */}
+            </video>
+          </div>
+          <div className="mt-3 p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
+            <VideoOff className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Player de Vídeo Genérico Ativado</p>
+              <p>
+                Para reproduzir o conteúdo, este player requer uma URL de stream de vídeo direta (ex: .mp4, HLS .m3u8). 
+                A URL WebSocket (`wss://...`) não é compatível. A funcionalidade de transmissão ao vivo do Kako Live não funcionará com este player.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -206,3 +215,5 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
+    
