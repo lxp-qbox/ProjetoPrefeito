@@ -54,10 +54,10 @@ export interface Host {
   streamTitle?: string; // Current stream title
   likes?: number; 
   giftsReceived?: ReceivedGift[];
-  totalDonationsValue?: number; // Placeholder for donations
   createdAt?: any; // Firestore Timestamp
   lastSeen?: any; // Firestore Timestamp
   source?: 'kakoLive' | 'manual'; // How the profile was created/sourced
+  totalDonationsValue?: number; // Placeholder for donations
 }
 
 export interface UserProfile {
@@ -136,6 +136,8 @@ export interface ConversationPreview {
   lastMessage: string;
   lastMessageTime: string;
   unreadCount?: number;
+  isOnline?: boolean;
+  isPinned?: boolean; // Placeholder for future pinning
 }
 
 export interface AppMessage {
@@ -147,6 +149,7 @@ export interface AppMessage {
   text: string;
   timestamp: any; // Firestore Timestamp or string for placeholder
   isCurrentUser?: boolean; // Determined at render time
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 // Types for Firestore data structure (P2P Messages)

@@ -8,29 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Send, MessageSquare, Users } from "lucide-react";
+import { Search, Send, MessageSquare, Users, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ConversationPreview, AppMessage, FirestoreConversation } from "@/types";
+import type { ConversationPreview, AppMessage } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 
 
 // Placeholder Data
 const placeholderConversations: ConversationPreview[] = [
-  { id: "convo1", userId: "user2", userName: "Alice Wonderland", userAvatar: "https://placehold.co/40x40.png?text=AW", lastMessage: "E aí, como você está? Faz tempo que não nos vemos!", lastMessageTime: "10:30", unreadCount: 2 },
-  { id: "convo2", userId: "user3", userName: "Bob O Construtor", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Podemos construir? Sim, nós podemos!", lastMessageTime: "Ontem", unreadCount: 0 },
-  { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Meu Deus! Preciso de um conselho.", lastMessageTime: "Seg", unreadCount: 5 },
-  { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Querendo saber se você está livre para uma missão.", lastMessageTime: "12/05/2024" },
-  { id: "convo5", userId: "user6", userName: "Edward Mãos de Tesoura", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Você poderia me ajudar com minha cerca viva?", lastMessageTime: "10/05/2024" },
+  { id: "convo1", userId: "user2", userName: "Alice Wonderland", userAvatar: "https://placehold.co/40x40.png?text=AW", lastMessage: "E aí, como você está? Faz tempo que não nos vemos!", lastMessageTime: "10:30", unreadCount: 2, isOnline: true, isPinned: true },
+  { id: "convo2", userId: "user3", userName: "Bob O Construtor", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Podemos construir? Sim, nós podemos!", lastMessageTime: "Ontem", unreadCount: 0, isOnline: false },
+  { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Meu Deus! Preciso de um conselho.", lastMessageTime: "Seg", unreadCount: 5, isOnline: true },
+  { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Querendo saber se você está livre para uma missão.", lastMessageTime: "12/05/2024", isOnline: false },
+  { id: "convo5", userId: "user6", userName: "Edward Mãos de Tesoura", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Você poderia me ajudar com minha cerca viva?", lastMessageTime: "10/05/2024", isOnline: false },
 ];
 
 const placeholderMessages: AppMessage[] = [
-  { id: "msg1", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "E aí, como você está? Faz tempo que não nos vemos!", timestamp: "10:30" },
-  { id: "msg2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Oi Alice! Estou ótimo, obrigado por perguntar. E você?", timestamp: "10:32" },
-  { id: "msg3", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Muito bem! Apenas ocupada com um novo projeto.", timestamp: "10:33" },
+  { id: "msg1", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "E aí, como você está? Faz tempo que não nos vemos!", timestamp: "10:30", status: 'read' },
+  { id: "msg2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Oi Alice! Estou ótimo, obrigado por perguntar. E você?", timestamp: "10:32", status: 'read' },
+  { id: "msg3", conversationId: "convo1", senderId: "user2", senderName: "Alice Wonderland", senderAvatar: "https://placehold.co/40x40.png?text=AW", text: "Muito bem! Apenas ocupada com um novo projeto.", timestamp: "10:33", status: 'read'},
+  { id: "msg-curr-1", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Que legal! Sobre o que é?", timestamp: "10:35", status: 'delivered' },
+  { id: "msg-curr-2", conversationId: "convo1", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Me conte mais quando puder.", timestamp: "10:36", status: 'sent' },
   { id: "msg4", conversationId: "convo2", senderId: "user3", senderName: "Bob O Construtor", senderAvatar: "https://placehold.co/40x40.png?text=BB", text: "Podemos construir? Sim, nós podemos!", timestamp: "Ontem" },
   { id: "msg5", conversationId: "convo3", senderId: "user4", senderName: "Charlie Brown", senderAvatar: "https://placehold.co/40x40.png?text=CB", text: "Meu Deus! Preciso de um conselho.", timestamp: "Seg" },
-  { id: "msg6", conversationId: "convo3", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Claro Charlie, o que foi?", timestamp: "Seg" },
+  { id: "msg6", conversationId: "convo3", senderId: "currentUser", senderName: "Você", senderAvatar: "https://placehold.co/40x40.png?text=ME", text: "Claro Charlie, o que foi?", timestamp: "Seg", status: 'read' },
 ];
 
 
@@ -57,14 +59,13 @@ export default function MessagesPage() {
       .filter(msg => msg.conversationId === selectedConversationId)
       .map(msg => ({ ...msg, isCurrentUser: msg.senderId === currentUserId }))
       .sort((a,b) => {
-         // Basic time sort, assuming HH:MM format for placeholders
          const timeA = a.timestamp.split(':').map(Number);
          const timeB = b.timestamp.split(':').map(Number);
          if (timeA.length === 2 && timeB.length === 2) {
            if (timeA[0] !== timeB[0]) return timeA[0] - timeB[0];
            return timeA[1] - timeB[1];
          }
-         return 0; // Fallback for non-standard time formats
+         return 0; 
       });
   }, [messages, selectedConversationId, currentUserId]);
 
@@ -80,19 +81,18 @@ export default function MessagesPage() {
       text: newMessage.trim(),
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       isCurrentUser: true,
+      status: 'sent', // Initial status for sent messages
     };
     setMessages(prev => [...prev, newMsg]);
     setNewMessage("");
 
-    // Update last message in conversation list (placeholder logic)
     setConversations(prevConvos => prevConvos.map(c => 
         c.id === selectedConversationId 
-        ? {...c, lastMessage: newMessage.trim(), lastMessageTime: newMsg.timestamp, unreadCount: 0} // Reset unread on send
+        ? {...c, lastMessage: newMessage.trim(), lastMessageTime: newMsg.timestamp, unreadCount: 0} 
         : c
-    ).sort((a, b) => { // Move active conversation to top
+    ).sort((a, b) => { 
         if (a.id === selectedConversationId) return -1;
         if (b.id === selectedConversationId) return 1;
-        // Add other sorting logic if needed, e.g., by lastMessageTime
         return 0;
     }));
   };
@@ -150,10 +150,15 @@ export default function MessagesPage() {
                         ));
                     }}
                   >
-                    <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={convo.userAvatar} alt={convo.userName} data-ai-hint="user avatar" />
-                      <AvatarFallback>{getInitials(convo.userName)}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative shrink-0">
+                      <Avatar className="h-10 w-10 border">
+                        <AvatarImage src={convo.userAvatar} alt={convo.userName} data-ai-hint="user avatar" />
+                        <AvatarFallback>{getInitials(convo.userName)}</AvatarFallback>
+                      </Avatar>
+                      {convo.isOnline && (
+                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-card" title="Online" />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-sm truncate pr-2">{convo.userName}</h3>
@@ -178,13 +183,18 @@ export default function MessagesPage() {
               <>
                 <div className="p-4 border-b border-border bg-card">
                     <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10 border">
-                            <AvatarImage src={selectedConversation.userAvatar} alt={selectedConversation.userName} data-ai-hint="user avatar chat" />
-                            <AvatarFallback>{getInitials(selectedConversation.userName)}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative shrink-0">
+                          <Avatar className="h-10 w-10 border">
+                              <AvatarImage src={selectedConversation.userAvatar} alt={selectedConversation.userName} data-ai-hint="user avatar chat" />
+                              <AvatarFallback>{getInitials(selectedConversation.userName)}</AvatarFallback>
+                          </Avatar>
+                           {selectedConversation.isOnline && (
+                            <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-card" title="Online" />
+                          )}
+                        </div>
                         <div>
                             <h2 className="text-lg font-semibold">{selectedConversation.userName}</h2>
-                            <p className="text-xs text-muted-foreground">Online</p>
+                            <p className="text-xs text-muted-foreground">{selectedConversation.isOnline ? "Online" : "Offline"}</p>
                         </div>
                     </div>
                 </div>
@@ -211,10 +221,19 @@ export default function MessagesPage() {
                       >
                         {!msg.isCurrentUser && <p className="text-xs font-semibold mb-0.5 text-primary">{msg.senderName}</p>}
                         <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-                        <p className={cn(
-                            "text-xs mt-1.5 text-right",
-                            msg.isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"
-                        )}>{msg.timestamp}</p>
+                        <div className="flex items-center justify-end mt-1.5 gap-1">
+                          <p className={cn(
+                              "text-xs",
+                              msg.isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"
+                          )}>{msg.timestamp}</p>
+                          {msg.isCurrentUser && msg.status && (
+                            <>
+                              {msg.status === 'sent' && <Check className="h-4 w-4 text-primary-foreground/70" />}
+                              {msg.status === 'delivered' && <CheckCheck className="h-4 w-4 text-primary-foreground/70" />}
+                              {msg.status === 'read' && <CheckCheck className="h-4 w-4 text-sky-400" />}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -254,3 +273,4 @@ export default function MessagesPage() {
     </ProtectedPage>
   );
 }
+
