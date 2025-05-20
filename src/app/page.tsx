@@ -6,11 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, ListChecks, Smile, MapPin } from "lucide-react"; 
+import { ImagePlus, ListChecks, Smile, MapPin } from "lucide-react";
 import type { FeedPost } from "@/types";
 import PostCard from "@/components/feed/post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 // Import sidebar widgets
 import { SearchWidget } from "@/components/feed/SearchWidget";
@@ -18,6 +19,7 @@ import { PremiumSignupWidget } from "@/components/feed/PremiumSignupWidget";
 import { WhatsHappeningWidget } from "@/components/feed/WhatsHappeningWidget";
 import { WhoToFollowWidget } from "@/components/feed/WhoToFollowWidget";
 import { FooterLinksWidget } from "@/components/feed/FooterLinksWidget";
+
 
 const placeholderPosts: FeedPost[] = [
   {
@@ -74,12 +76,12 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex justify-center w-full flex-grow"> 
-      <div className="flex w-full max-w-[990px] flex-grow overflow-hidden"> 
+    <div className="flex justify-center w-full flex-grow">
+      <div className="flex w-full max-w-[990px] flex-grow overflow-hidden">
         {/* Main Feed Content */}
-        <div className="w-full lg:w-[600px] border-r border-l border-border flex flex-col h-full"> 
+        <div className="w-full lg:w-[600px] border-r border-l border-border flex flex-col h-full">
           {/* What's happening input area */}
-          <Card className="mb-0 shadow-none rounded-none border-x-0 border-t-0 shrink-0"> 
+          <Card className="mb-0 shadow-none rounded-none border-x-0 border-t-0 shrink-0">
             <div className="p-4">
               <div className="flex space-x-3">
                 <Avatar className="h-12 w-12 border">
@@ -120,7 +122,7 @@ export default function HomePage() {
 
           {/* Tabs for feed types */}
           <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col overflow-hidden"> {/* Added overflow-hidden */}
-            <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card border-b shrink-0"> 
+            <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card border-b shrink-0">
               <TabsTrigger
                 value="for-you"
                 className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
@@ -134,7 +136,7 @@ export default function HomePage() {
                 Seguindo
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="for-you" className="mt-0 flex-grow overflow-y-auto"> 
+            <TabsContent value="for-you" className="mt-0 flex-grow overflow-y-auto">
               <div className="space-y-0">
                 {placeholderPosts.map((post) => (
                   <PostCard key={post.id} post={post} />
@@ -145,7 +147,7 @@ export default function HomePage() {
                 ))}
               </div>
             </TabsContent>
-            <TabsContent value="following" className="mt-0 flex-grow overflow-y-auto"> 
+            <TabsContent value="following" className="mt-0 flex-grow overflow-y-auto">
               <div className="space-y-0">
                 {placeholderPosts.map((post) => (
                   <PostCard key={`${post.id}-following`} post={post} />
@@ -160,12 +162,16 @@ export default function HomePage() {
         </div>
 
         {/* Right Sidebar */}
-        <aside className="hidden lg:block w-[350px] pl-6 space-y-6 py-4 h-full overflow-y-auto"> 
-          <SearchWidget />
-          <PremiumSignupWidget />
-          <WhatsHappeningWidget />
-          <WhoToFollowWidget />
-          <FooterLinksWidget />
+        <aside className="hidden lg:flex lg:flex-col w-[350px] pl-6 py-4 h-full"> {/* Changed to flex flex-col */}
+          <div className="shrink-0 pb-4 sticky top-0 bg-background z-10"> {/* Sticky Search container, ensure background to prevent overlap issues */}
+            <SearchWidget />
+          </div>
+          <div className="flex-grow overflow-y-auto space-y-6"> {/* Scrollable widgets container */}
+            <PremiumSignupWidget />
+            <WhatsHappeningWidget />
+            <WhoToFollowWidget />
+            <FooterLinksWidget />
+          </div>
         </aside>
       </div>
     </div>
