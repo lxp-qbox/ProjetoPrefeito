@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label"; // Added Label import
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, GoogleAuthProvider } from "@/lib/firebase";
@@ -117,6 +117,7 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -132,6 +133,7 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -145,7 +147,7 @@ export default function LoginForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
@@ -164,7 +166,7 @@ export default function LoginForm() {
               <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
-                    id="rememberMeLogin" // Added id for label
+                    id="rememberMeLogin" 
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
