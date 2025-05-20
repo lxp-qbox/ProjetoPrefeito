@@ -2,7 +2,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react'; // Added useState for demo
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
@@ -20,14 +20,17 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
 
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true); // Demo state
 
-  const standalonePaths = ['/login', '/signup', '/forgot-password'];
-  const isAuthOrOnboardingPage = standalonePaths.includes(pathname) || pathname.startsWith('/onboarding');
+  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
+  const isStandaloneAuthPage = standaloneAuthPaths.includes(pathname);
+  const isOnboardingPage = pathname.startsWith('/onboarding');
+
+  const isTrulyStandalonePage = isStandaloneAuthPage || isOnboardingPage;
 
   useEffect(() => {
-    if (!authLoading && !currentUser && !isAuthOrOnboardingPage) {
+    if (!authLoading && !currentUser && !isTrulyStandalonePage) {
       router.replace("/login");
     }
-  }, [authLoading, currentUser, isAuthOrOnboardingPage, pathname, router]);
+  }, [authLoading, currentUser, isTrulyStandalonePage, pathname, router]);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -37,7 +40,17 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }, []);
 
-  if (authLoading && !isAuthOrOnboardingPage) {
+  useEffect(() => {
+    if (pathname === "/messages") {
+      setHasUnreadMessages(false);
+    }
+    // If you want the dot to potentially reappear when navigating away from /messages
+    // (e.g., simulating new messages arriving while user is elsewhere),
+    // you might add an else condition here or use a more complex global state.
+    // For now, once /messages is visited, the dot stays off for the session.
+  }, [pathname]);
+
+  if (authLoading && !isTrulyStandalonePage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -45,7 +58,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  if (isAuthOrOnboardingPage) {
+  if (isTrulyStandalonePage) {
     return (
       <>
         {children}
@@ -55,8 +68,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   }
 
   if (!currentUser && !authLoading) {
-    // This case should ideally be caught by the useEffect above,
-    // but it's a fallback during initial render phases.
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -97,7 +108,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem className="relative"> {/* Added relative for dot positioning */}
+            <SidebarMenuItem className="relative">
               <SidebarMenuButton asChild tooltip="Mensagens">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
