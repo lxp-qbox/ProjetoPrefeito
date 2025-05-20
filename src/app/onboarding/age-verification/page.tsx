@@ -37,13 +37,11 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { format, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [confirmedOver18, setConfirmedOver18] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -69,14 +67,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!selectedCountry) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, selecione seu país.",
-        variant: "destructive",
-      });
-      return;
-    }
+    
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -93,10 +84,10 @@ export default function AgeVerificationPage() {
       });
       return;
     }
-    if (!confirmedOver18) {
+    if (!selectedCountry) {
       toast({
-        title: "Confirmação Necessária",
-        description: "Por favor, confirme que você tem 18 anos ou mais.",
+        title: "Atenção",
+        description: "Por favor, selecione seu país.",
         variant: "destructive",
       });
       return;
@@ -121,6 +112,7 @@ export default function AgeVerificationPage() {
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
         updatedAt: serverTimestamp(),
+        // Note: hasCompletedOnboarding is not set here. It should be set at the end of the *entire* onboarding flow.
       });
       toast({
         title: "Informações Salvas",
@@ -152,34 +144,13 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu país, <br /> sexo e data de nascimento.
+          Para prosseguir, por favor, informe seu sexo,<br /> data de nascimento e país.
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
         <div className="w-full max-w-xs space-y-6">
           
-          <div>
-            <Label htmlFor="country-select" className="text-sm font-medium mb-2 block text-left">
-              País
-            </Label>
-            <Select
-              value={selectedCountry}
-              onValueChange={(value) => setSelectedCountry(value)}
-            >
-              <SelectTrigger id="country-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                <SelectValue placeholder="Selecione seu país" />
-              </SelectTrigger>
-              <SelectContent>
-                {countries.map((country) => (
-                  <SelectItem key={country.code} value={country.name}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
               Sexo
@@ -239,23 +210,34 @@ export default function AgeVerificationPage() {
             </Popover>
           </div>
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox 
-              id="confirm-age" 
-              checked={confirmedOver18} 
-              onCheckedChange={(checked) => setConfirmedOver18(Boolean(checked))}
-            />
-            <Label htmlFor="confirm-age" className="text-sm font-normal text-muted-foreground cursor-pointer">
-              Confirmo que tenho 18 anos ou mais.
+          <div>
+            <Label htmlFor="country-select" className="text-sm font-medium mb-2 block text-left">
+              País
             </Label>
+            <Select
+              value={selectedCountry}
+              onValueChange={(value) => setSelectedCountry(value)}
+            >
+              <SelectTrigger id="country-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SelectValue placeholder="Selecione seu país" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((country) => (
+                  <SelectItem key={country.code} value={country.name}>
+                    {country.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
         </div>
       </CardContent>
       <CardFooter className="p-6 border-t mt-auto">
         <Button
           onClick={handleContinue}
           className="w-full"
-          disabled={!selectedCountry || !selectedGender || !selectedDate || !confirmedOver18 || isLoading}
+          disabled={!selectedCountry || !selectedGender || !selectedDate || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -268,3 +250,4 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
