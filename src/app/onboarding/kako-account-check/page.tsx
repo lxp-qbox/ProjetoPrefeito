@@ -90,8 +90,8 @@ export default function KakoAccountCheckPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center"> {/* Removed justify-center */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center">
+        <div className="grid grid-cols-1 gap-6 w-full"> {/* Removed md:grid-cols-2 */}
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={handleHasAccount}
