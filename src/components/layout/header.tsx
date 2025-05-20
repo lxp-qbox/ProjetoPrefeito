@@ -36,11 +36,13 @@ export default function Header() {
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div className="px-6 py-3 flex justify-between items-center"> {/* Changed from container mx-auto px-4 */}
         <div className="flex items-center gap-2">
+          {/* This trigger is for mobile when the main sidebar is collapsed. The main sidebar has its own trigger. */}
           <SidebarTrigger className="md:hidden" />
           <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
             <Crown className="w-7 h-7" />
+            {/* Conditionally hide text on mobile if sidebar is also icon-only, or always show on larger screens */}
             <span className={isMobile ? "hidden" : "md:inline"}>The Presidential Agency</span>
           </Link>
         </div>
@@ -71,7 +73,7 @@ export default function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {currentUser.displayName || currentUser.email?.split('@')[0]}
+                      {currentUser.profileName || currentUser.displayName || currentUser.email?.split('@')[0]}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {currentUser.email}
