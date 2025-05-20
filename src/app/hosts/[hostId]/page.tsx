@@ -55,13 +55,13 @@ export default function HostStreamPage() {
     );
   }
 
-  if (!host.kakoLiveFuid) {
+  if (!host.kakoLiveFuid || !host.kakoLiveRoomId) {
      return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
         <WifiOff className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold mb-2">{host.name} não configurou uma transmissão.</h1>
+        <h1 className="text-2xl font-bold mb-2">{host.name} não configurou uma transmissão corretamente.</h1>
         <p className="text-muted-foreground mb-6">
-          Este host ainda não possui um link de transmissão Kako Live associado.
+          Este host ainda não possui todas as informações necessárias (FUID ou RoomID) para a transmissão Kako Live.
         </p>
         <Button asChild variant="outline">
           <Link href="/hosts">Voltar para Lista de Hosts</Link>
@@ -70,9 +70,7 @@ export default function HostStreamPage() {
     );
   }
   
-  // The stream ID from the example URL. This might need to be dynamic in a real scenario.
-  const streamIdFromExample = "67b9ed5fa4e716a084a23765"; 
-  const embedUrl = `https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${streamIdFromExample}&type=live`;
+  const embedUrl = `https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`;
 
   return (
     <div className="space-y-6">
