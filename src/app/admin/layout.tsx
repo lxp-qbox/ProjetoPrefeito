@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion } from "lucide-react";
+import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion, ServerOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // Import page content components for conditional rendering
 import AdminHostsPageContent from "@/app/admin/hosts/page-content";
 import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
-import AdminAdminsPageContent from "@/app/admin/users/admin/page-content"; // Corrected import
+import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
 import AdminBansPage from "@/app/admin/actions/bans/page";
 import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content";
-// Import the new EditHostPage if you want it to be part of this conditional rendering (optional)
-// import EditHostPage from "@/app/admin/hosts/[hostId]/edit/page";
+import AdminMaintenanceOfflinePage from "@/app/admin/maintenance/offline/page";
 
 
 interface AdminMenuItem {
@@ -61,6 +60,12 @@ const adminMenuGroups: AdminMenuGroup[] = [
     ]
   },
   {
+    groupTitle: "Manutenção",
+    items: [
+        { title: "Status Offline", icon: ServerOff, link: "/admin/maintenance/offline" },
+    ]
+  },
+  {
     groupTitle: "Sobre",
     items: [
       { title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
@@ -98,30 +103,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // THIS LOGIC FOR contentToRender MIGHT BECOME OBSOLETE OR SIMPLIFIED
-    // if Next.js correctly handles rendering the child page components.
-    // For now, it's a way to show specific content for exact matches.
     if (pathname === "/admin" || pathname === "/admin/hosts") {
       setContentToRender(<AdminHostsPageContent />);
     } else if (pathname === "/admin/users/players") {
       setContentToRender(<AdminPlayersPageContent />);
     } else if (pathname === "/admin/users/admin") {
-      setContentToRender(<AdminAdminsPageContent />); 
+      setContentToRender(<AdminAdminsPageContent />);
     } else if (pathname === "/admin/actions/bans") {
       setContentToRender(<AdminBansPage />);
     } else if (pathname === "/admin/kako-live/data-list") {
         setContentToRender(<AdminKakoLiveDataListPageContent />);
+    } else if (pathname === "/admin/maintenance/offline") {
+        setContentToRender(<AdminMaintenanceOfflinePage />);
     }
-    // If children are being rendered by Next.js routing for specific pages
-    // (like /admin/hosts/[hostId]/edit), then `contentToRender` should just be `children`.
-    // The logic below handles unmatched routes or general admin pages.
     else if (pathname.startsWith("/admin/hosts/") && pathname.endsWith("/edit")) {
-      // Let Next.js handle rendering the children for dynamic edit routes
       setContentToRender(children);
     }
     else {
-      // For other admin routes or unmatched ones, show the default content
-      // or the children passed to the layout (which should be the matched page component)
       setContentToRender(children);
     }
   }, [pathname, children]);
@@ -242,7 +240,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </nav>
 
             <main className="flex-grow overflow-y-auto">
-              {/* Now contentToRender should correctly be the child page component */}
               {contentToRender}
             </main>
           </div>
