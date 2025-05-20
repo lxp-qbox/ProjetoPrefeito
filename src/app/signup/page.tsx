@@ -12,15 +12,15 @@ export default function SignupPage() {
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Create Account</CardTitle>
-          <CardDescription>Join The Presidential Agency today!</CardDescription>
+          <CardTitle className="text-3xl font-bold">Criar Conta</CardTitle>
+          <CardDescription>Junte-se à The Presidential Agency hoje!</CardDescription>
         </CardHeader>
         <CardContent>
           <SignupForm />
           <p className="mt-6 text-center text-sm">
-            Already have an account?{" "}
+            Já tem uma conta?{" "}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              Login
+              Entrar
             </Link>
           </p>
         </CardContent>

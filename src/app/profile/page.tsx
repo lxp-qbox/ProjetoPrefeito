@@ -19,10 +19,10 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     try {
       await logout();
-      toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      toast({ title: "Sessão Encerrada", description: "Você foi desconectado com sucesso." });
       router.push("/");
     } catch (error: any) {
-      toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Falha ao Sair", description: error.message, variant: "destructive" });
     }
   };
 
@@ -57,7 +57,7 @@ export default function ProfilePage() {
               <CardTitle className="text-3xl font-bold">
                 {displayName}
               </CardTitle>
-              {currentUser.isVerified && <ShieldCheck className="h-7 w-7 text-primary" />} {/* Changed to text-primary */}
+              {currentUser.isVerified && <ShieldCheck className="h-7 w-7 text-primary" />}
             </div>
             <CardDescription>Gerencie os detalhes e preferências da sua conta.</CardDescription>
           </CardHeader>
@@ -79,13 +79,13 @@ export default function ProfilePage() {
                 )}
                 <div className="flex items-center text-sm">
                   <BadgeCent className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <strong>Role:</strong>&nbsp;
+                  <strong>Função:</strong>&nbsp;
                   <Badge variant={currentUser.role === 'admin' || currentUser.role === 'master' ? 'destructive' : 'secondary'}>
                     {currentUser.role}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  User ID: {currentUser.uid}
+                  ID do Usuário: {currentUser.uid}
                 </p>
               </div>
             </div>
@@ -97,7 +97,7 @@ export default function ProfilePage() {
             </Button>
 
             <Button variant="destructive" onClick={handleLogout} className="w-full">
-              <LogOut className="mr-2 h-4 w-4" /> Logout
+              <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
           </CardContent>
         </Card>

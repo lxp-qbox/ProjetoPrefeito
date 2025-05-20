@@ -71,7 +71,7 @@ export default function SettingsPage() {
 
   const handleSaveSettings = async () => {
     if (!currentUser) {
-      toast({ title: "Error", description: "You must be logged in to save settings.", variant: "destructive" });
+      toast({ title: "Erro", description: "Você deve estar logado para salvar as configurações.", variant: "destructive" });
       return;
     }
     setIsSaving(true);
@@ -81,11 +81,11 @@ export default function SettingsPage() {
         ...settings,
         updatedAt: new Date(), // Use JS Date for client-side update, or serverTimestamp for server
       });
-      toast({ title: "Settings Saved", description: "Your preferences have been updated." });
+      toast({ title: "Configurações Salvas", description: "Suas preferências foram atualizadas." });
       // Optionally, trigger a refresh of currentUser in AuthContext if settings impact global state
     } catch (error: any) {
-      console.error("Error saving settings:", error);
-      toast({ title: "Save Failed", description: error.message || "Could not save settings.", variant: "destructive" });
+      console.error("Erro ao salvar configurações:", error);
+      toast({ title: "Falha ao Salvar", description: error.message || "Não foi possível salvar as configurações.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -103,9 +103,9 @@ export default function SettingsPage() {
     <ProtectedPage>
       <div className="space-y-8 max-w-3xl mx-auto">
         <CardHeader className="px-0 pt-0">
-          <CardTitle className="text-3xl font-bold">Settings</CardTitle>
+          <CardTitle className="text-3xl font-bold">Configurações</CardTitle>
           <CardDescription>
-            Manage your account settings, profile information, and site preferences.
+            Gerencie as configurações da sua conta, informações de perfil e preferências do site.
           </CardDescription>
         </CardHeader>
 
@@ -113,13 +113,13 @@ export default function SettingsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-              <Palette className="mr-2 h-5 w-5 text-primary" /> Appearance
+              <Palette className="mr-2 h-5 w-5 text-primary" /> Aparência
             </CardTitle>
-            <CardDescription>Customize how the site looks and feels.</CardDescription>
+            <CardDescription>Personalize a aparência do site.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="themePreference" className="text-base font-semibold">Theme Preference</Label>
+              <Label htmlFor="themePreference" className="text-base font-semibold">Preferência de Tema</Label>
               <RadioGroup
                 id="themePreference"
                 name="themePreference"
@@ -128,9 +128,9 @@ export default function SettingsPage() {
                 className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4"
               >
                 {[
-                  { value: "light", label: "Light" },
-                  { value: "dark", label: "Dark" },
-                  { value: "system", label: "System Default" },
+                  { value: "light", label: "Claro" },
+                  { value: "dark", label: "Escuro" },
+                  { value: "system", label: "Padrão do Sistema" },
                 ].map((item) => (
                   <Label
                     key={item.value}
@@ -144,7 +144,7 @@ export default function SettingsPage() {
               </RadioGroup>
             </div>
             <div>
-              <Label htmlFor="accentColor" className="text-base font-semibold">Accent Color</Label>
+              <Label htmlFor="accentColor" className="text-base font-semibold">Cor de Destaque</Label>
               <div className="relative mt-2">
                 <Input
                   id="accentColor"
@@ -155,53 +155,52 @@ export default function SettingsPage() {
                   className="w-24 h-10 p-1"
                 />
                  <span className="ml-3 text-sm text-muted-foreground">
-                  Current: <span style={{ color: settings.accentColor }} className="font-semibold">{settings.accentColor}</span>
+                  Atual: <span style={{ color: settings.accentColor }} className="font-semibold">{settings.accentColor}</span>
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Note: Full site-wide application of accent color is upcoming.
+                Nota: A aplicação completa da cor de destaque em todo o site está em desenvolvimento.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Profile Information Section (Placeholder) */}
+        {/* Profile Information Section */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-              <UserCircle className="mr-2 h-5 w-5 text-primary" /> Profile Information
+              <UserCircle className="mr-2 h-5 w-5 text-primary" /> Informações do Perfil
             </CardTitle>
-            <CardDescription>Update your public profile details.</CardDescription>
+            <CardDescription>Atualize os detalhes do seu perfil público.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              Editing for bio, gender, birth date, and other profile fields coming soon.
-            </p>
-            {/* Example fields (disabled for now) */}
-            <div className="space-y-4 mt-4">
+             <div className="space-y-4 mt-4">
               <div>
-                <Label htmlFor="profileName">Profile Name</Label>
-                <Input id="profileName" name="profileName" value={settings.profileName || ""} onChange={handleInputChange} placeholder="Your display name" />
+                <Label htmlFor="profileName">Nome de Perfil</Label>
+                <Input id="profileName" name="profileName" value={settings.profileName || ""} onChange={handleInputChange} placeholder="Seu nome de exibição" />
               </div>
               <div>
-                <Label htmlFor="kakoLiveId">Passaporte (Kako Live ID)</Label>
-                <Input id="kakoLiveId" name="kakoLiveId" value={settings.kakoLiveId || ""} onChange={handleInputChange} placeholder="Your Kako Live ID" />
+                <Label htmlFor="kakoLiveId">Passaporte (ID do Kako Live)</Label>
+                <Input id="kakoLiveId" name="kakoLiveId" value={settings.kakoLiveId || ""} onChange={handleInputChange} placeholder="Seu ID Kako Live" />
               </div>
                <div>
-                <Label htmlFor="bio">Bio (max 100 characters)</Label>
-                <Input id="bio" name="bio" value={settings.bio || ""} onChange={handleInputChange} placeholder="Tell us about yourself" maxLength={100} />
+                <Label htmlFor="bio">Bio (máx 100 caracteres)</Label>
+                <Input id="bio" name="bio" value={settings.bio || ""} onChange={handleInputChange} placeholder="Conte-nos sobre você" maxLength={100} />
               </div>
+                 <p className="text-muted-foreground text-sm">
+                    Edição para gênero, data de nascimento e outros campos de perfil em breve.
+                 </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Social Links Section (Placeholder) */}
+        {/* Social Links Section */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-              <LinkIcon className="mr-2 h-5 w-5 text-primary" /> Social Links
+              <LinkIcon className="mr-2 h-5 w-5 text-primary" /> Links Sociais
             </CardTitle>
-            <CardDescription>Connect your social media accounts.</CardDescription>
+            <CardDescription>Conecte suas contas de mídia social.</CardDescription>
           </CardHeader>
           <CardContent>
              <div className="space-y-4">
@@ -213,7 +212,7 @@ export default function SettingsPage() {
                     name={`social-${platform}`}
                     value={settings.socialLinks?.[platform] || ""}
                     onChange={(e) => handleSocialLinkChange(platform, e.target.value)}
-                    placeholder={`Your ${platform} profile URL or username`} 
+                    placeholder={`URL do seu perfil ${platform} ou nome de usuário`} 
                   />
                 </div>
               ))}
@@ -225,24 +224,22 @@ export default function SettingsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-              <ImageIcon className="mr-2 h-5 w-5 text-primary" /> Manage Photos
+              <ImageIcon className="mr-2 h-5 w-5 text-primary" /> Gerenciar Fotos
             </CardTitle>
-            <CardDescription>Update your avatar, header image, and profile gallery.</CardDescription>
+            <CardDescription>Atualize seu avatar, imagem de cabeçalho e galeria do perfil.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Functionality for uploading and managing profile photos is coming soon.
+              Funcionalidade para upload e gerenciamento de fotos do perfil em breve.
             </p>
           </CardContent>
         </Card>
 
         <Button onClick={handleSaveSettings} disabled={isSaving} size="lg" className="w-full sm:w-auto">
           {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-5 w-5" />}
-          Save All Settings
+          Salvar Todas as Configurações
         </Button>
       </div>
     </ProtectedPage>
   );
 }
-
-    

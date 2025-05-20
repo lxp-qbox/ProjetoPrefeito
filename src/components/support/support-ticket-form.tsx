@@ -21,8 +21,8 @@ import { Send } from "lucide-react";
 // import { useAuth } from "@/hooks/use-auth"; // Optional: to associate ticket with user
 
 const formSchema = z.object({
-  subject: z.string().min(5, { message: "Subject must be at least 5 characters." }).max(100, { message: "Subject cannot exceed 100 characters." }),
-  message: z.string().min(20, { message: "Message must be at least 20 characters." }).max(1000, { message: "Message cannot exceed 1000 characters." }),
+  subject: z.string().min(5, { message: "O assunto deve ter pelo menos 5 caracteres." }).max(100, { message: "O assunto não pode exceder 100 caracteres." }),
+  message: z.string().min(20, { message: "A mensagem deve ter pelo menos 20 caracteres." }).max(1000, { message: "A mensagem não pode exceder 1000 caracteres." }),
 });
 
 export default function SupportTicketForm() {
@@ -43,15 +43,15 @@ export default function SupportTicketForm() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    console.log("Support Ticket Submitted:", { 
+    console.log("Ticket de Suporte Enviado:", { 
       ...values, 
       // userId: currentUser?.uid, // Optional
       createdAt: new Date() 
     });
 
     toast({
-      title: "Support Ticket Submitted",
-      description: "Thank you for your message! We'll get back to you soon.",
+      title: "Ticket de Suporte Enviado",
+      description: "Obrigado pela sua mensagem! Entraremos em contato em breve.",
     });
     form.reset();
     setLoading(false);
@@ -65,9 +65,9 @@ export default function SupportTicketForm() {
           name="subject"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Subject</FormLabel>
+              <FormLabel>Assunto</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Issue with game login" {...field} />
+                <Input placeholder="ex: Problema com login no jogo" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -78,10 +78,10 @@ export default function SupportTicketForm() {
           name="message"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Message</FormLabel>
+              <FormLabel>Mensagem</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Please describe your issue in detail..."
+                  placeholder="Por favor, descreva seu problema em detalhes..."
                   className="min-h-[150px]"
                   {...field}
                 />
@@ -91,7 +91,7 @@ export default function SupportTicketForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Submitting..." : <> <Send className="mr-2 h-4 w-4" /> Submit Ticket </> }
+          {loading ? "Enviando..." : <> <Send className="mr-2 h-4 w-4" /> Enviar Ticket </> }
         </Button>
       </form>
     </Form>

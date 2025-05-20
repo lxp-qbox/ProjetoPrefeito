@@ -23,13 +23,13 @@ import { Eye, EyeOff, UserPlus, ShieldQuestion, UserSquare2 } from "lucide-react
 import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
-  profileName: z.string().min(3, { message: "Nome de Perfil must be at least 3 characters." }).max(30, { message: "Nome de Perfil cannot exceed 30 characters." }),
-  kakoLiveId: z.string().min(3, {message: "Passaporte (ID do Kako Live) must be at least 3 characters."}).max(50, { message: "Passaporte (ID do Kako Live) cannot exceed 50 characters."}).optional(),
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  confirmPassword: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  profileName: z.string().min(3, { message: "Nome de Perfil deve ter pelo menos 3 caracteres." }).max(30, { message: "Nome de Perfil não pode exceder 30 caracteres." }),
+  kakoLiveId: z.string().min(3, {message: "Passaporte (ID do Kako Live) deve ter pelo menos 3 caracteres."}).max(50, { message: "Passaporte (ID do Kako Live) não pode exceder 50 caracteres."}).optional().or(z.literal("")),
+  email: z.string().email({ message: "Endereço de email inválido." }),
+  password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
+  confirmPassword: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "As senhas não coincidem",
   path: ["confirmPassword"],
 });
 
@@ -83,15 +83,15 @@ export default function SignupForm() {
       await setDoc(userDocRef, newUserProfile);
 
       toast({
-        title: "Signup Successful",
-        description: "Your account has been created. Welcome!",
+        title: "Cadastro Realizado com Sucesso",
+        description: "Sua conta foi criada. Bem-vindo(a)!",
       });
       router.push("/profile");
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("Erro no cadastro:", error);
       toast({
-        title: "Signup Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        title: "Falha no Cadastro",
+        description: error.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -141,7 +141,7 @@ export default function SignupForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="you@example.com" {...field} />
+                <Input placeholder="voce@exemplo.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -152,7 +152,7 @@ export default function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Senha</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Input 
@@ -180,7 +180,7 @@ export default function SignupForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
+              <FormLabel>Confirmar Senha</FormLabel>
               <FormControl>
                 <div className="relative">
                    <Input 
@@ -204,7 +204,7 @@ export default function SignupForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Creating account..." : <> <UserPlus className="mr-2 h-4 w-4" /> Sign Up </>}
+          {loading ? "Criando conta..." : <> <UserPlus className="mr-2 h-4 w-4" /> Cadastrar </>}
         </Button>
       </form>
     </Form>

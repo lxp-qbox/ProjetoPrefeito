@@ -21,7 +21,7 @@ import { useState } from "react";
 import { MailQuestion } from "lucide-react";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
+  email: z.string().email({ message: "Endereço de email inválido." }),
 });
 
 export default function ForgotPasswordForm() {
@@ -40,15 +40,15 @@ export default function ForgotPasswordForm() {
     try {
       await sendPasswordResetEmail(auth, values.email);
       toast({
-        title: "Password Reset Email Sent",
-        description: "Check your email for instructions to reset your password.",
+        title: "Email de Redefinição de Senha Enviado",
+        description: "Verifique seu email para instruções de como redefinir sua senha.",
       });
       form.reset();
     } catch (error: any) {
-      console.error("Password reset error:", error);
+      console.error("Erro ao redefinir senha:", error);
       toast({
-        title: "Password Reset Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        title: "Falha ao Redefinir Senha",
+        description: error.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -66,14 +66,14 @@ export default function ForgotPasswordForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="you@example.com" {...field} />
+                <Input placeholder="voce@exemplo.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Sending..." : <> <MailQuestion className="mr-2 h-4 w-4" /> Send Reset Email </>}
+          {loading ? "Enviando..." : <> <MailQuestion className="mr-2 h-4 w-4" /> Enviar Email de Redefinição </>}
         </Button>
       </form>
     </Form>

@@ -13,7 +13,7 @@ interface HostRowProps {
 
 // Helper for formatting large numbers, can be expanded
 const formatNumber = (num: number): string => {
-  return num.toLocaleString('en-US');
+  return num.toLocaleString('pt-BR'); // Using pt-BR for locale formatting
 };
 
 export default function HostRow({ host }: HostRowProps) {
@@ -33,8 +33,8 @@ export default function HostRow({ host }: HostRowProps) {
       </TableCell>
       <TableCell className="text-sm font-semibold text-primary whitespace-nowrap text-right">{formatNumber(host.avgViewers)}</TableCell>
       <TableCell className="text-sm text-right whitespace-nowrap">
-        <div className="font-semibold text-destructive">{host.timeStreamed.toFixed(1)}</div>
-        <div className="text-xs text-muted-foreground">hours</div>
+        <div className="font-semibold text-destructive">{host.timeStreamed.toFixed(1).replace('.',',')}</div>
+        <div className="text-xs text-muted-foreground">horas</div>
       </TableCell>
       <TableCell className="text-sm font-semibold text-accent whitespace-nowrap text-right">{formatNumber(host.allTimePeakViewers)}</TableCell>
       <TableCell className="text-sm font-semibold text-primary whitespace-nowrap text-right">{host.hoursWatched}</TableCell>

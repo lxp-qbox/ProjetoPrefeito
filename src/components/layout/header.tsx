@@ -49,12 +49,12 @@ export default function Header() {
         <nav className="flex items-center gap-3 md:gap-4">
           <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-sm md:text-base">
             <Link href="/games">
-              <TicketIcon className="w-4 h-4 mr-1 md:mr-2" /> Games
+              <TicketIcon className="w-4 h-4 mr-1 md:mr-2" /> Jogos
             </Link>
           </Button>
           <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-sm md:text-base">
             <Link href="/support">
-              <LifeBuoy className="w-4 h-4 mr-1 md:mr-2" /> Support
+              <LifeBuoy className="w-4 h-4 mr-1 md:mr-2" /> Suporte
             </Link>
           </Button>
           {loading ? (
@@ -84,13 +84,13 @@ export default function Header() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">
                     <UserCircle2 className="mr-2 h-4 w-4" />
-                    Profile
+                    Perfil
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/host/games">
                     <Gamepad2 className="mr-2 h-4 w-4" />
-                    My Hosted Games
+                    Meus Jogos Criados
                   </Link>
                 </DropdownMenuItem>
                 {/* Mobile only links from sidebar */}
@@ -98,26 +98,26 @@ export default function Header() {
                   <DropdownMenuSeparator />
                    <DropdownMenuItem asChild>
                     <Link href="/games">
-                      <TicketIcon className="mr-2 h-4 w-4" /> Games
+                      <TicketIcon className="mr-2 h-4 w-4" /> Jogos
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/support">
-                      <LifeBuoy className="mr-2 h-4 w-4" /> Support
+                      <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
                     </Link>
                   </DropdownMenuItem>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <Button variant="default" size="sm" asChild className="text-sm md:text-base">
               <Link href="/login">
-                <LogIn className="w-4 h-4 mr-1 md:mr-2" /> Login
+                <LogIn className="w-4 h-4 mr-1 md:mr-2" /> Entrar
               </Link>
             </Button>
           )}

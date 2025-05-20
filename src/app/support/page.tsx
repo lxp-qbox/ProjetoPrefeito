@@ -11,8 +11,8 @@ export default function SupportPage() {
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <Headphones className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Support Center</CardTitle>
-          <CardDescription>Need help? Fill out the form below and our team will assist you shortly.</CardDescription>
+          <CardTitle className="text-3xl font-bold">Central de Suporte</CardTitle>
+          <CardDescription>Precisa de ajuda? Preencha o formulário abaixo e nossa equipe o ajudará em breve.</CardDescription>
         </CardHeader>
         <CardContent>
           <SupportTicketForm />
@@ -23,15 +23,15 @@ export default function SupportPage() {
         <CardHeader>
             <CardTitle className="text-xl font-semibold text-primary flex items-center">
                 <LifeBuoy className="mr-3 h-6 w-6" />
-                Alternative Support Options
+                Opções de Suporte Alternativas
             </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
             <p className="text-muted-foreground">
-            For urgent issues, you can also reach us via email at <a href="mailto:support@presidential.agency" className="text-accent hover:underline font-medium">support@presidential.agency</a>.
+            Para problemas urgentes, você também pode nos contatar por email em <a href="mailto:support@presidential.agency" className="text-accent hover:underline font-medium">support@presidential.agency</a>.
             </p>
             <p className="text-sm text-muted-foreground">
-            Our support hours are Monday - Friday, 9 AM - 5 PM (EST).
+            Nosso horário de suporte é de Segunda a Sexta, das 9h às 17h (Horário de Brasília).
             </p>
         </CardContent>
       </Card>

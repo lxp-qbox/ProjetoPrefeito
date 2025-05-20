@@ -12,7 +12,7 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: 'The Presidential Agency',
-  description: 'Join exciting bingo games and manage your profile with The Presidential Agency.',
+  description: 'Participe de jogos de bingo emocionantes e gerencie seu perfil com The Presidential Agency.',
   icons: {
     icon: '/favicon.ico',
   },
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${geistSans.variable} font-sans antialiased flex flex-col min-h-screen bg-background`}>
         <AuthProvider>
           <AppContentWrapper>{children}</AppContentWrapper>

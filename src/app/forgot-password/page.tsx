@@ -12,15 +12,15 @@ export default function ForgotPasswordPage() {
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <KeyRound className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Forgot Password</CardTitle>
-          <CardDescription>Enter your email to receive a reset link.</CardDescription>
+          <CardTitle className="text-3xl font-bold">Esqueceu a Senha</CardTitle>
+          <CardDescription>Digite seu email para receber um link de redefinição.</CardDescription>
         </CardHeader>
         <CardContent>
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-sm">
-            Remember your password?{" "}
+            Lembrou sua senha?{" "}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              Login
+              Entrar
             </Link>
           </p>
         </CardContent>

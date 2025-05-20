@@ -36,10 +36,10 @@ export default function HostsPage() {
     <div className="container mx-auto px-4 py-8">
       <section className="mb-8">
         <h1 className="text-3xl font-bold text-center mb-2 uppercase tracking-wide">
-          Agency Top Hosts
+          Top Hosts da Agência
         </h1>
         <p className="text-sm text-muted-foreground text-center max-w-2xl mx-auto">
-          Overall Rank is based on average concurrent viewers, followers, views and stream time for the last 30 days, May 2025, All languages.
+          O Rank Geral é baseado na média de espectadores simultâneos, seguidores, visualizações e tempo de transmissão nos últimos 30 dias, Maio 2025, Todos os idiomas.
         </p>
       </section>
 
@@ -47,32 +47,32 @@ export default function HostsPage() {
         <div className="flex gap-3 w-full sm:w-auto">
           <Select defaultValue="all-languages">
             <SelectTrigger className="w-full sm:w-[180px] text-sm">
-              <SelectValue placeholder="Language" />
+              <SelectValue placeholder="Idioma" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all-languages">All Languages</SelectItem>
-              <SelectItem value="portuguese">Portuguese</SelectItem>
-              <SelectItem value="english">English</SelectItem>
+              <SelectItem value="all-languages">Todos os Idiomas</SelectItem>
+              <SelectItem value="portuguese">Português</SelectItem>
+              <SelectItem value="english">Inglês</SelectItem>
             </SelectContent>
           </Select>
           <Select defaultValue="any-channel">
             <SelectTrigger className="w-full sm:w-[180px] text-sm">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="any-channel">Any Category</SelectItem>
-              <SelectItem value="gaming">Gaming</SelectItem>
-              <SelectItem value="just-chatting">Just Chatting</SelectItem>
+              <SelectItem value="any-channel">Qualquer Categoria</SelectItem>
+              <SelectItem value="gaming">Jogos</SelectItem>
+              <SelectItem value="just-chatting">Só Conversa</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <Button variant="outline" className="w-full sm:w-auto border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive text-sm">
-          LIVE HOSTS LIST
+          LISTA DE HOSTS AO VIVO
         </Button>
       </section>
 
       <p className="text-xs text-muted-foreground mb-2 text-center sm:text-left">
-        Click the table header to sort
+        Clique no cabeçalho da tabela para ordenar
       </p>
 
       <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
@@ -82,18 +82,18 @@ export default function HostsPage() {
               <TableRow className="border-b-0">
                 <TableHead className="w-12 pr-1 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">#</TableHead>
                 <TableHead className="min-w-[200px] text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Host</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Avg Viewers</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Time Streamed</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">All Time Peak</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Hours Watched</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Média de Espect.</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Tempo Transmitido</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Pico Máximo</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Horas Assistidas</TableHead>
                 <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Crown className="h-4 w-4 text-yellow-500" /> Rank
                   </div>
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Followers Gained</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Total Followers</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Total Views</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Seguidores Ganhos</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Total de Seguidores</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Total de Visualizações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

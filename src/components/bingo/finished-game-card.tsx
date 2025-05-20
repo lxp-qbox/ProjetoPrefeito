@@ -44,7 +44,7 @@ export default function FinishedGameCard({ game }: FinishedGameCardProps) {
           <div className="flex items-center text-muted-foreground">
             <Trophy className="h-4 w-4 mr-2 text-primary" />
             <div>
-              Vencedor
+              Vencedor(es)
               <p className="text-foreground font-medium">{game.winners}</p>
             </div>
           </div>

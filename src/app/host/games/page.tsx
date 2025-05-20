@@ -11,10 +11,10 @@ import { PlusCircle, Gamepad2 } from "lucide-react";
 
 // Placeholder data for games, including a hostedBy field
 const allPlaceholderGames: Game[] = [
-  { id: "1", title: "My Exclusive Bingo", startTime: new Date(Date.now() + 2 * 60 * 60 * 1000), status: "Upcoming", hostedBy: "testUser123", description: "A special game for my followers!", prize: "$20 Starbucks Card" },
-  { id: "2", title: "John's Afternoon Delight", startTime: new Date(), status: "Live", hostedBy: "anotherHost", description: "Not hosted by current test user.", prize: "$30 GameStop Card"},
-  { id: "3", title: "My Weekly Classic", startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), status: "Upcoming", hostedBy: "testUser123", description: "The regular weekly game you love.", prize: "Custom T-Shirt" },
-  { id: "4", title: "The Big One (Archived)", startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), status: "Ended", hostedBy: "testUser123", description: "Our biggest game last month.", prize: "$500" },
+  { id: "1", title: "Meu Bingo Exclusivo", startTime: new Date(Date.now() + 2 * 60 * 60 * 1000), status: "Upcoming", hostedBy: "testUser123", description: "Um jogo especial para meus seguidores!", prize: "Vale Starbucks de R$20" },
+  { id: "2", title: "De Tarde com João", startTime: new Date(), status: "Live", hostedBy: "anotherHost", description: "Não hospedado pelo usuário de teste atual.", prize: "Vale GameStop de R$30"},
+  { id: "3", title: "Meu Clássico Semanal", startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), status: "Upcoming", hostedBy: "testUser123", description: "O jogo semanal regular que você ama.", prize: "Camiseta Personalizada" },
+  { id: "4", title: "O Grande (Arquivado)", startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), status: "Ended", hostedBy: "testUser123", description: "Nosso maior jogo do mês passado.", prize: "R$500" },
 ];
 
 export default function HostGamesPage() {
@@ -36,13 +36,13 @@ export default function HostGamesPage() {
         <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-lg shadow-md">
           <div>
             <h1 className="text-3xl font-bold text-primary mb-1 flex items-center">
-              <Gamepad2 className="mr-3 h-8 w-8"/> My Hosted Games
+              <Gamepad2 className="mr-3 h-8 w-8"/> Meus Jogos Criados
             </h1>
-            <p className="text-muted-foreground">Manage and view the bingo games you've created.</p>
+            <p className="text-muted-foreground">Gerencie e visualize os jogos de bingo que você criou.</p>
           </div>
           <Button asChild className="bg-accent hover:bg-accent/90 text-accent-foreground">
             <Link href="/host/games/create"> {/* Placeholder link */}
-              <PlusCircle className="mr-2 h-5 w-5" /> Create New Game
+              <PlusCircle className="mr-2 h-5 w-5" /> Criar Novo Jogo
             </Link>
           </Button>
         </section>
@@ -50,16 +50,16 @@ export default function HostGamesPage() {
         {hostedGames.length === 0 && (
           <div className="text-center py-12 bg-card rounded-lg shadow-md p-6">
             <Gamepad2 className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-2 text-xl font-semibold">No Games Hosted Yet</h3>
+            <h3 className="mt-2 text-xl font-semibold">Nenhum Jogo Criado Ainda</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Ready to host your first bingo game? Click the button above to get started!
+              Pronto para criar seu primeiro jogo de bingo? Clique no botão acima para começar!
             </p>
           </div>
         )}
 
         {liveGames.length > 0 && (
         <section>
-          <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-destructive">Live Now 🔥</h2>
+          <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-destructive">Ao Vivo Agora 🔥</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {liveGames.map((game) => (
               <GameCard key={game.id} game={game} />
@@ -70,7 +70,7 @@ export default function HostGamesPage() {
 
         {upcomingGames.length > 0 && (
             <section>
-            <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-primary">Upcoming Hosted Games</h2>
+            <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-primary">Próximos Jogos Criados</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {upcomingGames.map((game) => (
                 <GameCard key={game.id} game={game} />
@@ -81,7 +81,7 @@ export default function HostGamesPage() {
         
         {endedGames.length > 0 && (
             <section>
-            <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-muted-foreground">Past Hosted Games</h2>
+            <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-muted-foreground">Jogos Criados Anteriores</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-75">
                 {endedGames.map((game) => (
                 <GameCard key={game.id} game={game} />
