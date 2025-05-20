@@ -34,6 +34,43 @@ import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
+const formatPhoneNumberForDisplay = (value: string): string => {
+  if (!value) return value;
+  // Keep leading '+' if present, remove all other non-digits for the rest
+  const initialChar = value.charAt(0);
+  let digitsPart = value;
+  let leadingPlus = "";
+
+  if (initialChar === '+') {
+    leadingPlus = '+';
+    digitsPart = value.substring(1);
+  }
+  
+  // Remove all non-digits from the rest of the string
+  digitsPart = digitsPart.replace(/[^\d]/g, '');
+  
+  let cleanedDigits = digitsPart.slice(0, 12); // Max 12 digits after potential plus
+
+  const { length } = cleanedDigits;
+  let formatted = leadingPlus;
+
+  if (length === 0 && leadingPlus) return leadingPlus; // Only '+'
+  if (length === 0 && !leadingPlus) return "";
+
+
+  if (length <= 2) { // country code
+    formatted += cleanedDigits;
+  } else if (length <= 4) { // area code
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2)})`;
+  } else if (length <= 8) { // first part of number
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4)}`;
+  } else { // second part of number
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4, 8)}-${cleanedDigits.slice(8, 12)}`;
+  }
+  return formatted;
+};
+
+
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
@@ -51,7 +88,7 @@ export default function ProfilePage() {
     if (currentUser) {
       setEditableCountry(currentUser.country || undefined);
       setEditableGender(currentUser.gender || 'preferNotToSay');
-      setEditablePhoneNumber(currentUser.phoneNumber || "");
+      setEditablePhoneNumber(currentUser.phoneNumber ? formatPhoneNumberForDisplay(currentUser.phoneNumber) : "");
       if (currentUser.birthDate) {
         try {
             let parsedDate: Date | null = null;
@@ -118,7 +155,7 @@ export default function ProfilePage() {
     if (editableCountry) dataToUpdate.country = editableCountry;
     if (editableGender) dataToUpdate.gender = editableGender;
     if (editableBirthDate) dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
-    if (editablePhoneNumber.trim()) dataToUpdate.phoneNumber = editablePhoneNumber.trim();
+    if (editablePhoneNumber.trim()) dataToUpdate.phoneNumber = editablePhoneNumber.trim(); // Saves formatted string
     
 
     try {
@@ -204,9 +241,9 @@ export default function ProfilePage() {
                       <Input
                           id="phone-number-profile"
                           type="tel"
-                          placeholder="+55 11 91234-5678"
+                          placeholder="+00 (00) 0000-0000"
                           value={editablePhoneNumber}
-                          onChange={(e) => setEditablePhoneNumber(e.target.value)}
+                          onChange={(e) => setEditablePhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                           className="pl-10 h-12"
                       />
                   </div>
@@ -318,5 +355,3 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
-
-    

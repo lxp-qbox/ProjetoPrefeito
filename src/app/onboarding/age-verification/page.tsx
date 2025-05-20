@@ -44,6 +44,43 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
+const formatPhoneNumberForDisplay = (value: string): string => {
+  if (!value) return value;
+  // Keep leading '+' if present, remove all other non-digits for the rest
+  const initialChar = value.charAt(0);
+  let digitsPart = value;
+  let leadingPlus = "";
+
+  if (initialChar === '+') {
+    leadingPlus = '+';
+    digitsPart = value.substring(1);
+  }
+  
+  // Remove all non-digits from the rest of the string
+  digitsPart = digitsPart.replace(/[^\d]/g, '');
+  
+  let cleanedDigits = digitsPart.slice(0, 12); // Max 12 digits after potential plus
+
+  const { length } = cleanedDigits;
+  let formatted = leadingPlus;
+
+  if (length === 0 && leadingPlus) return leadingPlus; // Only '+'
+  if (length === 0 && !leadingPlus) return "";
+
+
+  if (length <= 2) { // country code
+    formatted += cleanedDigits;
+  } else if (length <= 4) { // area code
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2)})`;
+  } else if (length <= 8) { // first part of number
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4)}`;
+  } else { // second part of number
+    formatted += `${cleanedDigits.slice(0, 2)} (${cleanedDigits.slice(2, 4)}) ${cleanedDigits.slice(4, 8)}-${cleanedDigits.slice(8, 12)}`;
+  }
+  return formatted;
+};
+
+
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
@@ -86,7 +123,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-     if (!phoneNumber.trim()) {
+    if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -133,7 +170,7 @@ export default function AgeVerificationPage() {
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: phoneNumber.trim(), // Saves the formatted string
         updatedAt: serverTimestamp(),
       };
 
@@ -148,7 +185,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile");
+        router.push("/profile"); // Fallback if role is weird
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -181,12 +218,14 @@ export default function AgeVerificationPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <UserCheck className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preenche<br />as informacoes abaixo
+          Para prosseguir, preenche
+          <br />
+          as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -202,14 +241,14 @@ export default function AgeVerificationPage() {
                 <Input
                     id="phone-number"
                     type="tel"
-                    placeholder="+55 11 91234-5678"
+                    placeholder="+00 (00) 0000-0000"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                     className="pl-10 h-12"
                 />
             </div>
           </div>
-
+          
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
