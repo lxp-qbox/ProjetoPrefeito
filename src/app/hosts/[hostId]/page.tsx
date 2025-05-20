@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, UserProfile } from '@/types'; // Added UserProfile for optimistic chat
+import type { Host, UserProfile } from '@/types';
 import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -14,7 +14,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { useAuth } from '@/hooks/use-auth'; // For optimistic chat sender
+import { useAuth } from '@/hooks/use-auth';
 
 const getHostById = (id: string): Host | undefined => {
   return placeholderHosts.find(host => host.id === id);
@@ -28,12 +28,10 @@ interface ChatMessage {
   timestamp: string;
 }
 
-// Helper function to generate a more unique ID
 const generateUniqueId = () => {
   return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
 };
 
-// Helper function to parse chat messages
 function parseChatMessage(data: any): { userName: string, userAvatar: string, messageData: string } | null {
   let parsedJson;
   let rawStringInput = "";
@@ -52,25 +50,13 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     return null; // Not a string or object we can parse
   }
 
-  let userName = "Servidor"; // Default for server/system messages
-  let userAvatar = ""; // Default for system messages, or placeholder
+  let userName = "Servidor";
+  let userAvatar = "";
   let messageData = "";
 
-  // Try to extract user info and message from common structures
-  // Prioritize structure from the provided example: user.nickname, user.avatar, text
-  if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message)) {
+  if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message || parsedJson.content)) {
     userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
-    messageData = parsedJson.text || parsedJson.message;
-    if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
-      userAvatar = parsedJson.user.avatar;
-    } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') { // Common alternative
-      userAvatar = parsedJson.user.avatarUrl;
-    } else {
-      userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    }
-  } else if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.message || parsedJson.content)) {
-    userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
-    messageData = parsedJson.message || parsedJson.content;
+    messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
       userAvatar = parsedJson.user.avatar;
     } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') {
@@ -78,7 +64,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     } else {
       userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     }
-  } else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) { // Alternative structure
+  } else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     if (parsedJson.avatar && typeof parsedJson.avatar === 'string') {
@@ -86,7 +72,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     } else {
        userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     }
-  } else if (parsedJson.content) { // System message or simple content-only message
+  } else if (parsedJson.content) {
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema";
@@ -100,7 +86,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (rawStringInput) { // If JSON parsing failed but we had an original string
+  } else if (rawStringInput) {
     messageData = rawStringInput;
     userName = "Texto";
     userAvatar = `https://placehold.co/32x32.png?text=T`;
@@ -111,7 +97,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
   } else if (data.toString && typeof data.toString === 'function') {
     messageData = data.toString();
   } else {
-    return null; // No usable data found
+    return null;
   }
 
   return { userName, userAvatar, messageData };
@@ -126,7 +112,7 @@ export default function HostStreamPage() {
   const [newMessage, setNewMessage] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { currentUser } = useAuth(); // For optimistic chat sender
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     if (hostId) {
@@ -197,7 +183,6 @@ export default function HostStreamPage() {
       }
 
       if (!processedMessage && messageString) {
-        // Clean potential leading non-JSON characters
         const firstBraceIndex = messageString.indexOf('{');
         const lastBraceIndex = messageString.lastIndexOf('}');
         let cleanJsonString = messageString;
@@ -205,9 +190,8 @@ export default function HostStreamPage() {
         if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
           cleanJsonString = messageString.substring(firstBraceIndex, lastBraceIndex + 1);
         }
-        // Pass the potentially cleaned string OR original string if no {} found (for plain text messages)
         processedMessage = parseChatMessage(cleanJsonString);
-        if (!processedMessage && messageString.trim() !== "" && firstBraceIndex === -1) { // If parsing still fails and it wasn't JSON-like
+        if (!processedMessage && messageString.trim() !== "" && firstBraceIndex === -1) {
             processedMessage = { userName: "Texto", userAvatar: "https://placehold.co/32x32.png?text=T", messageData: messageString };
         }
       }
@@ -358,30 +342,17 @@ export default function HostStreamPage() {
             </CardHeader>
             <CardContent className="p-0 sm:p-2 md:p-4">
               <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
-                <video
-                  playsInline
-                  webkit-playsinline=""
-                  x5-playsinline="true"
-                  x5-video-player-type="h5"
-                  x-webkit-airplay="allow"
-                  preload="auto"
-                  controls
-                  poster="https://placehold.co/1280x720.png?text=Player+de+V%C3%ADdeo"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  className="w-full h-full"
+                 {/* Reverted to iframe for reliable Kako Live playback */}
+                <iframe
+                  src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
+                  width="100%"
+                  height="100%"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  className="border-0"
+                  title={`Transmissão de ${host.name}`}
                   data-ai-hint="live stream"
-                >
-                </video>
-              </div>
-              <div className="mt-3 p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-start gap-2">
-                <VideoOff className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">Player de Vídeo Genérico Ativado</p>
-                  <p>
-                    Para reproduzir o conteúdo, este player requer uma URL de stream de vídeo direta (ex: .mp4, HLS .m3u8).
-                    A URL WebSocket (`wss://...`) para o chat não é uma fonte de vídeo compatível para este player. A funcionalidade de transmissão ao vivo do Kako Live não funcionará com este player genérico.
-                  </p>
-                </div>
+                ></iframe>
               </div>
             </CardContent>
           </Card>
@@ -466,7 +437,7 @@ export default function HostStreamPage() {
                 <span>{/* Placeholder for live viewer count */}</span>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0">
+            <CardContent className="flex-grow p-0 min-h-0">
               <ScrollArea className="h-full" ref={scrollAreaRef}>
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
