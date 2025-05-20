@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -36,11 +36,17 @@ const adminMenuGroups: AdminMenuGroup[] = [
     ],
   },
   {
-    groupTitle: "Usuários",
+    groupTitle: "Gestão de Usuários", // Changed title
     items: [
-      { title: "Contas de Hosts", icon: Star, link: "/admin/hosts" }, // Changed icon here
+      { title: "Contas de Hosts", icon: Star, link: "/admin/hosts" },
       { title: "Contas de Players", icon: User, link: "/admin/users/players" },
       { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
+    ],
+  },
+  {
+    groupTitle: "Ações Administrativas", // New Group
+    items: [
+      { title: "Banimentos", icon: XCircle, link: "/admin/actions/bans" },
     ],
   },
   {
