@@ -45,7 +45,7 @@ export default function LoginPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full text-muted-foreground hover:bg-gradient-to-b hover:from-white hover:to-gray-200 hover:text-primary transition-colors"
+            className="rounded-full text-muted-foreground hover:bg-[radial-gradient(ellipse_at_center,_rgba(229,231,235,1)_0%,_rgba(255,255,255,1)_75%)] hover:text-primary"
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
