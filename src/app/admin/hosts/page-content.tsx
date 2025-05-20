@@ -6,10 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Clock, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
+import { Search, Users, Clock, CheckCircle, XCircle, MoreHorizontal, ChevronDown, Edit } from "lucide-react";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface StatCardProps {
   title: string;
@@ -74,15 +80,36 @@ const formatWhatsAppLink = (phoneNumber: string) => {
 
 export default function AdminHostsPageContent() {
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Gerenciamento de Hosts</h1>
           <p className="text-sm text-muted-foreground">Visualize e gerencie os hosts da agência.</p>
         </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[280px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
+          </div>
+          <div className="flex items-center gap-2 mt-4 sm:mt-0">
+            <Button variant="outline">
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  Ações
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>Banir Host</DropdownMenuItem>
+                <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
+                <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -168,3 +195,4 @@ export default function AdminHostsPageContent() {
     </div>
   );
 }
+
