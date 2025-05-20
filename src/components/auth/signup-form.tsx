@@ -10,12 +10,11 @@ import {
   FormControl,
   FormField,
   FormItem,
-  // FormLabel, // Removed
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -73,10 +72,10 @@ export default function SignupForm() {
         uid: user.uid,
         email: user.email,
         profileName: derivedProfileName,
-        displayName: derivedProfileName, // Ensure displayName is also set in Firestore
-        kakoLiveId: "",
+        displayName: derivedProfileName,
+        kakoLiveId: "", // Will be empty as per previous request
         role: 'player',
-        isVerified: false,
+        isVerified: false, // Will be false until email verification
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
@@ -85,20 +84,29 @@ export default function SignupForm() {
         photos: [],
         socialLinks: {},
         themePreference: 'system',
-        accentColor: '#4285F4',
+        accentColor: '#4285F4', // Default primary color
       };
       await setDoc(userDocRef, newUserProfile);
 
+      await sendEmailVerification(user);
+
       toast({
-        title: "Cadastro Realizado com Sucesso",
-        description: "Sua conta foi criada. Bem-vindo(a)!",
+        title: "Cadastro Realizado!",
+        description: `Um email de verificação foi enviado para ${values.email}. Por favor, verifique sua caixa de entrada para ativar sua conta.`,
+        duration: 9000, // Longer duration for this important message
       });
-      router.push("/profile");
+      router.push("/login"); // Redirect to login page after sending verification email
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
+      let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "Este endereço de email já está em uso. Por favor, tente outro.";
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
       toast({
         title: "Falha no Cadastro",
-        description: error.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -114,7 +122,6 @@ export default function SignupForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Email</FormLabel> */}
               <FormControl>
                 <Input placeholder="Digite seu email" {...field} />
               </FormControl>
@@ -127,7 +134,6 @@ export default function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Senha</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Input 
@@ -155,7 +161,6 @@ export default function SignupForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Confirmar Senha</FormLabel> */}
               <FormControl>
                 <div className="relative">
                    <Input 
