@@ -7,8 +7,8 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Home, Users, LayoutGrid, LogIn, FileText, Crown } from 'lucide-react';
+import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
+import { Home, Users, LayoutGrid, LogIn, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AppContentWrapper({ children }: { children: ReactNode }) {
@@ -23,15 +23,12 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}> {/* Start collapsed */}
       <Sidebar collapsible="icon" className="border-r">
-        <SidebarHeader className="p-4 flex items-center justify-center group-data-[collapsible=icon]:justify-center group-data-[state=expanded]:justify-start">
-          <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
-            <Crown className="w-7 h-7 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">Agency</span>
-          </Link>
+        <SidebarHeader className="p-0"> {/* No padding for header */}
+          <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
         </SidebarHeader>
-        <SidebarContent className="flex flex-col flex-1">
+        <SidebarContent className="flex flex-col flex-1 pt-2"> {/* Added pt-2 to content */}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Início">

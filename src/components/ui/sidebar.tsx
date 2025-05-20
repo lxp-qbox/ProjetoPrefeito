@@ -24,7 +24,7 @@ const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
-const SIDEBAR_WIDTH_ICON = "4.5rem" // Adjusted for slightly wider collapsed icon view
+const SIDEBAR_WIDTH_ICON = "5rem"; // Adjusted: 80px
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContext = {
@@ -161,7 +161,7 @@ const Sidebar = React.forwardRef<
     {
       side = "left",
       variant = "sidebar",
-      collapsible = "offcanvas",
+      collapsible = "icon",
       className,
       children,
       ...props
@@ -261,8 +261,8 @@ const SidebarTrigger = React.forwardRef<
       ref={ref}
       data-sidebar="trigger"
       variant="ghost"
-      size="icon"
-      className={cn("h-7 w-7", className)}
+      size="icon" // Default size, can be overridden by className
+      className={cn(className)} // Allow className to override default size/styles
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -275,6 +275,7 @@ const SidebarTrigger = React.forwardRef<
   )
 })
 SidebarTrigger.displayName = "SidebarTrigger"
+
 
 const SidebarRail = React.forwardRef<
   HTMLButtonElement,
@@ -349,7 +350,7 @@ const SidebarHeader = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="header"
-      className={cn("flex flex-col gap-2 p-2", className)}
+      className={cn("flex flex-col", className)} // Removed gap and padding, to be controlled by consumer
       {...props}
     />
   )
@@ -482,7 +483,7 @@ const SidebarMenu = React.forwardRef<
   <ul
     ref={ref}
     data-sidebar="menu"
-    className={cn("flex w-full min-w-0 flex-col gap-1", className)}
+    className={cn("flex w-full min-w-0 flex-col items-center gap-1 mt-2", className)} // Added items-center and mt-2
     {...props}
   />
 ))
@@ -495,23 +496,36 @@ const SidebarMenuItem = React.forwardRef<
   <li
     ref={ref}
     data-sidebar="menu-item"
-    className={cn("group/menu-item relative", className)}
+    className={cn("group/menu-item relative w-full", className)} // Ensure li takes full width of sidebar
     {...props}
   />
 ))
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full flex-col items-center justify-center gap-0.5 rounded-md py-3 px-2 text-xs outline-none ring-sidebar-ring transition-all duration-150 ease-in-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>svg]:mb-1 [&>svg]:size-5 [&>svg]:shrink-0 [&>span:last-child]:text-center [&>span:last-child]:max-w-full [&>span:last-child]:leading-tight [&>span:last-child]:truncate group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:[&>svg]:m-0 group-data-[collapsible=icon]:[&>svg]:size-6",
+  cn(
+    "peer/menu-button flex w-full items-center rounded-md text-xs outline-none ring-sidebar-ring transition-all duration-150 ease-in-out",
+    "text-muted-foreground hover:text-primary", // Default and hover text colors
+    "data-[active=true]:bg-accent data-[active=true]:text-accent-foreground", // Active state
+    "disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50",
+    // Expanded state (icon over text)
+    "flex-col justify-center gap-1 py-3 px-2",
+    "[&>svg]:size-6 [&>svg]:shrink-0", // Icon size 24px
+    "[&>span:last-child]:text-center [&>span:last-child]:max-w-full [&>span:last-child]:leading-tight [&>span:last-child]:truncate",
+    // Collapsed state (icon only, text hidden by parent span's class)
+    "group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:px-0",
+    "group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center",
+    "group-data-[collapsible=icon]:[&>svg]:m-0 group-data-[collapsible=icon]:[&>svg]:size-6" // Icon centered, 24px
+  ),
   {
     variants: {
-      variant: {
-        default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      variant: { // Kept for structure, but colors are now more specific above
+        default: "", 
         outline:
-          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+          "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
-      size: { // These sizes are not explicitly used by the menu buttons in app-content-wrapper but kept for cva structure
-        default: "", // Default expanded style is now the base
+      size: { // Not explicitly used for this new design but kept for cva
+        default: "",
         sm: "text-xs", 
         lg: "text-sm",
       },
@@ -522,6 +536,7 @@ const sidebarMenuButtonVariants = cva(
     },
   }
 )
+
 
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
@@ -535,7 +550,7 @@ const SidebarMenuButton = React.forwardRef<
     {
       asChild = false,
       isActive = false,
-      variant, // variant and size can be passed if needed, otherwise defaults apply
+      variant, 
       size,
       tooltip,
       className,
@@ -572,7 +587,8 @@ const SidebarMenuButton = React.forwardRef<
         <TooltipContent
           side="right"
           align="center"
-          hidden={state !== "collapsed" || isMobile}
+          // Tooltip should show when collapsed OR if expanded but on mobile where text might be less visible
+          hidden={state === "expanded" && !isMobile}
           {...tooltip}
         />
       </Tooltip>
