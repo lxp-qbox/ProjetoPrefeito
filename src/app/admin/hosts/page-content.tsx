@@ -86,11 +86,10 @@ export default function AdminHostsPageContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Total de Hosts" count={placeholderHosts.length} icon={Users} bgColorClass="bg-blue-500/10" textColorClass="text-blue-500" />
         <StatCard title="Hosts Pendentes" count={placeholderHosts.filter(h => h.status === 'Pendente').length} icon={Clock} bgColorClass="bg-yellow-500/10" textColorClass="text-yellow-500" />
         <StatCard title="Hosts Aprovados" count={placeholderHosts.filter(h => h.status === 'Aprovado').length} icon={CheckCircle} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
-        <StatCard title="Hosts Banidos" count={placeholderHosts.filter(h => h.status === 'Banido').length} icon={XCircle} bgColorClass="bg-red-500/10" textColorClass="text-red-500" />
       </div>
 
       <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">

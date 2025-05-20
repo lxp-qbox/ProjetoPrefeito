@@ -19,7 +19,7 @@ export default function AdminPlayersPage() {
         </CardHeader>
         <CardContent>
           <p>Conteúdo da tabela de players aparecerá aqui...</p>
-          <p className="mt-4 text-sm text-muted-foreground">
+          <div className="mt-4 text-sm text-muted-foreground">
             Funcionalidades planejadas:
             <ul className="list-disc list-inside ml-4 mt-2">
               <li>Visualizar todos os players</li>
@@ -28,7 +28,7 @@ export default function AdminPlayersPage() {
               <li>Editar status (ativo, banido)</li>
               <li>Ver histórico de atividades</li>
             </ul>
-          </p>
+          </div>
         </CardContent>
       </Card>
     </div>
