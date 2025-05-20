@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, Users as UsersIcon, MapPin } from "lucide-react"; // Added UsersIcon and MapPin for consistency
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,6 +38,7 @@ import { format, subYears, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
@@ -107,7 +108,7 @@ export default function AgeVerificationPage() {
       setShowUnderageAlert(true);
       return;
     }
-    setShowUnderageAlert(false); 
+    setShowUnderageAlert(false);
 
     setIsLoading(true);
     try {
@@ -199,7 +200,7 @@ export default function AgeVerificationPage() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={handleDateSelect} 
+                  onSelect={handleDateSelect}
                   initialFocus
                   locale={ptBR}
                   captionLayout="dropdown-buttons"
@@ -244,7 +245,7 @@ export default function AgeVerificationPage() {
           )}
         </div>
       </CardContent>
-      <CardFooter className="p-6 border-t mt-auto">
+      <CardFooter className="p-6 border-t">
         <Button
           onClick={handleContinue}
           className="w-full"
@@ -257,6 +258,9 @@ export default function AgeVerificationPage() {
           )}
           Continuar
         </Button>
+      </CardFooter>
+       <CardFooter className="p-6 border-t">
+        <Progress value={30} aria-label="Progresso do onboarding 30%" />
       </CardFooter>
     </Card>
   );
