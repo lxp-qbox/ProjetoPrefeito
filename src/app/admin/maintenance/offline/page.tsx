@@ -6,7 +6,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ServerOff, Home as HomeIcon, Users, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User } from "lucide-react";
+import { Button } from "@/components/ui/button"; // Added Button import
+import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User } from "lucide-react"; // Renamed Users to UsersIconProp
+import { useToast } from "@/hooks/use-toast"; // Added useToast import
 
 interface ModuleAccessStatus {
   globallyOffline: boolean;
@@ -38,7 +40,7 @@ const roleDisplayNames: Record<UserRole, string> = {
 const roleIcons: Record<UserRole, React.ElementType> = {
     master: ShieldCheck,
     admin: UserCog,
-    suporte: UserCog, // Assuming Suporte might share UserCog or need a different one like MessageSquare or HelpCircle
+    suporte: UserCog,
     host: Star,
     player: User,
 };
@@ -54,7 +56,7 @@ const initialModuleStatuses: SiteModule[] = [
   {
     id: 'hosts',
     name: "Página de Hosts",
-    icon: Users, // Changed from Star to Users to avoid repetition with Host role icon
+    icon: UsersIconProp, // Changed from Star to UsersIconProp
     globallyOffline: false,
     accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
   },
@@ -91,6 +93,7 @@ const initialModuleStatuses: SiteModule[] = [
 
 export default function AdminMaintenanceOfflinePage() {
   const [moduleStatuses, setModuleStatuses] = useState<SiteModule[]>(initialModuleStatuses);
+  const { toast } = useToast(); // Initialize toast
 
   const handleGlobalToggle = (moduleId: string, isOffline: boolean) => {
     setModuleStatuses((prevModules) =>
@@ -118,9 +121,19 @@ export default function AdminMaintenanceOfflinePage() {
     console.log(`Access for role ${role} on module ${moduleId} set to: ${access}`);
   };
 
+  const handleSaveChanges = () => {
+    // Placeholder for actual save logic
+    console.log("Attempting to save maintenance settings:", moduleStatuses);
+    toast({
+      title: "Salvar Configurações (Simulação)",
+      description: "A funcionalidade de salvar no banco de dados ainda não foi implementada. As configurações atuais foram exibidas no console.",
+    });
+    // In a real implementation, you would send `moduleStatuses` to your backend/Firestore here.
+  };
+
 
   return (
-    <div className="space-y-6 bg-card p-6 rounded-lg shadow-lg h-full">
+    <div className="space-y-6 bg-background p-6 rounded-lg shadow-sm h-full overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Gerenciar Status Offline de Módulos</h1>
       </div>
@@ -133,7 +146,7 @@ export default function AdminMaintenanceOfflinePage() {
           </CardTitle>
           <CardDescription>
             Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina permissões de acesso granulares por função.
-            <strong className="text-destructive block mt-1"> (Funcionalidade em desenvolvimento - os toggles são apenas visuais para esta demonstração).</strong>
+            <strong className="text-destructive block mt-1">As alterações feitas aqui são locais. Clique em "Salvar Alterações" para torná-las persistentes (funcionalidade de salvar ainda em desenvolvimento).</strong>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -198,13 +211,16 @@ export default function AdminMaintenanceOfflinePage() {
             );
           })}
         </CardContent>
+         <CardFooter className="pt-6 border-t flex justify-end">
+          <Button onClick={handleSaveChanges}>Salvar Alterações</Button>
+        </CardFooter>
       </Card>
 
       <CardFooter className="pt-6 border-t">
         <p className="text-xs text-muted-foreground">
-          <strong>Nota Importante:</strong> Esta interface é uma demonstração para controle de acesso.
-          As alterações feitas aqui são visuais e não afetam o comportamento real do site até que a lógica de backend
-          e as verificações de permissão em cada rota sejam implementadas.
+          <strong>Nota Importante:</strong> Esta interface é para configurar o controle de acesso.
+          As alterações feitas aqui precisam ser salvas e a lógica de backend
+          e as verificações de permissão em cada rota precisam ser implementadas para que tenham efeito real.
         </p>
       </CardFooter>
     </div>
