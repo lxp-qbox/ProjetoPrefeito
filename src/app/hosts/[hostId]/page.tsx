@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import type { Host, ChatMessage } from '@/types';
-import { placeholderHosts } from '../page';
+import { placeholderHosts } from '../page'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from '@/hooks/use-auth';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "@/lib/firebase";
 
 
 const generateUniqueId = () => {
@@ -25,9 +26,70 @@ const generateUniqueId = () => {
 };
 
 type ParsedChatMessageType =
-  | { type: 'chat', id?: string, userName: string, userAvatar?: string, userMedalUrl?: string, messageData: string, extractedRoomId?: string }
-  | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string, extractedRoomId?: string, isCurrentlyLive: boolean }
+  | { type: 'chat', id?: string, userName: string, userAvatar?: string, userMedalUrl?: string, messageData: string, extractedRoomId?: string , userId?: string, userLevel?: number }
+  | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string, anchorUserId?: string, anchorAvatarUrl?: string, anchorLevel?: number, extractedRoomId?: string, isCurrentlyLive: boolean }
   | null;
+
+
+async function upsertHostProfile(hostData: {
+  userId: string;
+  nickname?: string;
+  avatarUrl?: string;
+  level?: number;
+  currentRoomId?: string;
+}) {
+  if (!hostData.userId) {
+    console.error("upsertHostProfile: userId is missing from hostData", hostData);
+    return;
+  }
+  const hostDocRef = doc(db, "hosts", hostData.userId);
+  try {
+    const docSnap = await getDoc(hostDocRef);
+    if (!docSnap.exists()) {
+      const newHostProfileData: Host = {
+        id: hostData.userId,
+        name: hostData.nickname || "Nome Desconhecido",
+        avatarUrl: hostData.avatarUrl || `https://placehold.co/40x40.png?text=${(hostData.nickname || "H").substring(0,1).toUpperCase()}`,
+        rank: hostData.level || 0,
+        kakoLiveFuid: hostData.userId,
+        kakoLiveRoomId: hostData.currentRoomId,
+        bio: "", 
+        streamTitle: "", 
+        likes: 0, 
+        giftsReceived: [],
+        totalDonationsValue: 0,
+        // Placeholder agency stats - these would ideally be updated by an admin process
+        rankPosition: 999, 
+        avgViewers: 0,
+        timeStreamed: 0,
+        allTimePeakViewers: 0,
+        hoursWatched: "0",
+        followersGained: 0,
+        totalFollowers: "0",
+        totalViews: "0",
+        // Timestamps and source
+        createdAt: serverTimestamp(),
+        lastSeen: serverTimestamp(),
+        source: 'kakoLive',
+      };
+      await setDoc(hostDocRef, newHostProfileData);
+      console.log(`Host pré-cadastrado: ${newHostProfileData.name} (ID: ${newHostProfileData.id})`);
+    } else {
+      const updateData: Partial<Host> = {
+        lastSeen: serverTimestamp(),
+      };
+      if (hostData.nickname) updateData.name = hostData.nickname;
+      if (hostData.avatarUrl) updateData.avatarUrl = hostData.avatarUrl;
+      if (hostData.level !== undefined) updateData.rank = hostData.level;
+      if (hostData.currentRoomId) updateData.kakoLiveRoomId = hostData.currentRoomId;
+      
+      await updateDoc(hostDocRef, updateData);
+      // console.log(`Host atualizado: ${hostData.nickname || docSnap.data().name}`);
+    }
+  } catch (error) {
+    console.error("Erro em upsertHostProfile:", error);
+  }
+}
 
 
 function parseChatMessage(rawData: string): ParsedChatMessageType {
@@ -51,12 +113,16 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   let userAvatar: string | undefined = undefined;
   let userMedalUrl: string | undefined = undefined;
   let messageData = "";
+  let userId: string | undefined = undefined;
+  let userLevel: number | undefined = undefined;
+
 
   const messageUser = parsedJson.user;
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
-    // Placeholder for medal logic - use for any user for now
+    userId = messageUser.userId;
+    userLevel = messageUser.level;
     if (messageUser.nickname) { 
         userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
@@ -64,91 +130,92 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   
   // System Room Status Update (online, likes, anchor info)
   if (parsedJson.anchor && typeof parsedJson.anchor === 'object' && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
-    let isStreamCurrentlyLive = true;
+    let isStreamCurrentlyLive = true; // Assume live unless proven otherwise
     if (parsedJson.anchor.hasOwnProperty('isLiving') && parsedJson.anchor.isLiving === false) {
       isStreamCurrentlyLive = false;
-    } else if (parsedJson.hasOwnProperty('status') && parsedJson.status !== 19 && parsedJson.status !== 1) { // Assuming 19 and 1 are live statuses
+    } else if (parsedJson.hasOwnProperty('status') && parsedJson.status !== 19 && parsedJson.status !== 1) {
       isStreamCurrentlyLive = false;
     } else if (parsedJson.hasOwnProperty('stopReason') && parsedJson.stopReason !== 0) {
       isStreamCurrentlyLive = false;
     }
+
     return {
       type: 'systemUpdate',
       online: parsedJson.online,
       likes: parsedJson.likes,
       anchorNickname: parsedJson.anchor.nickname,
+      anchorUserId: parsedJson.anchor.userId,
+      anchorAvatarUrl: parsedJson.anchor.avatar,
+      anchorLevel: parsedJson.anchor.level,
       extractedRoomId,
       isCurrentlyLive: isStreamCurrentlyLive
     };
   }
   // Gift Event
-  else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname && typeof parsedJson.giftCount === 'number') {
+  else if (parsedJson.giftId && messageUser && messageUser.nickname && typeof parsedJson.giftCount === 'number') {
     messageData = `🎁 ${userName} enviou ${parsedJson.giftCount}x Presente ID ${parsedJson.giftId}!`;
-    if (parsedJson.user.level) {
-        messageData += ` (Nível ${parsedJson.user.level})`;
+    if (messageUser.level) {
+        messageData += ` (Nível ${messageUser.level})`;
     }
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId, userId, userLevel };
   }
   // Game Event (ignored for formatted chat display)
-  else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    // console.log("Ignoring game event for formatted chat:", parsedJson);
+  else if (parsedJson.game && parsedJson.game.baishun2 && messageUser && messageUser.nickname) {
     return null; 
   }
-  // User Join Event (type 1, type2: 1 - specific structure, NO count field)
+   // User Join Event (type 1, type2: 1 - specific structure, NO count field)
   else if (
-    parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname &&
+    messageUser && typeof messageUser === 'object' && messageUser.nickname &&
     parsedJson.type === 1 && parsedJson.type2 === 1 &&
     !parsedJson.text && !parsedJson.giftId && !parsedJson.game && !parsedJson.count &&
     !(parsedJson.anchor && typeof parsedJson.anchor === 'object' && parsedJson.anchor.nickname && typeof parsedJson.online === 'number')
   ) {
     let joinMessage = `👋 ${userName} entrou na sala.`;
-    if (parsedJson.user.level) {
-      joinMessage += ` (Nível ${parsedJson.user.level})`;
+    if (messageUser.level) {
+      joinMessage += ` (Nível ${messageUser.level})`;
     }
     if (parsedJson.roomUser && parsedJson.roomUser.fansLevel) {
         joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
     }
     messageData = joinMessage;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId, userId, userLevel };
   }
   // User Join Event (with spectator count)
   else if (
-    parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname &&
+    messageUser && typeof messageUser === 'object' && messageUser.nickname &&
     typeof parsedJson.count === 'number' &&
     !parsedJson.text && !parsedJson.giftId && !parsedJson.game &&
     !(parsedJson.anchor && typeof parsedJson.anchor === 'object' && parsedJson.anchor.nickname && typeof parsedJson.online === 'number')
   ) {
     let joinMessage = `👋 ${userName} entrou na sala.`;
-    if (parsedJson.user.level) {
-      joinMessage += ` (Nível ${parsedJson.user.level})`;
+    if (messageUser.level) {
+      joinMessage += ` (Nível ${messageUser.level})`;
     }
     if (parsedJson.roomUser && parsedJson.roomUser.fansLevel) {
         joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
     }
     joinMessage += ` Espectadores: ${parsedJson.count}.`;
     messageData = joinMessage;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId, userId, userLevel };
   }
   // Standard Text Chat Message
-  else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
+  else if (messageUser && typeof messageUser === 'object' && messageUser.nickname && parsedJson.text) {
     messageData = parsedJson.text;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId, userId, userLevel };
   }
   // Fallback for other common chat structures (less specific)
   else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     userAvatar = parsedJson.avatar;
+    userId = parsedJson.userId; // Assuming userId might be here too
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId, userId };
   }
    // Generic content message (system message with just 'content')
-  else if (parsedJson.content && !parsedJson.user && !parsedJson.anchor && !parsedJson.giftId && !parsedJson.game && !parsedJson.type && !parsedJson.count) { 
+  else if (parsedJson.content && !messageUser && !parsedJson.anchor && !parsedJson.giftId && !parsedJson.game && !parsedJson.type && !parsedJson.count) { 
       messageData = parsedJson.content;
       return { type: 'chat', id: serverMessageId, userName: "Sistema", userAvatar: undefined, userMedalUrl: undefined, messageData, extractedRoomId };
   }
-
-  // If none of the above, return null to indicate it's not a recognized chat/system update type for direct display
-  // console.warn("WebSocket: Unhandled message structure:", parsedJson);
   return null; 
 }
 
@@ -189,7 +256,7 @@ export default function HostStreamPage() {
         setLiveLikes(foundHost.likes || 0); 
         setIsAtBottom(true);
         setNewUnreadMessages(0);
-        setIsStreamEnded(false); // Reset stream ended state when host changes
+        setIsStreamEnded(false); 
       }
     } else {
       setHost(null); 
@@ -244,15 +311,11 @@ export default function HostStreamPage() {
         scrollViewportRef.current = viewport; 
         if (viewport) {
             viewport.addEventListener('scroll', handleScroll);
-            handleScroll(); // Call once to set initial state
-            // Initial scroll to bottom is handled by the chatMessages useEffect
+            handleScroll(); 
             return () => viewport.removeEventListener('scroll', handleScroll);
-        } else {
-          // console.warn("Scroll viewport not found in ScrollArea.");
         }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host, handleScroll]); // Re-run if host changes, to re-attach to new scroll area if layout resets
+  }, [host, handleScroll]);
 
 
   useEffect(() => {
@@ -266,14 +329,12 @@ export default function HostStreamPage() {
       }
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMessages, isAtBottom, scrollToBottom, enableAutoScroll, setNewUnreadMessages]);
 
 
   useEffect(() => {
     if (host === undefined || isStreamEnded) { 
       if (isStreamEnded && socketRef.current) {
-        console.log("WebSocket: Stream ended, closing connection.");
         socketRef.current.close();
         socketRef.current = null;
       }
@@ -281,17 +342,11 @@ export default function HostStreamPage() {
     }
 
     if (!host || !host.kakoLiveRoomId) {
-       if (host !== undefined && host === null && !hostId) { 
-        // console.log("Host data is null, not connecting WebSocket.");
-      } else if (host) { 
-        console.warn("Host ou RoomID não configurado para WebSocket.");
-      }
       return;
     }
 
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
-    console.log(`Conectando ao chat: ${wsUrl}`);
     
     socketRef.current.onopen = () => {
       console.log("WebSocket: Conectado!");
@@ -321,12 +376,22 @@ export default function HostStreamPage() {
 
         if (processedResult) {
           if (processedResult.type === 'systemUpdate') {
-            if (!processedResult.extractedRoomId || (processedResult.extractedRoomId === host.kakoLiveRoomId)) {
+             if (!processedResult.extractedRoomId || (processedResult.extractedRoomId === host.kakoLiveRoomId)) {
                 setOnlineViewers(processedResult.online);
                 setLiveLikes(processedResult.likes);
+
+                if (processedResult.anchorUserId && processedResult.anchorNickname) {
+                  upsertHostProfile({
+                    userId: processedResult.anchorUserId,
+                    nickname: processedResult.anchorNickname,
+                    avatarUrl: processedResult.anchorAvatarUrl,
+                    level: processedResult.anchorLevel,
+                    currentRoomId: processedResult.extractedRoomId
+                  });
+                }
+
                 if (processedResult.isCurrentlyLive === false) {
                   setIsStreamEnded(true);
-                  // Optionally add a system message to chat log about stream ending
                   setChatMessages(prev => [...prev, {
                       id: generateUniqueId(),
                       user: "Sistema",
@@ -338,7 +403,16 @@ export default function HostStreamPage() {
                 }
             }
           } else if (processedResult.type === 'chat') {
-            const shouldDisplayFormatted = processedResult.extractedRoomId && processedResult.extractedRoomId === host.kakoLiveRoomId;
+             const shouldDisplayFormatted = processedResult.extractedRoomId ? processedResult.extractedRoomId === host.kakoLiveRoomId : true; // Default to true if no roomId in message
+
+            if (processedResult.userId) { // If it's a user message, try to upsert their profile
+                upsertHostProfile({ 
+                    userId: processedResult.userId, 
+                    nickname: processedResult.userName,
+                    avatarUrl: processedResult.userAvatar,
+                    level: processedResult.userLevel
+                });
+            }
 
             const potentialNewMessage: ChatMessage = {
               id: processedResult.id || generateUniqueId(), 
@@ -352,28 +426,21 @@ export default function HostStreamPage() {
             };
 
             setChatMessages(prev => {
-              // De-duplicate by server-provided ID if available
-              if (potentialNewMessage.id && prev.some(msg => msg.id === potentialNewMessage.id)) {
+              if (potentialNewMessage.id && prev.some(msg => msg.id === potentialNewMessage.id && msg.id !== "client-temp")) { // Avoid dupes by server ID
                   return prev;
               }
-              // Basic echo prevention for user's own messages
-              if (potentialNewMessage.user === (currentUser?.profileName || 'Você')) {
-                  const lastMessage = prev[prev.length - 1];
-                  if (lastMessage &&
-                      lastMessage.user === potentialNewMessage.user &&
-                      lastMessage.message === potentialNewMessage.message &&
-                      lastMessage.displayFormatted // Only skip if the previous was also a formatted echo
-                    ) {
-                      // console.log("Skipping likely echo of user's own message:", potentialNewMessage.message);
+              if (potentialNewMessage.user === (currentUser?.profileName || 'Você') &&
+                  prev.length > 0 &&
+                  prev[prev.length - 1].user === potentialNewMessage.user &&
+                  prev[prev.length - 1].message === potentialNewMessage.message &&
+                  prev[prev.length - 1].displayFormatted 
+                ) {
                       return prev;
                   }
-              }
               return [...prev, potentialNewMessage];
             });
           }
         } else if (messageContentString?.trim() !== "") {
-          // Unparseable message or explicitly ignored type (like game event from parseChatMessage)
-          // Add as a non-formatted message for raw data view
           const placeholderMessage: ChatMessage = {
             id: generateUniqueId(),
             user: 'Sistema (Evento Ignorado)',
@@ -386,12 +453,14 @@ export default function HostStreamPage() {
         }
       } catch (e) {
         console.error("WebSocket: Erro fatal ao processar mensagem:", e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const originalData = typeof event.data === 'string' ? event.data : '[Blob/Binary Data]';
         setChatMessages(prev => [...prev, {
           id: generateUniqueId(),
           user: "Sistema",
           message: "Erro ao processar mensagem do WebSocket.",
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          rawData: `Erro: ${(e as Error).message}. Dados originais: ${typeof event.data === 'string' ? event.data : '[Blob/Binary Data]'}`,
+          rawData: `Erro: ${errorMessage}. Dados originais: ${originalData}`,
           displayFormatted: true,
         }]);
       }
@@ -437,13 +506,11 @@ export default function HostStreamPage() {
 
     return () => {
       if (socketRef.current) {
-        console.log("WebSocket: Fechando conexão existente.");
         socketRef.current.close();
-        socketRef.current = null; // Ensure ref is cleared
+        socketRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName, isStreamEnded]); // Added isStreamEnded
+  }, [host?.id, host?.kakoLiveRoomId, currentUser?.profileName, isStreamEnded]); 
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN && !isStreamEnded) {
@@ -451,7 +518,7 @@ export default function HostStreamPage() {
       socketRef.current.send(JSON.stringify(messageToSend));
 
       const optimisticMessage: ChatMessage = {
-        id: generateUniqueId(), 
+        id: "client-temp-" + generateUniqueId(), // Temporary ID for optimistic message
         user: currentUser?.profileName || 'Você',
         avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
         userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal
@@ -749,7 +816,6 @@ export default function HostStreamPage() {
                           })()}
                         </pre>
                       )}
-                      {/* Render nothing if neither formatted nor raw should be shown */}
                       {!item.displayFormatted && !showRawData && null}
                     </div>
                   ))}
@@ -794,5 +860,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-
-    

@@ -36,24 +36,30 @@ export interface ReceivedGift {
 }
 
 export interface Host {
-  id: string;
-  rankPosition: number; // #1, #2
-  name: string;
-  avatarUrl: string;
+  id: string; // Kako Live userId, will be document ID in Firestore
+  rankPosition: number; 
+  name: string; // Kako nickname
+  avatarUrl: string; // Kako avatar
   avgViewers: number;
   timeStreamed: number; // in hours
   allTimePeakViewers: number;
-  hoursWatched: string; // e.g., "3.88M"
-  rank: number; // The actual rank number, e.g., 10 (can map to level from API)
+  hoursWatched: string; 
+  rank: number; // Kako user.level
   followersGained: number;
-  totalFollowers: string; // e.g., "6.55M"
-  totalViews: string; // e.g., "50.8M"
-  kakoLiveFuid?: string; // Identifier for Kako Live stream fuid (maps to data.user.userId)
-  kakoLiveRoomId?: string; // Identifier for Kako Live stream room/session ID (maps to data.roomId)
-  bio?: string; // Host's signature or bio (maps to data.user.signature)
-  streamTitle?: string; // Current stream title (maps to data.title)
-  likes?: number; // Number of likes (maps to data.like)
+  totalFollowers: string; 
+  totalViews: string; 
+  kakoLiveFuid?: string; // Same as id (Kako userId)
+  kakoLiveRoomId?: string; 
+  bio?: string; // Kako signature
+  streamTitle?: string; // Current stream title
+  likes?: number; 
   giftsReceived?: ReceivedGift[];
+  
+  // New fields for richer host profile and tracking
+  totalDonationsValue?: number; // Placeholder for donations
+  createdAt?: any; // Firestore Timestamp
+  lastSeen?: any; // Firestore Timestamp
+  source?: 'kakoLive' | 'manual'; // How the profile was created/sourced
 }
 
 export interface UserProfile {
@@ -95,5 +101,5 @@ export interface ChatMessage {
   timestamp: string;
   userMedalUrl?: string;
   rawData?: string;
-  displayFormatted: boolean; // New flag: controls if the formatted message is shown
+  displayFormatted: boolean; 
 }

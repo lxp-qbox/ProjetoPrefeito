@@ -20,42 +20,43 @@ import HostRow from "@/components/host/host-row";
 
 // Placeholder data for hosts - EXPORTED for use in dynamic page
 export const placeholderHosts: Host[] = [
-  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40.png?text=LC", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M", kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b", kakoLiveRoomId: "67b9ed5fa4e716a084a23765", streamTitle: "Ao Vivo com Coringa!", bio: "Streamer oficial da LOUD." },
-  { id: "2", rankPosition: 2, name: "PAULINHOLOKOBR", avatarUrl: "https://placehold.co/40x40.png?text=PL", avgViewers: 37508, timeStreamed: 74.4, allTimePeakViewers: 266793, hoursWatched: "2.79M", rank: 17, followersGained: 35900, totalFollowers: "3.42M", totalViews: "--" },
-  { id: "3", rankPosition: 3, name: "GAULES", avatarUrl: "https://placehold.co/40x40.png?text=GA", avgViewers: 5137, timeStreamed: 718.9, allTimePeakViewers: 707648, hoursWatched: "3.69M", rank: 29, followersGained: 13000, totalFollowers: "4.28M", totalViews: "405M" },
-  { id: "4", rankPosition: 4, name: "ALANZOKA", avatarUrl: "https://placehold.co/40x40.png?text=AZ", avgViewers: 14131, timeStreamed: 143.8, allTimePeakViewers: 147051, hoursWatched: "2.03M", rank: 56, followersGained: 33000, totalFollowers: "7.66M", totalViews: "206M" },
-  { id: "5", rankPosition: 5, name: "BAIANO", avatarUrl: "https://placehold.co/40x40.png?text=BA", avgViewers: 2974, timeStreamed: 680.9, allTimePeakViewers: 154553, hoursWatched: "2.02M", rank: 89, followersGained: 2200, totalFollowers: "1.05M", totalViews: "60.5M" },
-  { id: "6", rankPosition: 6, name: "CELLBIT", avatarUrl: "https://placehold.co/40x40.png?text=CE", avgViewers: 7658, timeStreamed: 233.3, allTimePeakViewers: 215165, hoursWatched: "1.79M", rank: 90, followersGained: 10000, totalFollowers: "3.47M", totalViews: "84.1M" },
-  { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png?text=LU", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M" },
-  { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png?text=GP", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M" },
+  { id: "1", rankPosition: 1, name: "LOUD_CORINGA", avatarUrl: "https://placehold.co/40x40.png?text=LC", avgViewers: 37828, timeStreamed: 102.6, allTimePeakViewers: 307450, hoursWatched: "3.88M", rank: 10, followersGained: 59300, totalFollowers: "6.55M", totalViews: "50.8M", kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b", kakoLiveRoomId: "67b9ed5fa4e716a084a23765", streamTitle: "Ao Vivo com Coringa!", bio: "Streamer oficial da LOUD.", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "2", rankPosition: 2, name: "PAULINHOLOKOBR", avatarUrl: "https://placehold.co/40x40.png?text=PL", avgViewers: 37508, timeStreamed: 74.4, allTimePeakViewers: 266793, hoursWatched: "2.79M", rank: 17, followersGained: 35900, totalFollowers: "3.42M", totalViews: "--", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "3", rankPosition: 3, name: "GAULES", avatarUrl: "https://placehold.co/40x40.png?text=GA", avgViewers: 5137, timeStreamed: 718.9, allTimePeakViewers: 707648, hoursWatched: "3.69M", rank: 29, followersGained: 13000, totalFollowers: "4.28M", totalViews: "405M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "4", rankPosition: 4, name: "ALANZOKA", avatarUrl: "https://placehold.co/40x40.png?text=AZ", avgViewers: 14131, timeStreamed: 143.8, allTimePeakViewers: 147051, hoursWatched: "2.03M", rank: 56, followersGained: 33000, totalFollowers: "7.66M", totalViews: "206M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "5", rankPosition: 5, name: "BAIANO", avatarUrl: "https://placehold.co/40x40.png?text=BA", avgViewers: 2974, timeStreamed: 680.9, allTimePeakViewers: 154553, hoursWatched: "2.02M", rank: 89, followersGained: 2200, totalFollowers: "1.05M", totalViews: "60.5M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "6", rankPosition: 6, name: "CELLBIT", avatarUrl: "https://placehold.co/40x40.png?text=CE", avgViewers: 7658, timeStreamed: 233.3, allTimePeakViewers: 215165, hoursWatched: "1.79M", rank: 90, followersGained: 10000, totalFollowers: "3.47M", totalViews: "84.1M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "7", rankPosition: 7, name: "LUQUET4", avatarUrl: "https://placehold.co/40x40.png?text=LU", avgViewers: 14811, timeStreamed: 89.5, allTimePeakViewers: 111307, hoursWatched: "1.33M", rank: 99, followersGained: 22700, totalFollowers: "2.00M", totalViews: "4.45M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
+  { id: "8", rankPosition: 8, name: "GABEPEIXE", avatarUrl: "https://placehold.co/40x40.png?text=GP", avgViewers: 5828, timeStreamed: 266.4, allTimePeakViewers: 101307, hoursWatched: "1.55M", rank: 109, followersGained: 9500, totalFollowers: "1.72M", totalViews: "19.5M", createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0 },
   {
-    id: "new-test-host-1",
+    id: "0322d2dd57e74a028a9e72c2fae1fd9a", // Matching PRESIDENTE's userId
     rankPosition: 9,
     name: "PRESIDENTE",
     avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
-    avgViewers: 15000,
-    timeStreamed: 60.0,
-    allTimePeakViewers: 30000,
-    hoursWatched: "1.5M",
-    rank: 39,
-    followersGained: 8000,
-    totalFollowers: "750K",
-    totalViews: "3.0M",
-    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a",
-    kakoLiveRoomId: "67b9ed5fa4e716a084a23765",
-    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.",
-    streamTitle: "Dominando as Arenas!",
-    likes: 276997,
+    avgViewers: 15000, // Placeholder
+    timeStreamed: 60.0, // Placeholder
+    allTimePeakViewers: 30000, // Placeholder
+    hoursWatched: "1.5M", // Placeholder
+    rank: 39, // From data.user.level
+    followersGained: 8000, // Placeholder
+    totalFollowers: "750K", // Placeholder
+    totalViews: "3.0M", // Placeholder
+    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a", // From data.user.userId
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // From data.roomId
+    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.", // From data.user.signature
+    streamTitle: "Dominando as Arenas!", // From data.title
+    likes: 276997, // From data.like
     giftsReceived: [
       { id: "gift-40", name: "Miau", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", count: 150 , dataAiHint: "gato miau" },
       { id: "gift-1", name: "Amor", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", count: 75, dataAiHint: "coração amor" },
       { id: "gift-26", name: "Rosas", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", count: 50, dataAiHint: "rosas flor" },
       { id: "gift-46", name: "Sol", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", count: 20, dataAiHint: "sol dia" },
       { id: "gift-31", name: "Sorvete", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", count: 100, dataAiHint: "sorvete sobremesa" },
-    ]
+    ],
+    createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0
   },
   {
-    id: "new-host-2",
+    id: "new-host-2", // Changed from previous "HostAPIKako"
     rankPosition: 10,
     name: "Streamer Estelar",
     avatarUrl: "https://placehold.co/40x40.png?text=SE",
@@ -76,7 +77,8 @@ export const placeholderHosts: Host[] = [
       { id: "gift-s2-1", name: "Diamante", iconUrl: "https://placehold.co/48x48.png?text=D", count: 50, dataAiHint: "diamante jóia" },
       { id: "gift-s2-2", name: "Estrela Cadente", iconUrl: "https://placehold.co/48x48.png?text=SC", count: 30, dataAiHint: "estrela céu" },
       { id: "gift-s2-3", name: "Poção Mágica", iconUrl: "https://placehold.co/48x48.png?text=MP", count: 70, dataAiHint: "poção magia" },
-    ]
+    ],
+    createdAt: new Date(), lastSeen: new Date(), source: 'manual', totalDonationsValue: 0
   },
 ];
 
