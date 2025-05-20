@@ -8,7 +8,7 @@ import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, VideoOff, Users as UsersIcon, Send } from 'lucide-react';
+import { ArrowLeft, UserCircle2, WifiOff, Info, Heart, Gift as GiftIcon, Users as UsersIcon, Send } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,7 +54,17 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
   let userAvatar = "";
   let messageData = "";
 
-  if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message || parsedJson.content)) {
+  // Check for Gift Event Structure
+  if (parsedJson && parsedJson.giftId && parsedJson.user && parsedJson.user.nickname) {
+    userName = parsedJson.user.nickname;
+    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
+    messageData = `🎁 ${userName} enviou ${parsedJson.giftCount || 1}x Presente ID ${parsedJson.giftId}!`;
+    if (parsedJson.user.level) {
+        messageData += ` (Nível ${parsedJson.user.level})`;
+    }
+  }
+  // Check for standard chat message structure (like from your previous example)
+  else if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.text || parsedJson.message || parsedJson.content)) {
     userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
@@ -72,32 +82,32 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     } else {
        userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     }
-  } else if (parsedJson.content) {
+  } else if (parsedJson.content) { // Generic content field
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema";
-          userAvatar = "";
+          userAvatar = ""; // No avatar for system
       }
-  } else if (typeof parsedJson === 'string') {
+  } else if (typeof parsedJson === 'string') { // If parsedJson is just a string itself
     messageData = parsedJson;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (parsedJson.message && typeof parsedJson.message === 'string') {
+  } else if (parsedJson.message && typeof parsedJson.message === 'string') { // Object with a 'message' string
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (rawStringInput) {
+  } else if (rawStringInput) { // Fallback to the original raw string if no known structure matched
     messageData = rawStringInput;
     userName = "Texto";
     userAvatar = `https://placehold.co/32x32.png?text=T`;
-  } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') {
-    messageData = JSON.stringify(parsedJson);
+  } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { // Fallback for unknown JSON object
+    messageData = JSON.stringify(parsedJson); // Show the raw JSON
     userName = "JSON";
     userAvatar = `https://placehold.co/32x32.png?text=J`;
-  } else if (data.toString && typeof data.toString === 'function') {
+  } else if (data.toString && typeof data.toString === 'function') { // Last resort, try .toString()
     messageData = data.toString();
   } else {
-    return null;
+    return null; // Could not determine message structure
   }
 
   return { userName, userAvatar, messageData };
@@ -183,6 +193,7 @@ export default function HostStreamPage() {
       }
 
       if (!processedMessage && messageString) {
+        // Attempt to clean leading non-JSON characters
         const firstBraceIndex = messageString.indexOf('{');
         const lastBraceIndex = messageString.lastIndexOf('}');
         let cleanJsonString = messageString;
@@ -190,7 +201,10 @@ export default function HostStreamPage() {
         if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
           cleanJsonString = messageString.substring(firstBraceIndex, lastBraceIndex + 1);
         }
+        
         processedMessage = parseChatMessage(cleanJsonString);
+
+        // If parseChatMessage couldn't make sense of it as JSON, but the original messageString was non-empty and NOT JSON
         if (!processedMessage && messageString.trim() !== "" && firstBraceIndex === -1) {
             processedMessage = { userName: "Texto", userAvatar: "https://placehold.co/32x32.png?text=T", messageData: messageString };
         }
@@ -249,8 +263,10 @@ export default function HostStreamPage() {
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const messageToSend = {
-        type: 'chat_message',
+        type: 'chat_message', // This type might need adjustment based on Kako's API
         content: newMessage.trim(),
+        // You might need to send user details from currentUser if Kako's API expects them
+        // user: { nickname: currentUser?.profileName, userId: currentUser?.uid, avatar: currentUser?.photoURL } 
       };
       socketRef.current.send(JSON.stringify(messageToSend));
 
@@ -321,6 +337,7 @@ export default function HostStreamPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/hosts">
@@ -331,10 +348,12 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div>
+        <div className="w-8 h-8"></div> {/* Placeholder for spacing if needed */}
       </div>
 
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Column: Video Player and Host Info */}
         <div className="md:col-span-2 space-y-6">
           <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2">
@@ -342,7 +361,7 @@ export default function HostStreamPage() {
             </CardHeader>
             <CardContent className="p-0 sm:p-2 md:p-4">
               <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
-                 {/* Reverted to iframe for reliable Kako Live playback */}
+                {/* Kako Live Embed */}
                 <iframe
                   src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
                   width="100%"
@@ -428,6 +447,7 @@ export default function HostStreamPage() {
           )}
         </div>
 
+        {/* Right Column: Chat */}
         <div className="md:col-span-1">
           <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
@@ -437,7 +457,7 @@ export default function HostStreamPage() {
                 <span>{/* Placeholder for live viewer count */}</span>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0">
+            <CardContent className="flex-grow p-0 min-h-0"> {/* Added min-h-0 */}
               <ScrollArea className="h-full" ref={scrollAreaRef}>
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
@@ -485,3 +505,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
