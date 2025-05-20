@@ -18,19 +18,21 @@ export default function SignupPage() {
             title="Voltar para Login"
         >
             <Link href="/login">
-                <ArrowLeft className="h-10 w-10" />
+                <ArrowLeft className="h-8 w-8" />
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-        <CardHeader className="text-center pt-12 px-6 pb-0">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <CardHeader className="text-center pt-10 px-6 pb-0">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Criar Conta</CardTitle>
-          <CardDescription>Junte-se à The Presidential Agency hoje!</CardDescription>
+          <CardTitle className="text-2xl font-bold">Criar Conta</CardTitle>
+          <CardDescription>
+            Junte-se à The Presidential Agency<br />hoje!
+            </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow overflow-y-auto">
+        <CardContent className="flex-grow overflow-y-auto px-6 pt-0 pb-6">
           <SignupForm />
         </CardContent>
         <CardFooter className="flex-col p-0">

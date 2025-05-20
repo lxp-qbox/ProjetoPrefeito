@@ -3,19 +3,23 @@ import ForgotPasswordForm from "@/components/auth/forgot-password-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8 px-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
+    <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
+      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+        <CardHeader className="text-center pt-10 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <KeyRound className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold">Esqueceu a Senha</CardTitle>
-          <CardDescription>Digite seu email para receber um link de redefinição.</CardDescription>
+          <CardTitle className="text-2xl font-bold">Esqueceu a Senha</CardTitle>
+          <CardDescription>
+            Digite seu email para receber<br />um link de redefinição.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <Separator className="my-6" />
+        <CardContent className="flex-grow px-6 pt-0 pb-6">
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-sm">
             Lembrou sua senha?{" "}
@@ -28,4 +32,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

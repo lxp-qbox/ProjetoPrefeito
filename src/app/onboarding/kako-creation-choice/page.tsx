@@ -101,7 +101,7 @@ export default function KakoCreationChoicePage() {
             </Link>
         </Button>
       <CardHeader className="text-center pt-10 px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Criar Conta Kako Live</CardTitle>
