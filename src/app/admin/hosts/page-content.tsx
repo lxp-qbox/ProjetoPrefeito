@@ -142,9 +142,9 @@ export default function AdminHostsPageContent() {
       <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
         <p>Mostrando 1 a {placeholderHosts.length} de {placeholderHosts.length} resultados</p>
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
-          <Button variant="outline" size="sm" disabled={true}>Anterior</Button>
-          <Button variant="default" size="sm" className="px-3 h-8">1</Button>
-          <Button variant="outline" size="sm" disabled={true}>Próxima</Button>
+          <Button variant="outline" size="sm" className="px-2.5" disabled={true}>Anterior</Button>
+          <Button variant="default" size="sm" className="px-2.5 h-9">1</Button>
+          <Button variant="outline" size="sm" className="px-2.5" disabled={true}>Próxima</Button>
         </div>
       </div>
     </div>
