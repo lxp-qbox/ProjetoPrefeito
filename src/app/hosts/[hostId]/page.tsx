@@ -28,6 +28,12 @@ type ParsedMessageResult =
 function parseChatMessage(rawData: string): ParsedMessageResult {
   let parsedJson;
   try {
+    // Attempt to clean potential non-JSON prefix
+    const firstBraceIndex = rawData.indexOf('{');
+    const lastBraceIndex = rawData.lastIndexOf('}');
+    if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+        rawData = rawData.substring(firstBraceIndex, lastBraceIndex + 1);
+    }
     parsedJson = JSON.parse(rawData);
   } catch (e) {
     if (rawData && rawData.trim() !== "") {
@@ -40,12 +46,12 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
   let userAvatar = "";
   let messageData = "";
 
-  // System Update (Viewers, Likes, Anchor Info)
-  if (parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined) {
+  // Room Status Update (Viewers, Likes, Anchor Info)
+  if (parsedJson.anchor && parsedJson.anchor.nickname && parsedJson.online !== undefined && parsedJson.likes !== undefined) {
     return {
       type: 'systemUpdate',
       online: parsedJson.online,
-      likes: parsedJson.likes || 0,
+      likes: parsedJson.likes,
       anchorNickname: parsedJson.anchor.nickname
     };
   }
@@ -59,18 +65,19 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     }
     return { type: 'chat', userName, userAvatar, messageData };
   }
-  // Game Event (baishun2 - LavaLink)
+  // Game Event (baishun2 - LavaLink) - To be removed from chat display
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    userName = parsedJson.user.nickname;
-    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
-    const gameName = parsedJson.game.baishun2.name || "um jogo";
-    const gameAmount = parsedJson.amount !== undefined ? `. Pontos: ${parsedJson.amount}` : "";
+    // userName = parsedJson.user.nickname;
+    // userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
+    // const gameName = parsedJson.game.baishun2.name || "um jogo";
+    // const gameAmount = parsedJson.amount !== undefined ? `. Pontos: ${parsedJson.amount}` : "";
     
-    messageData = `🎮 ${userName} interagiu com o jogo ${gameName}${gameAmount}.`;
-    if (parsedJson.user.level) {
-      messageData += ` (Nível ${parsedJson.user.level})`;
-    }
-    return { type: 'chat', userName, userAvatar, messageData };
+    // messageData = `🎮 ${userName} interagiu com o jogo ${gameName}${gameAmount}.`;
+    // if (parsedJson.user.level) {
+    //   messageData += ` (Nível ${parsedJson.user.level})`;
+    // }
+    // return { type: 'chat', userName, userAvatar, messageData };
+    return null; // Do not display game events in chat
   }
   // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
@@ -156,11 +163,12 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     userAvatar = `https://placehold.co/32x32.png?text=A`;
     return { type: 'chat', userName, userAvatar, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
-    console.warn("Unparsed JSON object:", parsedJson);
-    messageData = "Mensagem JSON não reconhecida."; // Avoid stringifying large unknown objects
-    userName = "Sistema";
-    userAvatar = "";
-    return { type: 'chat', userName, userAvatar, messageData };
+    console.warn("Mensagem JSON não reconhecida:", parsedJson);
+    // messageData = "Mensagem JSON não reconhecida."; // Avoid stringifying large unknown objects
+    // userName = "Sistema";
+    // userAvatar = "";
+    // return { type: 'chat', userName, userAvatar, messageData };
+    return null; // Do not display unknown complex JSON objects in chat
   }
 
   return null; 
@@ -250,16 +258,17 @@ export default function HostStreamPage() {
 
     if (!host || !host.kakoLiveRoomId) {
        if (host !== undefined && (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
-         setChatMessages(prev => [
-            ...prev, 
-            {
-              id: generateUniqueId(), 
-              user: "Sistema", 
-              avatar: "", 
-              message: "Host ou RoomID não configurado para o chat.", 
-              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
+         // Add system message only if it's not already the last one
+         // setChatMessages(prev => [
+         //    ...prev, 
+         //    {
+         //      id: generateUniqueId(), 
+         //      user: "Sistema", 
+         //      avatar: "", 
+         //      message: "Host ou RoomID não configurado para o chat.", 
+         //      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+         //    }
+         //  ]);
        }
       return;
     }
@@ -267,11 +276,12 @@ export default function HostStreamPage() {
     const wsUrl = `wss://h5-ws.kako.live/ws/v1?roomId=${host.kakoLiveRoomId}`;
     socketRef.current = new WebSocket(wsUrl);
     
-    console.log(`Tentando conectar a ${wsUrl}...`);
-
+    // console.log(`Tentando conectar a ${wsUrl}...`);
+    // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: `Tentando conectar a ${host.kakoLiveRoomId}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
 
     socketRef.current.onopen = () => {
       console.log("WebSocket conectado!");
+      // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -291,13 +301,6 @@ export default function HostStreamPage() {
         } catch {
             messageContentString = "[Tipo de mensagem desconhecido]";
         }
-      }
-      
-      // Attempt to clean potential non-JSON prefix
-      const firstBraceIndex = messageContentString.indexOf('{');
-      const lastBraceIndex = messageContentString.lastIndexOf('}');
-      if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-          messageContentString = messageContentString.substring(firstBraceIndex, lastBraceIndex + 1);
       }
       
       const processedResult = parseChatMessage(messageContentString);
@@ -344,7 +347,8 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]); // Removed chatMessages from dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id, host?.kakoLiveRoomId]); 
 
 
   useEffect(() => {
@@ -378,11 +382,8 @@ export default function HostStreamPage() {
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
 
-    // No need for explicit cleanup of event listener here if it's setup once and viewport ref doesn't change
-    // But if viewportElement could change dynamically, cleanup would be needed.
-    // For now, assuming viewport ref once found is stable.
-
-  }, [chatMessages, handleScroll, scrollToBottom]); // Dependencies remain crucial for this effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatMessages]); 
 
 
   const handleSendMessage = () => {
@@ -633,7 +634,7 @@ export default function HostStreamPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-grow"
-                  disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
+                  disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !newMessage.trim()}
                 />
                 <Button
                   onClick={handleSendMessage}
