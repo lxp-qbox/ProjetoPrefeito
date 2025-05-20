@@ -40,12 +40,12 @@ export default function LoginPage() {
   // If not loading and no user, show the login page
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
-      <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)]">
+      <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
         <div className="absolute top-4 left-4">
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary p-0" // Ensure padding doesn't add to size if icon itself is large
+            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary p-0"
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
