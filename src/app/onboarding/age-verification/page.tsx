@@ -86,6 +86,14 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, informe seu número de celular.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -110,14 +118,6 @@ export default function AgeVerificationPage() {
       });
       return;
     }
-     if (!phoneNumber.trim()) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, informe seu número de celular.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const age = calculateAge(selectedDate);
     if (age < 18) {
@@ -130,9 +130,9 @@ export default function AgeVerificationPage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
+        country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        country: selectedCountry,
         phoneNumber: phoneNumber.trim(),
         updatedAt: serverTimestamp(),
       };
@@ -143,11 +143,13 @@ export default function AgeVerificationPage() {
         description: "Suas informações foram registradas com sucesso.",
       });
 
+      // Navigate based on role
       if (currentUser.role === 'host') {
         router.push("/onboarding/kako-id-input");
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Fallback if role is somehow not set (should not happen if role selection is mandatory)
         router.push("/profile");
       }
     } catch (error) {
@@ -181,7 +183,7 @@ export default function AgeVerificationPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <CalendarDays className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
@@ -192,6 +194,29 @@ export default function AgeVerificationPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
+          
+          <div>
+            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+              Celular (WhatsApp)
+            </Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                {/* 
+                  For advanced dynamic phone number formatting as the user types, 
+                  a dedicated library like 'react-phone-number-input' would be recommended.
+                  The current implementation uses a simple tel input with a placeholder.
+                */}
+                <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+55 11 91234-5678"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="pl-10 h-12"
+                />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
@@ -272,23 +297,6 @@ export default function AgeVerificationPage() {
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
-            </Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+55 11 91234-5678"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="pl-10 h-12"
-                />
-            </div>
-          </div>
-
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -318,4 +326,3 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
-
