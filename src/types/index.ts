@@ -167,8 +167,27 @@ export interface FirestoreConversation {
   // unreadCounts?: { [uid: string]: number }; 
 }
 
-// Message documents would reside in a subcollection:
-// /conversations/{conversationId}/messages/{messageId}
-// Structure will be similar to AppMessage, but `timestamp` will be a Firestore Timestamp.
+// Feed Types
+export interface UserSummary {
+  name: string;
+  handle: string;
+  avatarUrl: string;
+  dataAiHint?: string; // For user avatar image search
+}
+
+export interface FeedPost {
+  id: string;
+  user: UserSummary;
+  content: string;
+  timestamp: string;
+  imageUrl?: string;
+  imageAiHint?: string; // For post image search
+  stats: {
+    replies: number;
+    retweets: number;
+    likes: number;
+  };
+}
+    
 
     
