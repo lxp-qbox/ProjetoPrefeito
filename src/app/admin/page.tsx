@@ -4,9 +4,9 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones } from "lucide-react"; // Added Headphones
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import AdminHostsPageContent from "./hosts/page-content";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +65,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
 export default function AdminPage() {
   const { currentUser, logout } = useAuth();
   const pathname = usePathname();
-  const router = useRouter(); // Assuming you might use router for logout
+  const router = useRouter(); 
 
   const handleLogout = async () => {
     await logout();
