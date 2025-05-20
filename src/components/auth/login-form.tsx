@@ -65,31 +65,21 @@ export default function LoginForm() {
         const userProfile = userDocSnap.data() as UserProfile;
         
         if (!userProfile.agreedToTermsAt) {
-          router.push("/onboarding/terms");
+          router.replace("/onboarding/terms");
         } else if (!userProfile.role) {
-          router.push("/onboarding/role-selection");
+          router.replace("/onboarding/role-selection");
         } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
-          router.push("/onboarding/age-verification");
+          router.replace("/onboarding/age-verification");
+        } else if (userProfile.role === 'host' && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
+          router.replace("/onboarding/kako-id-input");
+        } else if (userProfile.role === 'player' && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
+          router.replace("/onboarding/kako-account-check");
         } else {
-          if (userProfile.role === 'host') {
-            if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-               router.push("/onboarding/kako-id-input");
-            } else {
-               router.push("/profile");
-            }
-          } else if (userProfile.role === 'player') {
-            if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-              router.push("/onboarding/kako-account-check");
-            } else {
-              router.push("/profile");
-            }
-          } else {
-            router.push("/profile"); // Default for other roles or if role somehow not set
-          }
+          router.push("/profile"); // Onboarding complete, go to profile
         }
       } else {
         // New user created via Google Sign-In or if somehow doc doesn't exist
-        router.push("/onboarding/terms"); 
+        router.replace("/onboarding/terms"); 
       }
     } catch (error) {
       console.error("Error fetching user profile for redirect:", error);
@@ -232,7 +222,7 @@ export default function LoginForm() {
           </Link>
         </div>
         <Button type="submit" className="w-full" disabled={loading || googleLoading}>
-          {loading ? "Entrando..." : "Entrar"}
+          Entrar
         </Button>
 
         <div className="relative my-6">

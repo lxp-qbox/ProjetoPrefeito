@@ -81,7 +81,18 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
-       {/* No back button on the first step of onboarding after login */}
+       <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            title="Voltar para Login"
+        >
+            <Link href="/login">
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+        </Button>
       <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <FileText className="h-8 w-8 text-primary" />
@@ -91,7 +102,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
       </CardHeader>
       <Separator className="mb-4" />
       <CardContent className="flex-grow px-6 pt-0 pb-4 flex flex-col">
-        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30 h-[300px]">
+        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
         <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
@@ -101,7 +112,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6"> {/* Removed border-t and mt-auto to bring button closer and remove line */}
+      <CardFooter className="p-6">
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
