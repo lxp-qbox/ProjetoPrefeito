@@ -4,18 +4,18 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon } from "lucide-react"; // Renamed TicketIcon to avoid conflict
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from 'react';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Import page content components
 import AdminHostsPageContent from "@/app/admin/hosts/page-content";
 import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
-import AdminAdminsPage from "@/app/admin/users/admin/page";
+import AdminAdminsPageContent from "@/app/admin/users/admin/page-content"; // Updated import
 import AdminBansPage from "@/app/admin/actions/bans/page";
 
 
@@ -79,6 +79,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [contentToRender, setContentToRender] = useState<ReactNode>(children);
 
   const toggleAdminSidebar = () => setIsCollapsed(!isCollapsed);
 
@@ -86,6 +87,30 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     await logout();
     router.push("/");
   };
+
+  useEffect(() => {
+    // Specific page content rendering based on pathname
+    if (pathname === "/admin" || pathname === "/admin/hosts") {
+      setContentToRender(<AdminHostsPageContent />);
+    } else if (pathname === "/admin/users/players") {
+      setContentToRender(<AdminPlayersPageContent />);
+    } else if (pathname === "/admin/users/admin") {
+      setContentToRender(<AdminAdminsPageContent />); // Use new content component
+    } else if (pathname === "/admin/actions/bans") {
+      setContentToRender(<AdminBansPage />);
+    }
+    // Add other else if blocks for other specific admin pages
+    // Example:
+    // else if (pathname === "/admin/language") {
+    //   setContentToRender(<div className="p-6 bg-card rounded-lg shadow-lg h-full"><h1 className="text-2xl font-semibold">Configurações de Idioma</h1><p>Esta seção está em desenvolvimento.</p></div>);
+    // }
+    else {
+      // Fallback to children for pages not explicitly handled or for nested routes
+      // This allows Next.js to handle routing for pages like /admin/language/page.tsx if they exist
+      setContentToRender(children);
+    }
+  }, [pathname, children]);
+
 
   if (!currentUser || !currentUser.adminLevel) {
     return (
@@ -104,26 +129,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  let contentToRender = children; 
-
-  // Specific page content rendering based on pathname
-  if (pathname === "/admin" || pathname === "/admin/hosts") {
-    contentToRender = <AdminHostsPageContent />;
-  } else if (pathname === "/admin/users/players") {
-    contentToRender = <AdminPlayersPageContent />;
-  } else if (pathname === "/admin/users/admin") {
-    contentToRender = <AdminAdminsPage />;
-  } else if (pathname === "/admin/actions/bans") {
-    contentToRender = <AdminBansPage />;
-  }
-  // Add other else if blocks for other specific admin pages as they are created
-  // Example:
-  // else if (pathname === "/admin/language") {
-  //   contentToRender = <div className="p-6 bg-card rounded-lg shadow-lg h-full"><h1 className="text-2xl font-semibold">Configurações de Idioma</h1><p>Esta seção está em desenvolvimento.</p></div>;
-  // }
-  // Fallback to children if no specific page content matches
-  // This allows Next.js to handle routing for pages like /admin/language/page.tsx if they exist
-
   return (
     <ProtectedPage>
       <TooltipProvider delayDuration={0}>
@@ -141,7 +146,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         {group.groupTitle}
                       </h2>
                     )}
-                     {group.groupTitle && isCollapsed && ( 
+                     {group.groupTitle && isCollapsed && (
                         <div className="flex justify-center my-3">
                            <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
                         </div>
@@ -150,7 +155,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       {group.items.map((item) => {
                         const isActive = pathname === item.link || (item.link === "/admin" && pathname === "/admin/hosts");
                         const isLogout = item.link === "#logout";
-                        
+
                         const buttonAction = isLogout ? handleLogout : () => {
                             if (item.link) router.push(item.link);
                         };
@@ -165,25 +170,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                   isActive
                                     ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                                     : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
-                                  isCollapsed 
-                                    ? "flex items-center justify-center p-3 h-14" 
-                                    : "justify-between py-3 px-2.5" 
+                                  isCollapsed
+                                    ? "flex items-center justify-center p-3 h-14"
+                                    : "justify-between py-3 px-2.5"
                                 )}
                                 asChild={!isLogout}
                                 onClick={isLogout ? buttonAction : undefined}
                               >
                                 {isLogout ? (
-                                  <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}> 
-                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}> 
-                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} /> 
+                                  <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
+                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
+                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
                                       {!isCollapsed && item.title}
                                     </div>
                                     {!isCollapsed && <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
                                   </div>
                                 ) : (
                                   <Link href={item.link} className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
-                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}> 
-                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} /> 
+                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
+                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
                                       {!isCollapsed && item.title}
                                     </div>
                                     {!isCollapsed && (
@@ -230,3 +235,5 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
+
+    
