@@ -32,6 +32,7 @@ export interface ReceivedGift {
   name: string;
   iconUrl: string;
   count: number;
+  dataAiHint?: string;
 }
 
 export interface Host {
@@ -86,3 +87,11 @@ export interface UserProfile {
   updatedAt?: any;           // Firestore Timestamp
 }
 
+export interface ChatMessage {
+  id: string;
+  user: string;
+  avatar?: string;
+  message: string;
+  timestamp: string;
+  userMedalUrl?: string; // Added for user badge/medal
+}

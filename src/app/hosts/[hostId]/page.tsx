@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import type { Host, ChatMessage } from '@/types'; // Assuming ChatMessage is defined
-import { placeholderHosts } from '../page'; // Import placeholderHosts
+import type { Host, ChatMessage } from '@/types';
+import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ const generateUniqueId = () => {
 };
 
 type ParsedMessageResult =
-  | { type: 'chat', userName: string, userAvatar: string, messageData: string }
+  | { type: 'chat', userName: string, userAvatar?: string, userMedalUrl?: string, messageData: string }
   | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string }
   | null;
 
@@ -29,7 +29,6 @@ type ParsedMessageResult =
 function parseChatMessage(rawData: string): ParsedMessageResult {
   let parsedJson;
   try {
-    // Attempt to find the start and end of a JSON object if there's leading/trailing non-JSON data
     const firstBraceIndex = rawData.indexOf('{');
     const lastBraceIndex = rawData.lastIndexOf('}');
     if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
@@ -37,17 +36,28 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     }
     parsedJson = JSON.parse(rawData);
   } catch (e) {
-    // If parsing fails but rawData is not empty, treat it as a simple text message
     if (rawData && rawData.trim() !== "") {
-      return { type: 'chat', userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawData };
+      return { type: 'chat', userName: "Servidor (Dados Brutos)", messageData: rawData };
     }
-    // console.warn("Could not parse message or empty rawData:", rawData, e);
     return null;
   }
 
   let userName = "Servidor"; 
-  let userAvatar = ""; 
+  let userAvatar: string | undefined = undefined;
+  let userMedalUrl: string | undefined = undefined;
   let messageData = "";
+
+  // Attempt to extract common user data
+  const messageUser = parsedJson.user;
+  if (messageUser && typeof messageUser === 'object') {
+    userName = messageUser.nickname || messageUser.name || userName;
+    userAvatar = messageUser.avatar || messageUser.avatarUrl;
+    // Placeholder logic for medal URL - adapt if specific field is known
+    if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0)) {
+      userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`; // Example static medal
+    }
+  }
+  
 
   // Room Status Update (Viewers, Likes, Anchor Info)
   if (parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
@@ -60,14 +70,11 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
   }
   // Gift Event
   else if (parsedJson.giftId && parsedJson.user && parsedJson.user.nickname && typeof parsedJson.giftCount === 'number') {
-    userName = parsedJson.user.nickname;
-    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'G'}`;
-    let giftMessage = `🎁 ${userName} enviou ${parsedJson.giftCount}x Presente ID ${parsedJson.giftId}!`;
+    messageData = `🎁 ${userName} enviou ${parsedJson.giftCount}x Presente ID ${parsedJson.giftId}!`;
     if (parsedJson.user.level) {
-        giftMessage += ` (Nível ${parsedJson.user.level})`;
+        messageData += ` (Nível ${parsedJson.user.level})`;
     }
-    messageData = giftMessage;
-    return { type: 'chat', userName, userAvatar, messageData };
+    return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
   // Game Event (baishun2 - LavaLink) - TO BE IGNORED
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
@@ -75,24 +82,16 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
   }
   // Standard Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
-    userName = parsedJson.user.nickname;
     messageData = parsedJson.text;
-    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    return { type: 'chat', userName, userAvatar, messageData };
+    return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
   // User Join/Enter Event (type 1, type2: 1 variant - no 'count' field)
   else if (
-    parsedJson.user &&
-    parsedJson.user.nickname &&
-    parsedJson.type === 1 &&
-    parsedJson.type2 === 1 &&
-    !parsedJson.text && 
-    !parsedJson.giftId && 
-    !parsedJson.game &&
+    parsedJson.user && parsedJson.user.nickname &&
+    parsedJson.type === 1 && parsedJson.type2 === 1 &&
+    !parsedJson.text && !parsedJson.giftId && !parsedJson.game &&
     !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number') 
   ) {
-    userName = parsedJson.user.nickname;
-    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     let joinMessage = `👋 ${userName} entrou na sala.`;
     if (parsedJson.user.level) {
       joinMessage += ` (Nível ${parsedJson.user.level})`;
@@ -101,20 +100,15 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
         joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
     }
     messageData = joinMessage;
-    return { type: 'chat', userName, userAvatar, messageData };
+    return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
   // User Join/Enter Event (with 'count' field)
   else if (
-    parsedJson.user && 
-    parsedJson.user.nickname && 
+    parsedJson.user && parsedJson.user.nickname && 
     typeof parsedJson.count === 'number' && 
-    !parsedJson.text && 
-    !parsedJson.giftId && 
-    !parsedJson.game &&
+    !parsedJson.text && !parsedJson.giftId && !parsedJson.game &&
     !(parsedJson.anchor && parsedJson.anchor.nickname && typeof parsedJson.online === 'number')
   ) {
-    userName = parsedJson.user.nickname;
-    userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
     let joinMessage = `👋 ${userName} entrou na sala.`;
     if (parsedJson.user.level) {
       joinMessage += ` (Nível ${parsedJson.user.level})`;
@@ -124,41 +118,39 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     }
     joinMessage += ` Espectadores: ${parsedJson.count}.`; 
     messageData = joinMessage;
-    return { type: 'chat', userName, userAvatar, messageData };
+    return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
   // Fallback for other potential user-related structures for chat
   else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
-    userName = parsedJson.username;
+    userName = parsedJson.username; // Overwrite if username exists at top level
+    userAvatar = parsedJson.avatar; // Overwrite if avatar exists at top level
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
-    userAvatar = parsedJson.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
-    return { type: 'chat', userName, userAvatar, messageData };
+    return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   } 
   // Generic content that might be a system message not caught above, or simple text
   else if (parsedJson.content) {
       messageData = parsedJson.content;
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema"; 
-          userAvatar = ""; 
+          userAvatar = undefined;
+          userMedalUrl = undefined;
       } else if (parsedJson.user && parsedJson.user.nickname) { // if content exists with user
-          userName = parsedJson.user.nickname;
-          userAvatar = parsedJson.user.avatar || `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+          // userName and userAvatar already set from messageUser logic
       }
-      return { type: 'chat', userName, userAvatar, messageData };
+      return { type: 'chat', userName, userAvatar, userMedalUrl, messageData };
   }
   // Final fallback for simple string messages not caught by initial rawData check
   else if (typeof parsedJson === 'string' && parsedJson.trim() !== "") { 
     messageData = parsedJson;
-    userName = "Texto"; 
-    userAvatar = `https://placehold.co/32x32.png?text=T`;
-    return { type: 'chat', userName, userAvatar, messageData };
+    userName = "Servidor (Texto)"; 
+    return { type: 'chat', userName, messageData };
   } else if (parsedJson.message && typeof parsedJson.message === 'string' && parsedJson.message.trim() !== "") { 
     messageData = parsedJson.message;
-    userName = "Anônimo";
-    userAvatar = `https://placehold.co/32x32.png?text=A`;
-    return { type: 'chat', userName, userAvatar, messageData };
+    userName = "Servidor (Mensagem)";
+    return { type: 'chat', userName, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
-    // console.warn("Mensagem JSON não reconhecida:", parsedJson);
-    return null;
+    console.warn("Mensagem JSON não reconhecida, exibindo como dados brutos:", parsedJson);
+    return { type: 'chat', userName: "Servidor (JSON Desconhecido)", messageData: JSON.stringify(parsedJson) };
   }
 
   return null; 
@@ -210,10 +202,8 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-        // Ensure we are still on the same host by comparing with host.id from the outer scope.
-        // This check is a bit redundant given the useEffect dependency on host?.id, but adds safety.
         if (host?.id && prevHost.id !== host.id) {
-          return prevHost; // Interval is for a previous host
+          return prevHost;
         }
 
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
@@ -226,7 +216,7 @@ export default function HostStreamPage() {
       });
     }, 5000); 
     return () => clearInterval(intervalId);
-  }, [host?.id]); // Changed from host to host?.id
+  }, [host?.id]);
 
   useEffect(() => {
     if (host === undefined) { 
@@ -235,7 +225,7 @@ export default function HostStreamPage() {
 
     if (!host || !host.kakoLiveRoomId) {
        if (host !== undefined && (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
-         // console.log("Host ou RoomID não configurado para o chat."); 
+          console.warn("Host ou RoomID não configurado para o chat.");
        }
       return;
     }
@@ -277,6 +267,7 @@ export default function HostStreamPage() {
               id: generateUniqueId(),
               user: processedResult.userName,
               avatar: processedResult.userAvatar,
+              userMedalUrl: processedResult.userMedalUrl,
               message: processedResult.messageData,
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             }]);
@@ -284,11 +275,18 @@ export default function HostStreamPage() {
             setOnlineViewers(processedResult.online);
             setLiveLikes(processedResult.likes);
           }
+        } else if (messageContentString && messageContentString.trim() !== "" && messageContentString !== "[Erro ao ler Blob]") {
+          // Fallback to display raw message if parseChatMessage returns null but there was content
+          setChatMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            user: "Servidor (Dados Brutos)",
+            message: messageContentString,
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          }]);
         }
       } catch (e) {
-        console.error("WebSocket: Erro ao processar mensagem:", e);
-        // Optionally, add a system message to the chat UI about this specific error
-        // setChatMessages(prev => [...prev, { id: generateUniqueId(), user: "Sistema", avatar: "", message: "Erro ao processar mensagem do servidor.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }]);
+        console.error("WebSocket: Erro fatal ao processar mensagem:", e);
+        // Optionally add a generic error message to chat UI if needed
       }
     };
 
@@ -300,7 +298,7 @@ export default function HostStreamPage() {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
       console.error("WebSocket: Erro na conexão:", errorEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onclose = (closeEvent) => {
@@ -311,7 +309,7 @@ export default function HostStreamPage() {
         closeMessage += ` (Código: ${closeEvent.code})`;
       }
       console.log("WebSocket: Desconectado.", closeEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
+      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     return () => {
@@ -320,6 +318,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host?.id, host?.kakoLiveRoomId]); 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -327,7 +326,7 @@ export default function HostStreamPage() {
     if (viewport) {
       viewport.scrollTo({ top: viewport.scrollHeight, behavior });
     }
-  }, [scrollViewportRef]); // Added scrollViewportRef to ensure it's stable
+  }, []); 
 
   const handleScroll = useCallback(() => {
     const viewport = scrollViewportRef.current;
@@ -338,7 +337,7 @@ export default function HostStreamPage() {
         setNewUnreadMessages(0);
       }
     }
-  }, [scrollViewportRef, SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]);
+  }, [SCROLL_THRESHOLD, setIsAtBottom, setNewUnreadMessages]);
 
 
   useEffect(() => {
@@ -401,6 +400,7 @@ export default function HostStreamPage() {
           id: generateUniqueId(),
           user: currentUser?.profileName || 'Você', 
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
+          userMedalUrl: 'https://app.kako.live/app/rs/medal/user/range_1.png', // Example medal for sender
           message: newMessage.trim(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         }
@@ -412,7 +412,6 @@ export default function HostStreamPage() {
             {
               id: generateUniqueId(),
               user: 'Sistema',
-              avatar: '', 
               message: "Não conectado ao chat para enviar mensagem.",
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             }
@@ -593,7 +592,7 @@ export default function HostStreamPage() {
               </div>
             </CardHeader>
             <CardContent className="flex-grow p-0 min-h-0 relative"> 
-              <ScrollArea className="h-full chat-scroll-area">
+              <ScrollArea ref={scrollViewportRef} className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
                     <div key={item.id} className="flex items-start space-x-3">
@@ -604,7 +603,17 @@ export default function HostStreamPage() {
                         <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="flex items-baseline space-x-2">
+                        <div className="flex items-center space-x-2">
+                          {item.userMedalUrl && (
+                            <Image
+                              src={item.userMedalUrl}
+                              alt="Medalha"
+                              width={16} 
+                              height={16}
+                              className="h-4 w-auto mr-1.5 align-middle"
+                              data-ai-hint="user medal"
+                            />
+                          )}
                           <span className="text-sm font-semibold text-primary">{item.user}</span>
                           <span className="text-xs text-muted-foreground">{item.timestamp}</span>
                         </div>

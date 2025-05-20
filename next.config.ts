@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'app.kako.live', // Added for medal images
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
