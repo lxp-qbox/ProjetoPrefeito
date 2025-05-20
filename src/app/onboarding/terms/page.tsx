@@ -66,8 +66,9 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      // router.push("/onboarding/age-verification"); // Next step
-      router.push("/profile"); // Placeholder until next step is built
+      // For now, redirect to profile. The next onboarding step (age verification) isn't built.
+      // router.push("/onboarding/age-verification"); 
+      router.push("/profile"); 
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -77,7 +78,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)]">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
       <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
@@ -86,16 +87,10 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         <CardDescription>Por favor, leia e aceite nossos termos para continuar.</CardDescription>
       </CardHeader>
       <Separator className="mb-4" />
-      <CardContent className="flex-grow px-6 py-0">
+      <CardContent className="flex-grow px-6 py-0"> {/* py-0 allows ScrollArea's padding to take effect correctly with h-full */}
         <ScrollArea className="h-full w-full rounded-md border p-4 text-sm text-muted-foreground bg-background/30">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex items-center space-x-2 mt-6 mb-2">
-          <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} />
-          <Label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-            Li e concordo com os Termos de Uso e Política de Privacidade.
-          </Label>
-        </div>
       </CardContent>
       <CardFooter className="p-6 border-t mt-auto">
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
