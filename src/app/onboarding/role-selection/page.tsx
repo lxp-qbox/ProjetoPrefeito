@@ -103,7 +103,7 @@ export default function RoleSelectionPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
             <p className="text-sm text-muted-foreground">
-              Faço parte da agência do presidente
+              Faço parte da agência do Presidente
             </p>
             {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
