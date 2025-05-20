@@ -33,7 +33,7 @@ export default function AdminPage() {
   }
 
   const adminSections = [
-    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, // Links to /admin/hosts effectively
+    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
     { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
     { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
     { title: "Configurações", icon: Settings, link: "/admin/settings" },
@@ -45,13 +45,12 @@ export default function AdminPage() {
 
   return (
     <ProtectedPage>
-      <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden"> {/* Removed header section */}
+      <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
         {/* Admin Navigation Sidebar */}
-        <nav className="w-full md:w-72 flex-shrink-0 border-b md:border-b-0 md:border-r bg-card"> {/* Added bg-card and borders */}
+        <nav className="w-full md:w-60 flex-shrink-0 border-b md:border-b-0 md:border-r bg-card h-full">
           <div className="h-full flex flex-col">
             <div className="p-1 space-y-1 overflow-y-auto">
               {adminSections.map((section) => {
-                // For the "Dashboard" link, consider it active if path is /admin or /admin/hosts
                 const isActive = section.link === "/admin" 
                                   ? (pathname === "/admin" || pathname.startsWith("/admin/hosts")) 
                                   : pathname === section.link;
@@ -60,14 +59,14 @@ export default function AdminPage() {
                     key={section.title}
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
-                      "w-full justify-start text-left h-auto py-2.5 px-2 text-sm font-medium rounded-md", 
+                      "w-full justify-start text-left h-auto py-2 px-1.5 text-sm font-medium rounded-md", 
                       isActive
                         ? "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                         : "text-card-foreground hover:bg-muted"
                     )}
                     asChild
                   >
-                    <Link href={section.link} className="flex items-center gap-2.5">
+                    <Link href={section.link} className="flex items-center gap-2">
                       <section.icon className={cn("h-4 w-4", isActive ? "text-secondary-foreground" : "text-muted-foreground")} />
                       {section.title}
                     </Link>
@@ -79,7 +78,7 @@ export default function AdminPage() {
         </nav>
 
         {/* Admin Content Area */}
-        <main className="flex-grow overflow-y-auto p-6"> {/* Added padding here */}
+        <main className="flex-grow overflow-y-auto p-6">
           {isHostManagementView ? (
             <AdminHostsPageContent />
           ) : (
