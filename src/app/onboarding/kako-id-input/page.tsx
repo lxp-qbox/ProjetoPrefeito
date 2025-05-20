@@ -44,12 +44,15 @@ export default function KakoIdInputPage() {
     }
     setIsSearching(true);
     
+    // Simulate API call for profile search
     await new Promise(resolve => setTimeout(resolve, 1500)); 
     setIsSearching(false);
     toast({
       title: "Perfil Encontrado (Simulado)",
       description: `ID ${kakoId} verificado (simulação).`,
     });
+    // In a real app, you'd fetch profile data here and potentially pre-fill other fields
+    // or confirm this is the correct user.
   };
 
   const handleContinue = async () => {
@@ -120,7 +123,7 @@ export default function KakoIdInputPage() {
          <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
+        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle> {/* Changed from text-3xl */}
         <CardDescription>
           Insira seu ID do aplicativo Kako Live para continuar.
         </CardDescription>

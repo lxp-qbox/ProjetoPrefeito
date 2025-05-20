@@ -2,6 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,11 +15,20 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { useAuth } from "@/hooks/use-auth";
+import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleHasAccount = () => {
     router.push("/onboarding/kako-id-input"); 
@@ -46,7 +56,7 @@ export default function KakoAccountCheckPage() {
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>
+        <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle> {/* Changed from text-3xl */}
         <CardDescription>
           Você já possui uma conta no aplicativo Kako Live?
         </CardDescription>

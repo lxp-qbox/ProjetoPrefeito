@@ -85,7 +85,7 @@ export default function RoleSelectionPage() {
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
+        <CardTitle className="text-2xl font-bold">Olá!</CardTitle> {/* Changed from text-3xl */}
         <CardDescription className="mt-2">
           Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
