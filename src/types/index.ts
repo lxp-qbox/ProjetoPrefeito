@@ -36,7 +36,7 @@ export interface ReceivedGift {
 }
 
 export interface Host {
-  id: string; // Kako Live userId, will be document ID in Firestore
+  id: string; // Kako Live userId (fuid), will be document ID in Firestore 'hosts' collection
   rankPosition: number; 
   name: string; // Kako nickname
   avatarUrl: string; // Kako avatar
@@ -61,40 +61,57 @@ export interface Host {
 }
 
 export interface UserProfile {
-  uid: string;
+  uid: string; // Firebase Auth UID
   email?: string | null;
   role?: 'player' | 'host'; // Base role
   adminLevel?: 'master' | 'admin' | 'suporte' | null; // Hierarchical admin level
-  kakoLiveId?: string;       // passaporte
-  profileName?: string;      // o nome do usuario do kako
-  displayName?: string | null; // From Firebase Auth, synced with profileName
-  photoURL?: string | null;    // From Firebase Auth, for avatar (profile_image)
-  profileHeader?: string;    // a imagem de fundo do profile
-  bio?: string;              // bio - 100 caracteres
-  isVerified?: boolean;      // se o usuario tem verificado ganha um selo
-  level?: number;            // qual e o nivel do usuario no site
-  followerCount?: number;    // numero de seguidores
-  followingCount?: number;   // numero de seguidores que o usuario segue
-  photos?: string[];         // a opcao de adicionar mais fotos no perfil
-  gender?: 'male' | 'female' | 'other' | 'preferNotToSay'; // sexo
-  birthDate?: string;        // data de nascimento (e.g., YYYY-MM-DD)
-  country?: string;          // País do usuário
-  phoneNumber?: string;      // Celular (WhatsApp)
-  civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // status civil
-  socialLinks?: {            // link de rede social
+  kakoLiveId?: string;       // User's own Kako Live ID, if they link it
+  profileName?: string;      // Preferred display name in this app (can be from Kako, or set by user)
+  displayName?: string | null; // From Firebase Auth, should ideally be synced with profileName
+  photoURL?: string | null;    // From Firebase Auth, for avatar (can be from Kako, or uploaded)
+  profileHeader?: string;    // URL for a profile header image
+  bio?: string;              // User's bio for this platform (max 100 chars)
+  isVerified?: boolean;      // If the user is verified on this platform
+  level?: number;            // User's level on this platform
+  followerCount?: number;    // Followers on this platform
+  followingCount?: number;   // Following on this platform
+  photos?: string[];         // URLs for additional profile photos on this platform
+  gender?: 'male' | 'female' | 'other' | 'preferNotToSay';
+  birthDate?: string;        // YYYY-MM-DD
+  country?: string;
+  phoneNumber?: string;
+  civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay';
+  socialLinks?: {
     twitter?: string;
     instagram?: string;
     facebook?: string;
     youtube?: string;
     twitch?: string;
   };
-  themePreference?: 'light' | 'dark' | 'system'; // mudar o tema do site
-  accentColor?: string;      // escolher a cor padrao que se destaca no site (hex)
-  hasCompletedOnboarding?: boolean; // New field for onboarding
-  agreedToTermsAt?: any; // Firestore Timestamp for terms agreement
+  themePreference?: 'light' | 'dark' | 'system';
+  accentColor?: string;      // hex
+  hasCompletedOnboarding?: boolean;
+  agreedToTermsAt?: any; // Firestore Timestamp
   createdAt?: any;           // Firestore Timestamp
   updatedAt?: any;           // Firestore Timestamp
 }
+
+export interface KakoProfile {
+  id: string; // Kako Live userId (maps to `userId` from Kako API)
+  numId?: number; // Kako's numerical ID (maps to `numId` from Kako API)
+  nickname: string;
+  avatarUrl: string;
+  level?: number;
+  signature?: string; // Bio from Kako
+  gender?: number; // 1 for male, 2 for female as per Kako API example
+  area?: string;
+  school?: string;
+  showId?: string; // Another ID used by Kako
+  isLiving?: boolean; // If they are currently live
+  lastFetchedAt?: any; // Firestore Timestamp for when this profile was last fetched/updated
+  // You can add other fields here as you discover them from Kako Live's API
+}
+
 
 export interface ChatMessage {
   id: string;
@@ -105,8 +122,7 @@ export interface ChatMessage {
   userMedalUrl?: string;
   rawData?: string;
   displayFormatted: boolean;
-  extractedRoomId?: string; // Added for room-specific filtering
-  userId?: string; // User ID of the message sender
-  userLevel?: number; // Level of the message sender
+  extractedRoomId?: string; 
+  userId?: string; 
+  userLevel?: number; 
 }
-
