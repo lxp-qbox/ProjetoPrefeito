@@ -117,7 +117,7 @@ export default function MessagesPage() {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-[calc(100vh-var(--header-height,64px)-var(--page-padding,64px)-2px)]"> {/* Approximate height */}
+      <div className="h-full flex flex-col"> {/* Changed classes here */}
         <Card className="flex-grow flex overflow-hidden shadow-xl">
           {/* Left Pane: Conversation List */}
           <div className="w-full md:w-1/3 lg:w-1/4 border-r border-border flex flex-col bg-card">
@@ -191,19 +191,18 @@ export default function MessagesPage() {
                   {activeMessages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={cn("flex items-end space-x-2", {
-                        "justify-end": msg.isCurrentUser,
-                      })}
+                      className={cn(
+                        "flex items-end max-w-xl", 
+                        msg.isCurrentUser ? "ml-auto flex-row-reverse space-x-reverse space-x-2" : "mr-auto flex-row space-x-2"
+                      )}
                     >
-                      {!msg.isCurrentUser && (
-                        <Avatar className="h-8 w-8 border self-start shrink-0">
-                          <AvatarImage src={msg.senderAvatar} alt={msg.senderName} data-ai-hint="sender avatar" />
+                       <Avatar className="h-8 w-8 border self-start shrink-0">
+                          <AvatarImage src={msg.senderAvatar} alt={msg.senderName} data-ai-hint={msg.isCurrentUser ? "my avatar" : "sender avatar"} />
                           <AvatarFallback>{getInitials(msg.senderName)}</AvatarFallback>
                         </Avatar>
-                      )}
                       <div
                         className={cn(
-                          "max-w-[70%] p-3 rounded-xl shadow-sm",
+                          "p-3 rounded-xl shadow-sm",
                           msg.isCurrentUser
                             ? "bg-primary text-primary-foreground rounded-br-none"
                             : "bg-card border border-border text-card-foreground rounded-bl-none"
@@ -216,12 +215,6 @@ export default function MessagesPage() {
                             msg.isCurrentUser ? "text-primary-foreground/70 text-right" : "text-muted-foreground text-right"
                         )}>{msg.timestamp}</p>
                       </div>
-                      {msg.isCurrentUser && (
-                        <Avatar className="h-8 w-8 border self-start shrink-0">
-                          <AvatarImage src={currentUser?.photoURL || msg.senderAvatar} alt={currentUser?.profileName || msg.senderName} data-ai-hint="my avatar" />
-                          <AvatarFallback>{getInitials(currentUser?.profileName || msg.senderName)}</AvatarFallback>
-                        </Avatar>
-                      )}
                     </div>
                   ))}
                 </ScrollArea>
@@ -260,5 +253,3 @@ export default function MessagesPage() {
     </ProtectedPage>
   );
 }
-
-    
