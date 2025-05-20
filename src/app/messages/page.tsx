@@ -10,9 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Send, MessageSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ConversationPreview, AppMessage } from "@/types";
+import type { ConversationPreview, AppMessage, FirestoreConversation } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 
@@ -117,8 +116,8 @@ export default function MessagesPage() {
 
   return (
     <ProtectedPage>
-      <div className="h-full flex flex-col"> {/* Changed classes here */}
-        <Card className="flex-grow flex overflow-hidden shadow-xl">
+      <div className="h-full flex flex-col"> {/* This div takes full height from parent */}
+        <div className="flex-grow flex overflow-hidden"> {/* This div is for the two-pane layout */}
           {/* Left Pane: Conversation List */}
           <div className="w-full md:w-1/3 lg:w-1/4 border-r border-border flex flex-col bg-card">
             <div className="p-4 border-b border-border">
@@ -175,7 +174,7 @@ export default function MessagesPage() {
           <div className="flex-1 flex flex-col bg-background">
             {selectedConversationId && selectedConversation ? (
               <>
-                <CardHeader className="p-4 border-b border-border bg-card">
+                <div className="p-4 border-b border-border bg-card"> {/* Header for selected conversation */}
                     <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10 border">
                             <AvatarImage src={selectedConversation.userAvatar} alt={selectedConversation.userName} data-ai-hint="user avatar chat" />
@@ -186,14 +185,14 @@ export default function MessagesPage() {
                             <p className="text-xs text-muted-foreground">Online</p> {/* Placeholder status */}
                         </div>
                     </div>
-                </CardHeader>
+                </div>
                 <ScrollArea className="flex-grow p-4 space-y-4">
                   {activeMessages.map((msg) => (
                     <div
                       key={msg.id}
                       className={cn(
-                        "flex items-end max-w-xl", 
-                        msg.isCurrentUser ? "ml-auto flex-row-reverse space-x-reverse space-x-2" : "mr-auto flex-row space-x-2"
+                        "flex items-end max-w-xl gap-2", 
+                        msg.isCurrentUser ? "ml-auto flex-row-reverse" : "mr-auto flex-row"
                       )}
                     >
                        <Avatar className="h-8 w-8 border self-start shrink-0">
@@ -211,8 +210,8 @@ export default function MessagesPage() {
                         {!msg.isCurrentUser && <p className="text-xs font-semibold mb-0.5 text-primary">{msg.senderName}</p>}
                         <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
                         <p className={cn(
-                            "text-xs mt-1.5",
-                            msg.isCurrentUser ? "text-primary-foreground/70 text-right" : "text-muted-foreground text-right"
+                            "text-xs mt-1.5 text-right",
+                            msg.isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"
                         )}>{msg.timestamp}</p>
                       </div>
                     </div>
@@ -248,7 +247,7 @@ export default function MessagesPage() {
               </div>
             )}
           </div>
-        </Card>
+        </div>
       </div>
     </ProtectedPage>
   );
