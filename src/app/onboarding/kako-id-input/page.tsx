@@ -44,15 +44,12 @@ export default function KakoIdInputPage() {
     }
     setIsSearching(true);
     
-    // Simulate API call for profile search
     await new Promise(resolve => setTimeout(resolve, 1500)); 
     setIsSearching(false);
     toast({
       title: "Perfil Encontrado (Simulado)",
       description: `ID ${kakoId} verificado (simulação).`,
     });
-    // In a real app, you'd fetch profile data here and potentially pre-fill other fields
-    // or confirm this is the correct user.
   };
 
   const handleContinue = async () => {
@@ -100,8 +97,6 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
-    // If user is a host, they came from age-verification.
-    // If user is a player, they came from kako-account-check.
     return currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
@@ -119,16 +114,16 @@ export default function KakoIdInputPage() {
           <span className="sr-only">Voltar</span>
         </Link>
       </Button>
-      <CardHeader className="text-center pt-10 pb-4">
+      <CardHeader className="text-center pt-10 px-6 pb-0">
          <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle> {/* Changed from text-3xl */}
+        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
         <CardDescription>
-          Insira seu ID do aplicativo Kako Live para continuar.
+          Insira seu ID do aplicativo Kako Live<br />para continuar.
         </CardDescription>
       </CardHeader>
-      <Separator className="mb-6" />
+      <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-6">
           <div>

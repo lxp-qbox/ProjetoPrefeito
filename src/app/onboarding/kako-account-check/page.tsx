@@ -52,17 +52,17 @@ export default function KakoAccountCheckPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="text-center pt-10 pb-4">
+      <CardHeader className="text-center pt-10 px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle> {/* Changed from text-3xl */}
+        <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>
         <CardDescription>
-          Você já possui uma conta no aplicativo Kako Live?
+          Você já possui uma conta<br />no aplicativo Kako Live?
         </CardDescription>
       </CardHeader>
-      <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto">
+      <Separator className="my-6" />
+      <CardContent className="flex-grow px-6 pt-0 pb-6 overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"

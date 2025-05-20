@@ -80,7 +80,7 @@ export default function TermsPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
-      <CardHeader className="text-center pt-10 pb-4">
+      <CardHeader className="text-center pt-10 px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
         </div>
@@ -89,7 +89,7 @@ export default function TermsPage() {
           Por favor, leia e aceite nossos termos<br />para continuar.
         </CardDescription>
       </CardHeader>
-      <Separator className="mb-4" />
+      <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col">
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>

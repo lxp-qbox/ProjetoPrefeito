@@ -81,8 +81,8 @@ export default function RoleSelectionPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="text-center pt-10 pb-4">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+      <CardHeader className="text-center pt-10 px-6 pb-0">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
@@ -91,7 +91,7 @@ export default function RoleSelectionPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto flex flex-col justify-center">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
