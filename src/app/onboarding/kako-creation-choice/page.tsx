@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { XCircle, Smartphone, ArrowLeft } from "lucide-react"; // Changed ExternalLink to Smartphone
+import { Smartphone, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -36,7 +36,7 @@ export default function KakoCreationChoicePage() {
       router.push("/login");
       return;
     }
-    setLoadingAction('skip');
+    setLoadingAction('completeWithoutId');
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -52,7 +52,7 @@ export default function KakoCreationChoicePage() {
       });
       router.push("/profile");
     } catch (error) {
-      console.error("Erro ao finalizar onboarding (skip):", error);
+      console.error("Erro ao finalizar onboarding (completeWithoutId):", error);
       toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -62,13 +62,14 @@ export default function KakoCreationChoicePage() {
 
   const handleProceedToIdInput = () => {
     if (isLoading) return;
-    // This function is now tied to the second card click
+    setLoadingAction('proceedToIdInput'); // Set loading action for the specific button
+    // Simulate a brief loading period if desired, or navigate directly
     router.push("/onboarding/kako-id-input");
   };
 
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
        <Button
             asChild
             variant="ghost"
@@ -91,52 +92,33 @@ export default function KakoCreationChoicePage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-6">
-          <Card
-            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleCompleteOnboardingWithoutId : undefined}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId()}
-            aria-disabled={isLoading && loadingAction === 'skip'}
-          >
-            <div className="p-3 bg-primary/10 rounded-full mb-3">
-              <XCircle className="h-8 w-8 text-primary" />
-            </div>
-            {isLoading && loadingAction === 'skip' ? (
-              <LoadingSpinner size="md" className="my-3" />
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold mb-1">Não quero criar/vincular agora</h3>
-                <p className="text-sm text-muted-foreground">
-                  Você pode explorar o aplicativo. Algumas funcionalidades podem ser limitadas.
-                </p>
-              </>
-            )}
-          </Card>
-
-          <Card
-            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleProceedToIdInput : undefined}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleProceedToIdInput()}
-            aria-disabled={isLoading && loadingAction === 'proceedToIdInput'}
-          >
-            <div className="p-3 bg-primary/10 rounded-full mb-3">
-              <Smartphone className="h-8 w-8 text-primary" />
-            </div>
-             {isLoading && loadingAction === 'proceedToIdInput' ? (
-              <LoadingSpinner size="md" className="my-3" />
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold mb-1">Vou criar uma conta no app Kako Live</h3>
-                <p className="text-sm text-muted-foreground">
-                    Recomendamos criar sua conta no app Kako Live primeiro. Depois, volte aqui e informe seu ID para finalizar.
-                </p>
-              </>
-            )}
-          </Card>
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+          <div className="my-auto space-y-4">
+            <p className="text-sm text-center text-muted-foreground">
+              Recomendamos criar sua conta primeiro no aplicativo Kako Live. Depois, volte aqui e informe seu ID.
+            </p>
+            <Button
+              onClick={handleProceedToIdInput}
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading && loadingAction === 'proceedToIdInput' ? (
+                <LoadingSpinner size="sm" className="mr-2" />
+              ) : null}
+              Já baixei e criei minha conta
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCompleteOnboardingWithoutId}
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading && loadingAction === 'completeWithoutId' ? (
+                <LoadingSpinner size="sm" className="mr-2" />
+              ) : null}
+              Criar conta sem ID Kako
+            </Button>
+          </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
