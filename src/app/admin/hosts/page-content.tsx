@@ -49,14 +49,13 @@ interface AdminHost {
   name: string;
   whatsapp: string;
   url?: string;
-  country: string;
   status: 'Aprovado' | 'Pendente' | 'Banido';
 }
 
 const placeholderHosts: AdminHost[] = [
-  { id: "1", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako123", name: "João Silva", whatsapp: "+55 (11) 98765-4321", url: "#", country: "Brasil", status: "Aprovado" },
-  { id: "2", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako456", name: "Maria Oliveira", whatsapp: "+55 (21) 91234-5678", url: undefined, country: "Brasil", status: "Pendente" },
-  { id: "3", avatarUrl: "https://placehold.co/40x40.png", isLive: false, kakoId: "kako789", name: "Carlos Pereira", whatsapp: "+55 (31) 99887-7665", url: "#", country: "Brasil", status: "Banido" },
+  { id: "1", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako123", name: "João Silva", whatsapp: "+55 (11) 98765-4321", url: "#", status: "Aprovado" },
+  { id: "2", avatarUrl: "https://placehold.co/40x40.png", isLive: true, kakoId: "kako456", name: "Maria Oliveira", whatsapp: "+55 (21) 91234-5678", url: undefined, status: "Pendente" },
+  { id: "3", avatarUrl: "https://placehold.co/40x40.png", isLive: false, kakoId: "kako789", name: "Carlos Pereira", whatsapp: "+55 (31) 99887-7665", url: "#", status: "Banido" },
 ];
 
 const getStatusStyles = (status: AdminHost['status']) => {
@@ -87,30 +86,9 @@ export default function AdminHostsPageContent() {
           <h1 className="text-2xl font-semibold text-foreground">Gerenciamento de Hosts</h1>
           <p className="text-sm text-muted-foreground">Visualize e gerencie os hosts da agência.</p>
         </div>
-        <div className="flex items-center gap-2 mt-4 sm:mt-0">
-            <Button variant="outline" size="sm">
-                <Edit className="mr-2 h-4 w-4" />
-                Editar
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                    Ações <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Banir Host (Exemplo)
-                </DropdownMenuItem>
-                <DropdownMenuItem>Remover dos Hosts (Exemplo)</DropdownMenuItem>
-                <DropdownMenuItem>Dar Cargo Admin (Exemplo)</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-            <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
-            </div>
+        <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="search" placeholder="Buscar hosts (Nome, ID Kako, etc.)..." className="pl-10 w-full h-10" />
         </div>
       </div>
 
@@ -129,7 +107,7 @@ export default function AdminHostsPageContent() {
                 <TableHead className="min-w-[200px]">NOME</TableHead>
                 <TableHead>STATUS</TableHead>
                 <TableHead>WHATSAPP</TableHead>
-                <TableHead className="text-right w-[80px]">AÇÕES</TableHead>
+                <TableHead className="text-right w-[200px]">AÇÕES</TableHead> 
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,27 +146,28 @@ export default function AdminHostsPageContent() {
                       </a>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Ações para {host.name}</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar Host
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                             <XCircle className="mr-2 h-4 w-4" />
-                            Banir Host
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
-                          <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                              Ações
+                              <ChevronDown className="h-3 w-3 ml-1" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                               <XCircle className="mr-2 h-4 w-4" />
+                              Banir Host
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Remover dos Hosts</DropdownMenuItem>
+                            <DropdownMenuItem>Dar Cargo Admin</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
