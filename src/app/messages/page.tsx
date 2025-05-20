@@ -21,7 +21,7 @@ const placeholderConversations: ConversationPreview[] = [
   { id: "convo2", userId: "user3", userName: "Bob O Construtor", userAvatar: "https://placehold.co/40x40.png?text=BB", lastMessage: "Podemos construir? Sim, nós podemos!", lastMessageTime: "Ontem", unreadCount: 0, isOnline: false },
   { id: "convo3", userId: "user4", userName: "Charlie Brown", userAvatar: "https://placehold.co/40x40.png?text=CB", lastMessage: "Meu Deus! Preciso de um conselho.", lastMessageTime: "Seg", unreadCount: 5, isOnline: true },
   { id: "convo4", userId: "user5", userName: "Diana Prince", userAvatar: "https://placehold.co/40x40.png?text=DP", lastMessage: "Querendo saber se você está livre para uma missão.", lastMessageTime: "12/05/2024", isOnline: false },
-  { id: "convo5", userId: "user6", userName: "Edward Mãos de Tesoura", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Você poderia me ajudar com minha cerca viva?", lastMessageTime: "10/05/2024", isOnline: false },
+  { id: "convo5", userId: "user6", userName: "Edward Mãos de Tesoura", userAvatar: "https://placehold.co/40x40.png?text=ES", lastMessage: "Você poderia me ajudar com minha cerca viva? É uma emergência de topiaria e estou realmente preso aqui, tesouras e tudo.", lastMessageTime: "10/05/2024", isOnline: false },
 ];
 
 const placeholderMessages: AppMessage[] = [
@@ -166,7 +166,7 @@ export default function MessagesPage() {
                         <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{convo.lastMessageTime}</span>
                       </div>
                       <div className="flex justify-between items-center mt-0.5">
-                        <p className="text-xs text-muted-foreground truncate pr-2">{convo.lastMessage}</p>
+                        <p className="flex-1 text-xs text-muted-foreground truncate min-w-0 pr-2">{convo.lastMessage}</p>
                         {convo.unreadCount && convo.unreadCount > 0 && (
                           <Badge variant="destructive" className="text-xs px-1.5 py-0.5 rounded-full shrink-0">{convo.unreadCount}</Badge>
                         )}
@@ -239,7 +239,7 @@ export default function MessagesPage() {
                     </div>
                   ))}
                 </ScrollArea>
-                <div className="flex items-center gap-2 p-2 border-t border-border bg-card mx-4 mb-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 p-2 border rounded-lg bg-card mx-4 mb-4 shadow-sm">
                   <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                     <Smile className="h-5 w-5" />
                     <span className="sr-only">Adicionar emoji</span>
