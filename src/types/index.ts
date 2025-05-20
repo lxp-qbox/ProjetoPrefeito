@@ -27,3 +27,17 @@ export interface SupportTicket {
   createdAt: Date;
 }
 
+export interface Host {
+  id: string;
+  rankPosition: number; // #1, #2
+  name: string;
+  avatarUrl: string;
+  avgViewers: number;
+  timeStreamed: number; // in hours
+  allTimePeakViewers: number;
+  hoursWatched: string; // e.g., "3.88M"
+  rank: number; // The actual rank number, e.g., 10
+  followersGained: number;
+  totalFollowers: string; // e.g., "6.55M"
+  totalViews: string; // e.g., "50.8M"
+}
