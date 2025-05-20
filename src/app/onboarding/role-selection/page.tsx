@@ -82,7 +82,7 @@ export default function RoleSelectionPage() {
         </div>
         <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
         <CardDescription className="mt-2">
-          Para começar,<br />escolha como você pretende utilizar sua conta:
+          Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
