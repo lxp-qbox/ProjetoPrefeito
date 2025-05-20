@@ -36,7 +36,10 @@ const generateUniqueId = () => {
 // Helper function to parse chat messages
 function parseChatMessage(data: any): { userName: string, userAvatar: string, messageData: string } | null {
   let parsedJson;
+  let rawStringInput = "";
+
   if (typeof data === 'string') {
+    rawStringInput = data;
     try {
       parsedJson = JSON.parse(data);
     } catch (e) {
@@ -54,9 +57,20 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
   let messageData = "";
 
   // Try to extract user info and message from common structures
-  if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.message || parsedJson.text || parsedJson.content)) {
+  // Prioritize structure from the provided example: user.nickname, user.avatar, text
+  if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.text) {
     userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
-    messageData = parsedJson.message || parsedJson.text || parsedJson.content;
+    messageData = parsedJson.text;
+    if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
+      userAvatar = parsedJson.user.avatar;
+    } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') { // Common alternative
+      userAvatar = parsedJson.user.avatarUrl;
+    } else {
+      userAvatar = `https://placehold.co/32x32.png?text=${userName.substring(0,1).toUpperCase() || 'U'}`;
+    }
+  } else if (parsedJson.user && typeof parsedJson.user === 'object' && (parsedJson.message || parsedJson.content)) {
+    userName = parsedJson.user.nickname || parsedJson.user.name || "Usuário";
+    messageData = parsedJson.message || parsedJson.content;
     if (parsedJson.user.avatar && typeof parsedJson.user.avatar === 'string') {
       userAvatar = parsedJson.user.avatar;
     } else if (parsedJson.user.avatarUrl && typeof parsedJson.user.avatarUrl === 'string') {
@@ -66,7 +80,7 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     }
   } else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) { // Alternative structure
     userName = parsedJson.username;
-    messageData = parsedJson.message || parsedJson.text || parsedJson.content;
+    messageData = parsedJson.text || parsedJson.message || parsedJson.content;
     if (parsedJson.avatar && typeof parsedJson.avatar === 'string') {
       userAvatar = parsedJson.avatar;
     } else {
@@ -74,26 +88,27 @@ function parseChatMessage(data: any): { userName: string, userAvatar: string, me
     }
   } else if (parsedJson.content) { // System message or simple content-only message
       messageData = parsedJson.content;
-      // If it's explicitly a system message or lacks user info, set userName to Sistema
       if (parsedJson.type === 'system_message' || parsedJson.type === 'SYSTEM' || (!parsedJson.user && !parsedJson.username)) {
           userName = "Sistema";
-          userAvatar = ""; // No avatar for system messages, or a specific system icon could be used
+          userAvatar = ""; 
       }
-  } else if (typeof parsedJson === 'string') { // If parsedJson itself resolved to just a string
+  } else if (typeof parsedJson === 'string') { 
     messageData = parsedJson;
-    userName = "Anônimo"; // Default for plain string messages
+    userName = "Anônimo"; 
     userAvatar = `https://placehold.co/32x32.png?text=A`;
-  } else if (parsedJson.message && typeof parsedJson.message === 'string') { // A common case: just a message field
+  } else if (parsedJson.message && typeof parsedJson.message === 'string') { 
     messageData = parsedJson.message;
     userName = "Anônimo";
     userAvatar = `https://placehold.co/32x32.png?text=A`;
+  } else if (rawStringInput) { // If JSON parsing failed but we had an original string
+    messageData = rawStringInput;
+    userName = "Texto";
+    userAvatar = `https://placehold.co/32x32.png?text=T`;
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') {
-    // If it's some other JSON object structure we don't specifically handle, stringify it for debugging.
     messageData = JSON.stringify(parsedJson);
-    userName = "JSON"; // Indicate it's unparsed JSON
+    userName = "JSON"; 
     userAvatar = `https://placehold.co/32x32.png?text=J`;
   } else if (data.toString && typeof data.toString === 'function') {
-    // Fallback if messageData is still empty and data has a toString method
     messageData = data.toString();
   } else {
     return null; // No usable data found
@@ -161,28 +176,17 @@ export default function HostStreamPage() {
     socketRef.current.onmessage = async (event) => {
       console.log("Mensagem recebida do WebSocket:", event.data);
       let processedMessage: { userName: string, userAvatar: string, messageData: string } | null = null;
+      let messageString = "";
 
       if (event.data instanceof Blob) {
         try {
-          const blobText = await event.data.text();
-          try {
-            const parsedBlobJson = JSON.parse(blobText);
-            processedMessage = parseChatMessage(parsedBlobJson);
-            if (!processedMessage && blobText) { // If parseChatMessage couldn't make sense of parsed JSON, but blobText exists
-                processedMessage = { userName: "Blob (Texto)", userAvatar: "https://placehold.co/32x32.png?text=B", messageData: blobText };
-            }
-          } catch (e) { // Blob text was not JSON
-            console.log("Blob text não era JSON, usando texto raw:", blobText);
-            if (blobText) { // Ensure blobText is not empty
-                processedMessage = { userName: "Texto (Blob)", userAvatar: "https://placehold.co/32x32.png?text=T", messageData: blobText };
-            }
-          }
+          messageString = await event.data.text();
         } catch (e) {
           console.error("Erro ao ler Blob do WebSocket:", e);
           processedMessage = { userName: "Erro", userAvatar: "", messageData: "[Erro ao ler Blob]" };
         }
       } else if (typeof event.data === 'string') {
-        processedMessage = parseChatMessage(event.data);
+        messageString = event.data;
       } else {
         console.warn("Tipo de mensagem WebSocket desconhecido:", event.data);
         let unknownDataString = "[Tipo de mensagem desconhecido]";
@@ -191,6 +195,23 @@ export default function HostStreamPage() {
         } catch {}
         processedMessage = { userName: "Desconhecido", userAvatar: "", messageData: unknownDataString };
       }
+
+      if (!processedMessage && messageString) {
+        // Clean potential leading non-JSON characters
+        const firstBraceIndex = messageString.indexOf('{');
+        const lastBraceIndex = messageString.lastIndexOf('}');
+        let cleanJsonString = messageString;
+
+        if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+          cleanJsonString = messageString.substring(firstBraceIndex, lastBraceIndex + 1);
+        }
+        // Pass the potentially cleaned string OR original string if no {} found (for plain text messages)
+        processedMessage = parseChatMessage(cleanJsonString);
+        if (!processedMessage && messageString.trim() !== "" && firstBraceIndex === -1) { // If parsing still fails and it wasn't JSON-like
+            processedMessage = { userName: "Texto", userAvatar: "https://placehold.co/32x32.png?text=T", messageData: messageString };
+        }
+      }
+
 
       if (processedMessage && processedMessage.messageData && processedMessage.messageData.trim() !== "") {
         setChatMessages(prev => [...prev, {
@@ -208,7 +229,6 @@ export default function HostStreamPage() {
     socketRef.current.onerror = (errorEvent) => {
       console.error("Erro no WebSocket:", errorEvent);
       let errorMessage = "Erro na conexão do chat.";
-      // Attempt to get more specific error details if available
       if (errorEvent instanceof ErrorEvent && errorEvent.message) {
         errorMessage = `Erro no chat: ${errorEvent.message}`;
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
@@ -231,7 +251,7 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host, host?.kakoLiveRoomId]); // Dependency on host.kakoLiveRoomId ensures re-connect if it changes
+  }, [host, host?.kakoLiveRoomId]); 
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -244,17 +264,12 @@ export default function HostStreamPage() {
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      // The message format to send might be specific to Kako Live's backend.
-      // This is a common format; adjust if their specific format is known.
       const messageToSend = {
-        type: 'chat_message', // Or 'message', 'send_message', etc.
+        type: 'chat_message', 
         content: newMessage.trim(),
-        // Optionally include user info if the backend expects it
-        // user: { nickname: currentUser?.profileName || "Eu" } 
       };
       socketRef.current.send(JSON.stringify(messageToSend));
       
-      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
@@ -499,7 +514,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-
-    
-
-    
