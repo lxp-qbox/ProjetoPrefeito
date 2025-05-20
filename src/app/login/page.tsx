@@ -18,17 +18,29 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && currentUser) {
+      // Onboarding redirection logic
       if (!currentUser.agreedToTermsAt) {
         router.replace("/onboarding/terms");
       } else if (!currentUser.role) {
         router.replace("/onboarding/role-selection");
       } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country) {
         router.replace("/onboarding/age-verification");
-      } else if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
-        router.replace("/onboarding/kako-account-check");
-      }
-      else {
-        router.replace("/profile");
+      } else {
+        if (currentUser.role === 'host') {
+          if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+             router.replace("/onboarding/kako-id-input");
+          } else {
+             router.replace("/profile");
+          }
+        } else if (currentUser.role === 'player') {
+          if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+            router.replace("/onboarding/kako-account-check");
+          } else {
+            router.replace("/profile");
+          }
+        } else {
+          router.replace("/profile"); // Default for other roles
+        }
       }
     }
   }, [currentUser, loading, router]);

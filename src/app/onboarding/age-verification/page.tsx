@@ -38,10 +38,10 @@ import { format, subYears, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import Link from "next/link";
 
-const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
@@ -66,7 +66,7 @@ export default function AgeVerificationPage() {
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (showUnderageAlert) {
-      setShowUnderageAlert(false); // Reset alert when date changes
+      setShowUnderageAlert(false); 
     }
   };
 
@@ -126,7 +126,15 @@ export default function AgeVerificationPage() {
         title: "Informações Salvas",
         description: "Suas informações foram registradas com sucesso.",
       });
-      router.push("/onboarding/kako-account-check");
+
+      // Navigate based on role
+      if (currentUser.role === 'host') {
+        router.push("/onboarding/kako-id-input");
+      } else if (currentUser.role === 'player') {
+        router.push("/onboarding/kako-account-check");
+      } else {
+        router.push("/profile"); // Fallback, should ideally not happen if role is set
+      }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
@@ -152,7 +160,7 @@ export default function AgeVerificationPage() {
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
         >
-            <Link href="/onboarding/terms">
+            <Link href="/onboarding/role-selection">
                 <ArrowLeft className="h-8 w-8" />
                 <span className="sr-only">Voltar</span>
             </Link>

@@ -63,17 +63,29 @@ export default function LoginForm() {
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
+        
         if (!userProfile.agreedToTermsAt) {
           router.push("/onboarding/terms");
         } else if (!userProfile.role) {
           router.push("/onboarding/role-selection");
         } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
           router.push("/onboarding/age-verification");
-        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-          router.push("/onboarding/kako-account-check");
-        }
-         else {
-          router.push("/profile");
+        } else {
+          if (userProfile.role === 'host') {
+            if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+               router.push("/onboarding/kako-id-input");
+            } else {
+               router.push("/profile");
+            }
+          } else if (userProfile.role === 'player') {
+            if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+              router.push("/onboarding/kako-account-check");
+            } else {
+              router.push("/profile");
+            }
+          } else {
+            router.push("/profile"); // Default for other roles or if role somehow not set
+          }
         }
       } else {
         // New user created via Google Sign-In or if somehow doc doesn't exist

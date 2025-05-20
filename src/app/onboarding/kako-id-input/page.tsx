@@ -21,9 +21,9 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Import the new stepper
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Função", "Termos", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
@@ -44,10 +44,7 @@ export default function KakoIdInputPage() {
     }
     setIsSearching(true);
     
-    // Simulate API call or validation
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
-    // In a real app, you'd validate the ID here.
-    // For now, we'll just assume it's found if not empty.
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
     setIsSearching(false);
     toast({
       title: "Perfil Encontrado (Simulado)",
@@ -108,6 +105,11 @@ export default function KakoIdInputPage() {
         className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
         title="Voltar"
       >
+        {/* 
+          This back button ideally should go to age-verification if host, 
+          or kako-account-check if player. For simplicity now, it goes to kako-account-check.
+          A host reaching here from age-verification would see the choice again if they go back.
+        */}
         <Link href="/onboarding/kako-account-check">
           <ArrowLeft className="h-8 w-8" />
           <span className="sr-only">Voltar</span>
