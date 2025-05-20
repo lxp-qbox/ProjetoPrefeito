@@ -15,7 +15,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
 import { useAuth } from "@/hooks/use-auth";
-import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
@@ -24,8 +23,9 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  // isLoading state might not be needed here anymore if both paths navigate
+  // const [isLoading, setIsLoading] = useState(false); 
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -33,39 +33,9 @@ export default function KakoAccountCheckPage() {
     router.push("/onboarding/kako-id-input"); 
   };
 
-  const handleNeedsAccount = async () => {
-    if (!currentUser) {
-      toast({
-        title: "Erro",
-        description: "Você precisa estar logado.",
-        variant: "destructive",
-      });
-      router.push("/login");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userDocRef, {
-        kakoLiveId: "", 
-        hasCompletedOnboarding: true, 
-        updatedAt: serverTimestamp(),
-      });
-      toast({
-        title: "Onboarding Concluído",
-        description: "Você pode explorar o aplicativo agora!",
-      });
-      router.push("/profile");
-    } catch (error) {
-      console.error("Erro ao finalizar onboarding:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível finalizar o onboarding. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleNeedsAccount = () => {
+    // Navigate to the new screen where user decides about creating Kako account
+    router.push("/onboarding/kako-creation-choice");
   };
 
   return (
@@ -92,7 +62,7 @@ export default function KakoAccountCheckPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
+      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
@@ -100,7 +70,7 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
-            aria-disabled={isLoading}
+            // aria-disabled={isLoading} // isLoading might be removed
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <CheckCircle className="h-8 w-8 text-primary" />
@@ -117,7 +87,7 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
-            aria-disabled={isLoading}
+            // aria-disabled={isLoading} // isLoading might be removed
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <Phone className="h-8 w-8 text-primary" />
@@ -126,7 +96,7 @@ export default function KakoAccountCheckPage() {
             <p className="text-sm text-muted-foreground">
               Ainda não tenho uma conta no aplicativo Kako Live
             </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-2" />}
+            {/* {isLoading && <LoadingSpinner size="sm" className="mt-2" />} */}
           </Card>
         </div>
       </CardContent>
