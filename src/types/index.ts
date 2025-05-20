@@ -63,7 +63,8 @@ export interface Host {
 export interface UserProfile {
   uid: string;
   email?: string | null;
-  role?: 'player' | 'host' | 'suporte' | 'admin' | 'master'; // Made role optional for initial check
+  role?: 'player' | 'host'; // Base role
+  adminLevel?: 'master' | 'admin' | 'suporte' | null; // Hierarchical admin level
   kakoLiveId?: string;       // passaporte
   profileName?: string;      // o nome do usuario do kako
   displayName?: string | null; // From Firebase Auth, synced with profileName
@@ -108,3 +109,4 @@ export interface ChatMessage {
   userId?: string; // User ID of the message sender
   userLevel?: number; // Level of the message sender
 }
+

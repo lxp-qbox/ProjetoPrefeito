@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone } from "lucide-react";
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond } from "lucide-react"; // Added Diamond
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -95,14 +95,15 @@ export default function ProfilePage() {
                   }
               }
               if (!parsedDate || !isValid(parsedDate)) {
+                  // Try parsing as ISO string if YYYY-MM-DD failed or was not the format
                   parsedDate = parseISO(currentUser.birthDate);
               }
-            } else if (currentUser.birthDate instanceof Date) {
+            } else if (currentUser.birthDate instanceof Date) { // If it's already a Date object
               parsedDate = currentUser.birthDate;
             }
-            // @ts-ignore 
+            // @ts-ignore Check if it's a Firestore Timestamp-like object
             else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
-                // @ts-ignore 
+                // @ts-ignore
                 parsedDate = currentUser.birthDate.toDate();
             }
             
@@ -146,7 +147,7 @@ export default function ProfilePage() {
     if (editableGender) dataToUpdate.gender = editableGender;
     if (editableBirthDate) dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
     if (editablePhoneNumber.trim()) dataToUpdate.phoneNumber = editablePhoneNumber.trim();
-    
+    // adminLevel is set during onboarding and not typically editable here by the user.
 
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -223,6 +224,17 @@ export default function ProfilePage() {
                         </Badge>
                     </div>
                 </div>
+                {currentUser?.adminLevel && (
+                  <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
+                      <div className="flex items-center text-sm">
+                          <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <Badge variant="destructive"> 
+                          {currentUser.adminLevel.charAt(0).toUpperCase() + currentUser.adminLevel.slice(1)}
+                          </Badge>
+                      </div>
+                  </div>
+                )}
                 
                 <div className="space-y-1 pt-2">
                   <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>

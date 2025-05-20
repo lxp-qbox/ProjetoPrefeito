@@ -65,10 +65,9 @@ export default function KakoIdInputPage() {
             title: "Perfil Encontrado!",
             description: `ID ${kakoId} verificado para João Gamer.`,
         });
-    } else if (kakoId.trim() === "10933200") { // Special ID for master role
-        // For demonstration, let's use a placeholder avatar and name
+    } else if (kakoId.trim() === "10933200") { 
         setProfileImageUrl("https://placehold.co/96x96.png?text=M");
-        setProfileName("Usuário Master");
+        setProfileName("Usuário Master (ID Especial)");
         setProfileFound(true);
         toast({
             title: "Perfil Especial Encontrado!",
@@ -108,25 +107,31 @@ export default function KakoIdInputPage() {
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
-      
-      let roleToSet: UserProfile['role'] = currentUser.role; // Default to current role
       const trimmedKakoId = kakoId.trim();
+      
+      let adminLevelToSet: UserProfile['adminLevel'] = null;
+      // IDs for other admin levels would be checked here
+      // const ADMIN_KAKO_ID = "YOUR_ADMIN_ID_HERE"; 
+      // const SUPORTE_KAKO_ID = "YOUR_SUPORTE_ID_HERE";
 
       if (trimmedKakoId === "10933200") {
-        roleToSet = 'master';
-      }
-      // Add other special ID checks here if needed for 'admin' or 'suporte'
-      // else if (trimmedKakoId === "ADMIN_ID") { roleToSet = 'admin'; }
-      // else if (trimmedKakoId === "SUPORTE_ID") { roleToSet = 'suporte'; }
+        adminLevelToSet = 'master';
+      } 
+      // else if (trimmedKakoId === ADMIN_KAKO_ID) {
+      //   adminLevelToSet = 'admin';
+      // } else if (trimmedKakoId === SUPORTE_KAKO_ID) {
+      //   adminLevelToSet = 'suporte';
+      // }
 
       const dataToUpdate: Partial<UserProfile> = {
         kakoLiveId: trimmedKakoId,
-        profileName: profileFound && profileName ? profileName : currentUser.profileName,
-        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL,
-        role: roleToSet,
+        profileName: profileFound && profileName ? profileName : currentUser.profileName, // Update profileName if found
+        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL, // Update photoURL if found
+        adminLevel: adminLevelToSet, // Set adminLevel based on Kako ID
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       };
+      // Note: We are NOT changing currentUser.role here. It's set in a previous step.
 
       await updateDoc(userDocRef, dataToUpdate);
       
@@ -150,7 +155,8 @@ export default function KakoIdInputPage() {
   const determineBackLink = () => {
     if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
     if (currentUser.role === 'host') return "/onboarding/age-verification";
-    return "/onboarding/kako-account-check"; // Default for player
+    // Default for player or if role somehow not set yet by this stage
+    return "/onboarding/kako-account-check"; 
   }
 
   return (
@@ -196,7 +202,7 @@ export default function KakoIdInputPage() {
               ) : profileFound && profileName ? (
                 <p className="text-sm font-semibold text-primary">{profileName}</p>
               ) : (
-                 <p className="text-sm text-muted-foreground font-semibold">Anônimo</p>
+                 <p className="text-sm font-semibold text-muted-foreground">Anônimo</p>
               )}
             </div>
           </div>
@@ -254,3 +260,4 @@ export default function KakoIdInputPage() {
     </>
   );
 }
+

@@ -73,9 +73,10 @@ export default function SignupForm() {
         email: user.email,
         profileName: derivedProfileName,
         displayName: derivedProfileName,
-        kakoLiveId: "", // Will be empty as per previous request
-        role: 'player',
-        isVerified: false, // Will be false until email verification
+        kakoLiveId: "", 
+        role: 'player', // Default role, can be changed in onboarding
+        adminLevel: null, // New field
+        isVerified: false, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
@@ -84,7 +85,8 @@ export default function SignupForm() {
         photos: [],
         socialLinks: {},
         themePreference: 'system',
-        accentColor: '#4285F4', // Default primary color
+        accentColor: '#4285F4', 
+        hasCompletedOnboarding: false, // Start onboarding
       };
       await setDoc(userDocRef, newUserProfile);
 
@@ -93,9 +95,9 @@ export default function SignupForm() {
       toast({
         title: "Cadastro Realizado!",
         description: `Um email de verificação foi enviado para ${values.email}. Por favor, verifique sua caixa de entrada para ativar sua conta.`,
-        duration: 9000, // Longer duration for this important message
+        duration: 9000, 
       });
-      router.push("/login"); // Redirect to login page after sending verification email
+      router.push("/login"); 
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
@@ -190,3 +192,4 @@ export default function SignupForm() {
     </Form>
   );
 }
+
