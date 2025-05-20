@@ -59,13 +59,7 @@ export default function LoginForm() {
   });
 
   const handleRedirect = () => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const redirectPath = queryParams.get("redirect");
-    if (redirectPath) {
-      router.push(redirectPath);
-    } else {
-      router.push("/profile");
-    }
+    router.push("/profile"); // Always redirect to profile
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {

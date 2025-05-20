@@ -4,32 +4,24 @@
 import LoginForm from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { LogIn } from "lucide-react"; // Removed ArrowLeft
+import { LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
-// Removed Button import as it was only used for the back arrow
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectParam = searchParams.get("redirect");
 
   useEffect(() => {
     if (!loading && currentUser) {
-      const redirectPath = redirectParam;
-      if (redirectPath) {
-        router.replace(redirectPath);
-      } else {
-        router.replace("/profile");
-      }
+      router.replace("/profile"); // Always redirect to profile
     }
-  }, [currentUser, loading, router, redirectParam]);
+  }, [currentUser, loading, router]);
 
-  if (loading || (!loading && currentUser && redirectParam)) { // Keep redirectParam check here to show spinner if redirecting a logged-in user
+  if (loading || (!loading && currentUser)) { 
     return (
       <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
         <LoadingSpinner size="lg" />
@@ -40,7 +32,7 @@ export default function LoginPage() {
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
       <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
-        {/* Back arrow button section removed */}
+        {/* Back arrow button removed */}
         <CardHeader className="text-center pt-12 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
