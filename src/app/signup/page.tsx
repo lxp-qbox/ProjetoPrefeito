@@ -19,7 +19,7 @@ export default function SignupPage() {
           <SignupForm />
           <p className="mt-6 text-center text-sm">
             Já tem uma conta?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/login" className="font-medium text-primary no-underline hover:underline">
               Entrar
             </Link>
           </p>
@@ -28,3 +28,4 @@ export default function SignupPage() {
     </div>
   );
 }
+

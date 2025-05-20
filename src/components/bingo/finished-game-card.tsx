@@ -53,7 +53,7 @@ export default function FinishedGameCard({ game }: FinishedGameCardProps) {
       <CardFooter>
         <Link 
           href={`/bingo/${game.id}`} 
-          className="text-primary hover:underline text-sm font-medium flex items-center w-full justify-end"
+          className="text-primary no-underline hover:underline text-sm font-medium flex items-center w-full justify-end"
         >
           Ver detalhes <ChevronRight className="h-4 w-4 ml-1" />
         </Link>
@@ -61,3 +61,4 @@ export default function FinishedGameCard({ game }: FinishedGameCardProps) {
     </Card>
   );
 }
+

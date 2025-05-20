@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-sm">
             Lembrou sua senha?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/login" className="font-medium text-primary no-underline hover:underline">
               Entrar
             </Link>
           </p>
@@ -28,3 +28,4 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+

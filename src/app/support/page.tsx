@@ -28,7 +28,7 @@ export default function SupportPage() {
         </CardHeader>
         <CardContent className="space-y-2">
             <p className="text-muted-foreground">
-            Para problemas urgentes, você também pode nos contatar por email em <a href="mailto:support@presidential.agency" className="text-accent hover:underline font-medium">support@presidential.agency</a>.
+            Para problemas urgentes, você também pode nos contatar por email em <a href="mailto:support@presidential.agency" className="text-primary no-underline hover:underline font-medium">support@presidential.agency</a>.
             </p>
             <p className="text-sm text-muted-foreground">
             Nosso horário de suporte é de Segunda a Sexta, das 9h às 17h (Horário de Brasília).
@@ -38,3 +38,4 @@ export default function SupportPage() {
     </div>
   );
 }
+
