@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
@@ -45,7 +45,6 @@ const formSchema = z.object({
 export default function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +65,9 @@ export default function LoginForm() {
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        if (!userProfile.agreedToTermsAt) {
+        if (!userProfile.role) {
+          router.push("/onboarding/role-selection");
+        } else if (!userProfile.agreedToTermsAt) {
           router.push("/onboarding/terms");
         } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
           router.push("/onboarding/age-verification");
@@ -77,7 +78,8 @@ export default function LoginForm() {
           router.push("/profile");
         }
       } else {
-        router.push("/onboarding/terms"); 
+        // New user created via Google Sign-In, start onboarding from role selection
+        router.push("/onboarding/role-selection"); 
       }
     } catch (error) {
       console.error("Error fetching user profile for redirect:", error);
@@ -134,7 +136,7 @@ export default function LoginForm() {
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      await handleRedirect(userCredential.user.uid);
+      await handleRedirect(userCredential.user.uid); // This will handle onboarding checks
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({
@@ -155,6 +157,7 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -170,6 +173,7 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

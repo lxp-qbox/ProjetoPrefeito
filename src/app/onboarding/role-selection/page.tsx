@@ -13,25 +13,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Phone, ArrowLeft } from "lucide-react"; // Added ArrowLeft
+import { Users, Gamepad2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Link from "next/link"; // Added Link
+import Link from "next/link";
+import type { UserProfile } from "@/types";
 
-export default function KakoAccountCheckPage() {
+export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  const handleHasAccount = () => {
-    // Navigate to the Kako ID input page
-    router.push("/onboarding/kako-id-input"); 
-  };
-
-  const handleNeedsAccount = async () => {
+  const handleRoleSelect = async (role: UserProfile['role']) => {
     if (!currentUser) {
       toast({
         title: "Erro",
@@ -45,20 +41,19 @@ export default function KakoAccountCheckPage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
-        kakoLiveId: "", // Explicitly set to empty as they don't have one
-        hasCompletedOnboarding: true, // Mark onboarding as complete for this path
+        role: role,
         updatedAt: serverTimestamp(),
       });
       toast({
-        title: "Onboarding Concluído",
-        description: "Você pode explorar o aplicativo agora!",
+        title: "Função Selecionada",
+        description: `Sua função foi definida como ${role === 'host' ? 'Anfitrião' : 'Participante'}.`,
       });
-      router.push("/profile");
+      router.push("/onboarding/terms");
     } catch (error) {
-      console.error("Erro ao finalizar onboarding:", error);
+      console.error("Erro ao salvar função:", error);
       toast({
-        title: "Erro",
-        description: "Não foi possível finalizar o onboarding. Tente novamente.",
+        title: "Erro ao Salvar",
+        description: "Não foi possível salvar sua função. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -68,22 +63,11 @@ export default function KakoAccountCheckPage() {
 
   return (
     <Card className="w-full max-w-lg shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
-       <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar"
-        >
-            <Link href="/onboarding/age-verification"> {/* Or previous relevant step */}
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
-        </Button>
+      {/* No back button for the very first onboarding step based on image */}
       <CardHeader className="text-center pt-10 pb-4">
-        <CardTitle className="text-2xl font-bold mt-8">Conta Kako Live</CardTitle> {/* Added mt-8 for spacing below back button */}
-        <CardDescription>
-          Você já possui uma conta no aplicativo Kako Live?
+        <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
+        <CardDescription className="mt-2">
+          Para começar, escolha como você pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
@@ -91,37 +75,38 @@ export default function KakoAccountCheckPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={handleHasAccount}
+            onClick={() => !isLoading && handleRoleSelect('host')}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('host')}
             aria-disabled={isLoading}
           >
-            <div className="p-3 bg-primary/10 rounded-full mb-3">
-              <CheckCircle className="h-8 w-8 text-primary" />
+            <div className="p-3 bg-primary/10 rounded-full mb-4">
+              <Users className="h-10 w-10 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">Sim, já tenho</h3>
+            <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
             <p className="text-sm text-muted-foreground">
-              Possuo uma conta no Kako Live e sei meu ID
+              Faço parte da agência e quero gerenciar jogos e eventos.
             </p>
+            {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={handleNeedsAccount}
+            onClick={() => !isLoading && handleRoleSelect('player')}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
-            disabled={isLoading}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('player')}
+            aria-disabled={isLoading}
           >
-            <div className="p-3 bg-primary/10 rounded-full mb-3">
-              <Phone className="h-8 w-8 text-primary" />
+            <div className="p-3 bg-primary/10 rounded-full mb-4">
+              <Gamepad2 className="h-10 w-10 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">Não, preciso criar</h3>
+            <h3 className="text-xl font-semibold mb-2">Sou participante.</h3>
             <p className="text-sm text-muted-foreground">
-              Ainda não tenho uma conta no aplicativo Kako Live
+              Quero participar dos jogos e eventos da agência.
             </p>
-            {isLoading && <LoadingSpinner size="sm" className="mt-2" />}
+            {isLoading && <LoadingSpinner size="sm" className="mt-3" />}
           </Card>
         </div>
       </CardContent>

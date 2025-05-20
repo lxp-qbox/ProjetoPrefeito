@@ -54,8 +54,6 @@ export interface Host {
   streamTitle?: string; // Current stream title
   likes?: number; 
   giftsReceived?: ReceivedGift[];
-  
-  // New fields for richer host profile and tracking
   totalDonationsValue?: number; // Placeholder for donations
   createdAt?: any; // Firestore Timestamp
   lastSeen?: any; // Firestore Timestamp
@@ -65,7 +63,7 @@ export interface Host {
 export interface UserProfile {
   uid: string;
   email?: string | null;
-  role: 'player' | 'host' | 'suporte' | 'admin' | 'master';
+  role?: 'player' | 'host' | 'suporte' | 'admin' | 'master'; // Made role optional for initial check
   kakoLiveId?: string;       // passaporte
   profileName?: string;      // o nome do usuario do kako
   displayName?: string | null; // From Firebase Auth, synced with profileName
@@ -109,3 +107,4 @@ export interface ChatMessage {
   userId?: string; // User ID of the message sender
   userLevel?: number; // Level of the message sender
 }
+
