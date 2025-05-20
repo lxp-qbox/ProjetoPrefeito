@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Send, MessageSquare, Users, Check, CheckCheck } from "lucide-react";
+import { Search, Send, MessageSquare, Check, CheckCheck, Smile, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationPreview, AppMessage } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -59,11 +59,10 @@ export default function MessagesPage() {
       .filter(msg => msg.conversationId === selectedConversationId)
       .map(msg => ({ ...msg, isCurrentUser: msg.senderId === currentUserId }))
       .sort((a,b) => {
-         const timeA = a.timestamp.split(':').map(Number);
-         const timeB = b.timestamp.split(':').map(Number);
-         if (timeA.length === 2 && timeB.length === 2) {
-           if (timeA[0] !== timeB[0]) return timeA[0] - timeB[0];
-           return timeA[1] - timeB[1];
+         // Basic time sorting, assumes HH:MM format or consistent date strings
+         // For robust sorting, use Date objects
+         if (a.timestamp && b.timestamp) {
+            return a.timestamp.localeCompare(b.timestamp);
          }
          return 0; 
       });
@@ -93,7 +92,8 @@ export default function MessagesPage() {
     ).sort((a, b) => { 
         if (a.id === selectedConversationId) return -1;
         if (b.id === selectedConversationId) return 1;
-        return 0;
+        // Add further sorting if needed (e.g., by pinned, then by lastMessageTime)
+        return 0; // Keep original order for others or implement time-based sorting
     }));
   };
   
@@ -108,6 +108,7 @@ export default function MessagesPage() {
 
 
   if (!currentUser) {
+    // ProtectedPage should handle this, but this is a fallback.
     return <ProtectedPage><div className="flex justify-center items-center h-full">Carregando...</div></ProtectedPage>;
   }
   
@@ -156,7 +157,7 @@ export default function MessagesPage() {
                         <AvatarFallback>{getInitials(convo.userName)}</AvatarFallback>
                       </Avatar>
                       {convo.isOnline && (
-                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-card" title="Online" />
+                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" title="Online" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -238,26 +239,32 @@ export default function MessagesPage() {
                     </div>
                   ))}
                 </ScrollArea>
-                <div className="p-4 border-t border-border bg-card">
-                  <div className="flex items-center space-x-2">
-                    <Textarea
-                      placeholder="Digite sua mensagem..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      rows={1}
-                      className="flex-1 resize-none min-h-[40px] max-h-[120px]"
-                    />
-                    <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                      <Send className="h-4 w-4" />
-                      <span className="sr-only">Enviar</span>
-                    </Button>
-                  </div>
+                <div className="flex items-center gap-2 p-2 border-t border-border bg-card mx-4 mb-4 rounded-lg shadow-sm">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                    <Smile className="h-5 w-5" />
+                    <span className="sr-only">Adicionar emoji</span>
+                  </Button>
+                  <Textarea
+                    placeholder="Digite sua mensagem..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    rows={1}
+                    className="flex-1 resize-none min-h-[40px] max-h-[120px] border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
+                  />
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                    <Paperclip className="h-5 w-5" />
+                    <span className="sr-only">Anexar arquivo</span>
+                  </Button>
+                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()} size="icon">
+                    <Send className="h-5 w-5" />
+                    <span className="sr-only">Enviar</span>
+                  </Button>
                 </div>
               </>
             ) : (
