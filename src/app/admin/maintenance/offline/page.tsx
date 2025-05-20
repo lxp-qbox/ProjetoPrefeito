@@ -20,8 +20,8 @@ interface SiteModule {
   name: string;
   icon: React.ElementType;
   globallyOffline: boolean;
-  isHiddenFromMenu: boolean; 
-  minimumAccessLevelWhenOffline: MinimumAccessLevel; 
+  isHiddenFromMenu: boolean;
+  minimumAccessLevelWhenOffline: MinimumAccessLevel;
 }
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -35,7 +35,7 @@ const roleDisplayNames: Record<UserRole, string> = {
 const roleIcons: Record<UserRole, React.ElementType> = {
   master: ShieldCheck,
   admin: UserCog,
-  suporte: UserCog, 
+  suporte: UserCog,
   host: Star,
   player: User,
 };
@@ -43,10 +43,10 @@ const roleIcons: Record<UserRole, React.ElementType> = {
 const minimumAccessLevelOptions: { value: MinimumAccessLevel; label: string }[] = [
   { value: 'nobody', label: "Ninguém (Totalmente Bloqueado)" },
   { value: 'master', label: "Apenas Master" },
-  { value: 'admin', label: "Admin e Acima" },
-  { value: 'suporte', label: "Suporte e Acima" },
-  { value: 'host', label: "Host e Acima" },
-  { value: 'player', label: "Player e Todos Acima (Todos Permitidos)" },
+  { value: 'admin', label: "Admin e abaixo" },
+  { value: 'suporte', label: "Suporte e abaixo" },
+  { value: 'host', label: "Host e abaixo" },
+  { value: 'player', label: "Todos" },
 ];
 
 const initialModuleStatuses: SiteModule[] = [
@@ -56,7 +56,7 @@ const initialModuleStatuses: SiteModule[] = [
     icon: HomeIcon,
     globallyOffline: false,
     isHiddenFromMenu: false,
-    minimumAccessLevelWhenOffline: 'player', 
+    minimumAccessLevelWhenOffline: 'player',
   },
   {
     id: 'hosts',
@@ -80,7 +80,7 @@ const initialModuleStatuses: SiteModule[] = [
     icon: LayoutDashboard,
     globallyOffline: false,
     isHiddenFromMenu: false,
-    minimumAccessLevelWhenOffline: 'master', 
+    minimumAccessLevelWhenOffline: 'master',
   },
   {
     id: 'profile',
@@ -116,21 +116,41 @@ export default function AdminMaintenanceOfflinePage() {
         const docSnap = await getDoc(maintenanceRulesDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const fetchedRules = data.rules as Omit<SiteModule, 'icon'>[];
-          
+          // Ensure the fetched data is correctly typed and defaults are applied if fields are missing
+          const fetchedRules = (data.rules as Partial<Omit<SiteModule, 'icon'>>[] || []).map(fr => ({
+            ...initialModuleStatuses.find(im => im.id === fr.id), // get defaults for icon and initial values
+            ...fr, // override with fetched values
+          })) as SiteModule[];
+
+
           const newModuleStatuses = initialModuleStatuses.map(initialModule => {
             const fetchedModule = fetchedRules.find(fr => fr.id === initialModule.id);
-            return fetchedModule ? { ...initialModule, ...fetchedModule } : initialModule;
+            return fetchedModule ? {
+              ...initialModule, // Start with initial defaults (includes icon)
+              ...fetchedModule, // Override with fetched data
+              // Ensure required fields have fallbacks if not in fetched data or initialModule has changed
+              globallyOffline: fetchedModule.globallyOffline ?? initialModule.globallyOffline ?? false,
+              isHiddenFromMenu: fetchedModule.isHiddenFromMenu ?? initialModule.isHiddenFromMenu ?? false,
+              minimumAccessLevelWhenOffline: fetchedModule.minimumAccessLevelWhenOffline ?? initialModule.minimumAccessLevelWhenOffline ?? 'player',
+            } : {
+              ...initialModule, // Use full initial module if not found in fetched data
+              globallyOffline: initialModule.globallyOffline ?? false,
+              isHiddenFromMenu: initialModule.isHiddenFromMenu ?? false,
+              minimumAccessLevelWhenOffline: initialModule.minimumAccessLevelWhenOffline ?? 'player',
+            };
           });
 
           // Add any modules from Firestore that aren't in initialModuleStatuses (e.g., if new ones were added directly to DB)
-          // This is less likely with current setup but good for robustness
           fetchedRules.forEach(fetchedModule => {
             if (!newModuleStatuses.some(nms => nms.id === fetchedModule.id)) {
               const correspondingInitial = initialModuleStatuses.find(im => im.id === fetchedModule.id);
               newModuleStatuses.push({
-                ...fetchedModule,
-                icon: correspondingInitial ? correspondingInitial.icon : ServerOff, // Provide a fallback icon
+                id: fetchedModule.id!,
+                name: fetchedModule.name || 'Módulo Desconhecido',
+                icon: correspondingInitial ? correspondingInitial.icon : ServerOff,
+                globallyOffline: fetchedModule.globallyOffline ?? false,
+                isHiddenFromMenu: fetchedModule.isHiddenFromMenu ?? false,
+                minimumAccessLevelWhenOffline: fetchedModule.minimumAccessLevelWhenOffline ?? 'player',
               } as SiteModule);
             }
           });
@@ -186,7 +206,6 @@ export default function AdminMaintenanceOfflinePage() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      // Prepare data for Firestore (remove icon functions)
       const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest);
       await setDoc(maintenanceRulesDocRef, { rules: statusesToSave, lastUpdated: serverTimestamp() });
       toast({
@@ -219,7 +238,7 @@ export default function AdminMaintenanceOfflinePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Gerenciar Status Offline de Módulos</h1>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -316,5 +335,3 @@ export default function AdminMaintenanceOfflinePage() {
     </div>
   );
 }
-
-    
