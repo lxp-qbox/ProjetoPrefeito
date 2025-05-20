@@ -49,7 +49,7 @@ export default function LoginPage() {
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
-              <ArrowLeft className="h-9 w-9" />
+              <ArrowLeft className="h-10 w-10" />
             </Link>
           </Button>
         </div>
@@ -76,3 +76,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
