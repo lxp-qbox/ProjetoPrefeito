@@ -44,11 +44,12 @@ import Link from "next/link";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function AgeVerificationPage() {
-  const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
+  const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -68,6 +69,9 @@ export default function AgeVerificationPage() {
     if (showUnderageAlert) {
       setShowUnderageAlert(false); 
     }
+    if (date) {
+      setIsCalendarOpen(false);
+    }
   };
 
   const handleContinue = async () => {
@@ -80,7 +84,6 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -127,13 +130,12 @@ export default function AgeVerificationPage() {
         description: "Suas informações foram registradas com sucesso.",
       });
 
-      // Navigate based on role
       if (currentUser.role === 'host') {
         router.push("/onboarding/kako-id-input");
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile"); // Fallback, should ideally not happen if role is set
+        router.push("/profile"); 
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -201,7 +203,7 @@ export default function AgeVerificationPage() {
             <Label htmlFor="birthdate-picker" className="text-sm font-medium mb-2 block text-left">
               Data de Nascimento
             </Label>
-            <Popover>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   id="birthdate-picker"
@@ -235,7 +237,7 @@ export default function AgeVerificationPage() {
               </PopoverContent>
             </Popover>
           </div>
-
+        
           <div>
             <Label htmlFor="country-select" className="text-sm font-medium mb-2 block text-left">
               País
@@ -268,7 +270,7 @@ export default function AgeVerificationPage() {
           )}
         </div>
       </CardContent>
-      <CardFooter className="p-6 border-t">
+      <CardFooter className="p-6">
         <Button
           onClick={handleContinue}
           className="w-full"
