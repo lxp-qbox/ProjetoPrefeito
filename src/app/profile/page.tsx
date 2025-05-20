@@ -74,13 +74,13 @@ export default function ProfilePage() {
                     <strong>Passaporte:</strong>&nbsp;{currentUser.kakoLiveId}
                   </p>
                 )}
-                <p className="flex items-center text-sm">
+                <div className="flex items-center text-sm"> {/* Changed p to div here */}
                   <BadgeCent className="mr-2 h-4 w-4 text-muted-foreground" />
                   <strong>Role:</strong>&nbsp;
                   <Badge variant={currentUser.role === 'admin' || currentUser.role === 'master' ? 'destructive' : 'secondary'}>
                     {currentUser.role}
                   </Badge>
-                </p>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   User ID: {currentUser.uid}
                 </p>
