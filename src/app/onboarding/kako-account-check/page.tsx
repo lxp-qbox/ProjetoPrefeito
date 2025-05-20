@@ -15,9 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-import { useAuth } from "@/hooks/use-auth";
+// import { useAuth } from "@/hooks/use-auth"; // Not needed if not saving here
 // import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase"; // Not saving directly here anymore
-// import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast"; // Not needed if not saving here
 // import { useState } from "react";
 // import LoadingSpinner from "@/components/ui/loading-spinner";
 
@@ -52,8 +52,8 @@ export default function KakoAccountCheckPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>

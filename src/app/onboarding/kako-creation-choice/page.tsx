@@ -25,16 +25,18 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState<string | null>(null); // 'skip' or 'create'
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  const handleSkipLinking = async () => {
+  const handleChoice = async (choice: 'skip' | 'create') => {
     if (!currentUser) {
       toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
       router.push("/login");
       return;
     }
+    setLoadingRole(choice);
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -43,45 +45,27 @@ export default function KakoCreationChoicePage() {
         hasCompletedOnboarding: true, 
         updatedAt: serverTimestamp(),
       });
-      toast({
-        title: "Onboarding Concluído!",
-        description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
-        duration: 7000,
-      });
+      
+      if (choice === 'skip') {
+        toast({
+          title: "Onboarding Concluído!",
+          description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
+          duration: 7000,
+        });
+      } else { // create
+        toast({
+          title: "Entendido!",
+          description: "Crie sua conta no app Kako Live. Depois, você pode adicionar seu ID no seu perfil para acesso completo.",
+          duration: 9000,
+        });
+      }
       router.push("/profile");
     } catch (error) {
-      console.error("Erro ao finalizar onboarding (skip linking):", error);
+      console.error(`Erro ao finalizar onboarding (${choice}):`, error);
       toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleWillCreateAccount = async () => {
-     if (!currentUser) {
-      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
-      router.push("/login");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userDocRef, {
-        kakoLiveId: "", 
-        hasCompletedOnboarding: true, 
-        updatedAt: serverTimestamp(),
-      });
-      toast({
-        title: "Entendido!",
-        description: "Crie sua conta no app Kako Live. Depois, você pode adicionar seu ID no seu perfil para acesso completo.",
-        duration: 9000,
-      });
-      router.push("/profile"); 
-    } catch (error) {
-      console.error("Erro ao finalizar onboarding (will create Kako account):", error);
-      toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -100,8 +84,8 @@ export default function KakoCreationChoicePage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Criar Conta Kako Live</CardTitle>
@@ -114,38 +98,48 @@ export default function KakoCreationChoicePage() {
         <div className="grid grid-cols-1 gap-6 w-full"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleSkipLinking : undefined}
+            onClick={!isLoading ? () => handleChoice('skip') : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSkipLinking()}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleChoice('skip')}
             aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <XCircle className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">Não quero criar/vincular agora</h3>
-            <p className="text-sm text-muted-foreground">
-              Você pode explorar o aplicativo. Algumas funcionalidades podem ser limitadas.
-            </p>
-            {isLoading && loadingRole === 'skip' && <LoadingSpinner size="sm" className="mt-2" />}
+            {isLoading && loadingRole === 'skip' ? (
+              <LoadingSpinner size="md" className="my-3" />
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-1">Não quero criar/vincular agora</h3>
+                <p className="text-sm text-muted-foreground">
+                  Você pode explorar o aplicativo. Algumas funcionalidades podem ser limitadas.
+                </p>
+              </>
+            )}
           </Card>
 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleWillCreateAccount : undefined}
+            onClick={!isLoading ? () => handleChoice('create') : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleWillCreateAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleChoice('create')}
             aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <ExternalLink className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">Vou criar uma conta no app Kako Live</h3>
-            <p className="text-sm text-muted-foreground">
-              Após criar, volte e informe seu ID para acesso completo.
-            </p>
-             {isLoading && loadingRole === 'create' && <LoadingSpinner size="sm" className="mt-2" />}
+             {isLoading && loadingRole === 'create' ? (
+              <LoadingSpinner size="md" className="my-3" />
+             ) : (
+                <>
+                    <h3 className="text-lg font-semibold mb-1">Vou criar uma conta no app Kako Live</h3>
+                    <p className="text-sm text-muted-foreground">
+                    Após criar, volte e informe seu ID para acesso completo.
+                    </p>
+                </>
+             )}
           </Card>
         </div>
       </CardContent>
