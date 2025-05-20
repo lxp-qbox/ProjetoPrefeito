@@ -68,7 +68,7 @@ export default function RoleSelectionPage() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
        <Button
             asChild
             variant="ghost"
@@ -86,7 +86,7 @@ export default function RoleSelectionPage() {
           <Star className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
-        <CardDescription className="mt-2">
+        <CardDescription>
           Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>

@@ -84,15 +84,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!selectedCountry) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, selecione seu país.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!selectedGender) {
+     if (!selectedGender) {
       toast({
         title: "Atenção",
         description: "Por favor, selecione seu sexo.",
@@ -104,6 +96,14 @@ export default function AgeVerificationPage() {
       toast({
         title: "Atenção",
         description: "Por favor, selecione sua data de nascimento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!selectedCountry) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione seu país.",
         variant: "destructive",
       });
       return;
@@ -155,7 +155,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
        <Button
             asChild
             variant="ghost"

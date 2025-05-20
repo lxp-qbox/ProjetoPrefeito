@@ -4,25 +4,22 @@
 import LoginForm from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { LogIn } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
-import { useSearchParams } from "next/navigation"; // Keep for potential future use if back button logic changes
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Keep for potential future use
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!loading && currentUser) {
-      // Onboarding redirection logic
       if (!currentUser.agreedToTermsAt) {
         router.replace("/onboarding/terms");
       } else if (!currentUser.role) {
@@ -43,13 +40,13 @@ export default function LoginPage() {
             router.replace("/profile");
           }
         } else {
-          router.replace("/profile"); // Default for other roles
+          router.replace("/profile"); 
         }
       }
     }
   }, [currentUser, loading, router]);
 
-  if (loading || (!loading && currentUser && !searchParams.get('redirect'))) { // Added !searchParams.get('redirect') to avoid flash on redirect
+  if (loading || (!loading && currentUser)) { 
     return (
       <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
         <LoadingSpinner size="lg" />
@@ -59,7 +56,10 @@ export default function LoginPage() {
 
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
-      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+      {/* Comment: Added a placeholder comment where custom animation CSS/JS could be added */}
+      {/* For shooting stars or other background animations, you might add a separate, absolutely positioned div here */}
+      {/* or apply custom CSS animations to this main div. */}
+      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
         
         <CardHeader className="text-center pt-10 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">

@@ -97,13 +97,11 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
-    // If user is a host, they came from age-verification.
-    // If user is a player, they came from kako-account-check.
     return currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
       <Button
         asChild
         variant="ghost"
