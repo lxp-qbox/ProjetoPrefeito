@@ -1,14 +1,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button"; // Added Button import
-import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User } from "lucide-react"; // Renamed Users to UsersIconProp
-import { useToast } from "@/hooks/use-toast"; // Added useToast import
+import { Button } from "@/components/ui/button";
+import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, LayoutDashboard, UserCircle2, Settings as SettingsIcon, ShieldCheck, UserCog, Star, User, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { db, doc, getDoc, setDoc, serverTimestamp } from "@/lib/firebase";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 interface ModuleAccessStatus {
   globallyOffline: boolean;
@@ -25,6 +27,7 @@ interface SiteModule extends ModuleAccessStatus {
   id: string;
   name: string;
   icon: React.ElementType;
+  // No need to store icon string or function in Firestore, can be mapped by id
 }
 
 type UserRole = keyof ModuleAccessStatus['accessLevels'];
@@ -56,7 +59,7 @@ const initialModuleStatuses: SiteModule[] = [
   {
     id: 'hosts',
     name: "Página de Hosts",
-    icon: UsersIconProp, // Changed from Star to UsersIconProp
+    icon: UsersIconProp,
     globallyOffline: false,
     accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
   },
@@ -72,7 +75,7 @@ const initialModuleStatuses: SiteModule[] = [
     name: "Painel Admin",
     icon: LayoutDashboard,
     globallyOffline: false,
-    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'normal', player: 'normal' },
+    accessLevels: { master: 'normal', admin: 'normal', suporte: 'normal', host: 'blocked', player: 'blocked' }, // Default block for non-admins
   },
   {
     id: 'profile',
@@ -93,7 +96,49 @@ const initialModuleStatuses: SiteModule[] = [
 
 export default function AdminMaintenanceOfflinePage() {
   const [moduleStatuses, setModuleStatuses] = useState<SiteModule[]>(initialModuleStatuses);
-  const { toast } = useToast(); // Initialize toast
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+
+  const maintenanceRulesDocRef = doc(db, "app_settings", "maintenance_rules");
+
+  useEffect(() => {
+    const fetchMaintenanceSettings = async () => {
+      setIsLoadingSettings(true);
+      try {
+        const docSnap = await getDoc(maintenanceRulesDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          // Map Firestore data back to SiteModule[], ensuring icons are functions
+          const fetchedStatuses = (data.rules as any[]).map(fsModule => {
+            const initialModule = initialModuleStatuses.find(im => im.id === fsModule.id);
+            return {
+              ...fsModule,
+              icon: initialModule ? initialModule.icon : ServerOff, // Fallback icon
+            };
+          });
+          setModuleStatuses(fetchedStatuses);
+        } else {
+          // No settings found, use initial defaults (and save them on first save action)
+          console.log("Nenhuma configuração de manutenção encontrada, usando padrões.");
+          setModuleStatuses(initialModuleStatuses);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar configurações de manutenção:", error);
+        toast({
+          title: "Erro ao Carregar Configurações",
+          description: "Não foi possível carregar as configurações de manutenção. Usando padrões.",
+          variant: "destructive",
+        });
+        setModuleStatuses(initialModuleStatuses);
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+    fetchMaintenanceSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const handleGlobalToggle = (moduleId: string, isOffline: boolean) => {
     setModuleStatuses((prevModules) =>
@@ -101,7 +146,6 @@ export default function AdminMaintenanceOfflinePage() {
         module.id === moduleId ? { ...module, globallyOffline: isOffline } : module
       )
     );
-    console.log(`Module ${moduleId} global status toggled to: ${isOffline ? 'Offline' : 'Online'}`);
   };
 
   const handleRoleAccessChange = (moduleId: string, role: UserRole, access: 'normal' | 'maintenance' | 'blocked') => {
@@ -118,19 +162,38 @@ export default function AdminMaintenanceOfflinePage() {
           : module
       )
     );
-    console.log(`Access for role ${role} on module ${moduleId} set to: ${access}`);
   };
 
-  const handleSaveChanges = () => {
-    // Placeholder for actual save logic
-    console.log("Attempting to save maintenance settings:", moduleStatuses);
-    toast({
-      title: "Salvar Configurações (Simulação)",
-      description: "A funcionalidade de salvar no banco de dados ainda não foi implementada. As configurações atuais foram exibidas no console.",
-    });
-    // In a real implementation, you would send `moduleStatuses` to your backend/Firestore here.
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      // Prepare data for Firestore (remove icon functions)
+      const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest);
+      await setDoc(maintenanceRulesDocRef, { rules: statusesToSave, lastUpdated: serverTimestamp() });
+      toast({
+        title: "Configurações Salvas!",
+        description: "As configurações de manutenção foram salvas com sucesso no banco de dados.",
+      });
+    } catch (error) {
+      console.error("Erro ao salvar configurações de manutenção:", error);
+      toast({
+        title: "Erro ao Salvar",
+        description: "Não foi possível salvar as configurações de manutenção. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  if (isLoadingSettings) {
+    return (
+      <div className="flex justify-center items-center h-full p-6">
+        <LoadingSpinner size="lg" />
+        <p className="ml-4 text-muted-foreground">Carregando configurações...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 bg-background p-6 rounded-lg shadow-sm h-full overflow-y-auto">
@@ -146,7 +209,7 @@ export default function AdminMaintenanceOfflinePage() {
           </CardTitle>
           <CardDescription>
             Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina permissões de acesso granulares por função.
-            <strong className="text-destructive block mt-1">As alterações feitas aqui são locais. Clique em "Salvar Alterações" para torná-las persistentes (funcionalidade de salvar ainda em desenvolvimento).</strong>
+            <strong className="text-destructive block mt-1">Clique em "Salvar Alterações" para persistir suas escolhas no banco de dados.</strong>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -212,17 +275,21 @@ export default function AdminMaintenanceOfflinePage() {
           })}
         </CardContent>
          <CardFooter className="pt-6 border-t flex justify-end">
-          <Button onClick={handleSaveChanges}>Salvar Alterações</Button>
+          <Button onClick={handleSaveChanges} disabled={isSaving}>
+            {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+            Salvar Alterações
+          </Button>
         </CardFooter>
       </Card>
 
       <CardFooter className="pt-6 border-t">
         <p className="text-xs text-muted-foreground">
-          <strong>Nota Importante:</strong> Esta interface é para configurar o controle de acesso.
-          As alterações feitas aqui precisam ser salvas e a lógica de backend
-          e as verificações de permissão em cada rota precisam ser implementadas para que tenham efeito real.
+          <strong>Nota Importante:</strong> As configurações salvas aqui afetam o acesso ao site.
+          A lógica de backend e as verificações de permissão em cada rota precisam ser implementadas para que estas regras tenham efeito real.
         </p>
       </CardFooter>
     </div>
   );
 }
+
+    
