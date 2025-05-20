@@ -19,12 +19,26 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, updateDoc } from "@/lib/firebase";
-import { Palette, UserCircle, Link as LinkIcon, Image as ImageIcon, Save } from "lucide-react";
+import { Palette, UserCircle, Link as LinkIcon, Image as ImageIcon, Save, Check } from "lucide-react";
 import type { UserProfile } from "@/types";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { cn } from "@/lib/utils";
 
 type SettableUserProfileFields = Pick<UserProfile, "themePreference" | "accentColor" | "bio" | "profileName" | "kakoLiveId" | "gender" | "birthDate" | "civilStatus" | "socialLinks">;
+
+const accentColorOptions = [
+  { name: "Blue", value: "#4285F4" }, // Default Primary
+  { name: "Sky Blue", value: "#79A6DC" },
+  { name: "Purple", value: "#8A2BE2" },
+  { name: "Pink", value: "#FF69B4" },
+  { name: "Red", value: "#DB4437" }, // Default Destructive
+  { name: "Orange", value: "#FFA726" }, // Default Accent
+  { name: "Yellow", value: "#FFC107" },
+  { name: "Green", value: "#0F9D58" },
+  { name: "Teal", value: "#008080" },
+  { name: "Cyan", value: "#00BCD4" },
+];
 
 
 export default function SettingsPage() {
@@ -36,8 +50,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (currentUser) {
       setSettings({
-        themePreference: currentUser.themePreference || "system",
-        accentColor: currentUser.accentColor || "#4285F4", // Default to primary blue
+        themePreference: currentUser.themePreference === 'system' ? 'light' : (currentUser.themePreference || "light"),
+        accentColor: currentUser.accentColor || "#4285F4",
         profileName: currentUser.profileName || "",
         kakoLiveId: currentUser.kakoLiveId || "",
         bio: currentUser.bio || "",
@@ -64,8 +78,12 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleRadioChange = (name: keyof SettableUserProfileFields, value: string) => {
-    setSettings((prev) => ({ ...prev, [name]: value }));
+  const handleRadioChange = (name: keyof Pick<SettableUserProfileFields, "themePreference">, value: string) => {
+    setSettings((prev) => ({ ...prev, [name]: value as 'light' | 'dark' }));
+  };
+
+  const handleAccentColorChange = (colorValue: string) => {
+    setSettings((prev) => ({ ...prev, accentColor: colorValue }));
   };
 
 
@@ -79,10 +97,10 @@ export default function SettingsPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         ...settings,
-        updatedAt: new Date(), // Use JS Date for client-side update, or serverTimestamp for server
+        themePreference: settings.themePreference === 'system' ? 'light' : settings.themePreference, // Ensure system is not saved
+        updatedAt: new Date(), 
       });
       toast({ title: "Configurações Salvas", description: "Suas preferências foram atualizadas." });
-      // Optionally, trigger a refresh of currentUser in AuthContext if settings impact global state
     } catch (error: any) {
       console.error("Erro ao salvar configurações:", error);
       toast({ title: "Falha ao Salvar", description: error.message || "Não foi possível salvar as configurações.", variant: "destructive" });
@@ -117,48 +135,56 @@ export default function SettingsPage() {
             </CardTitle>
             <CardDescription>Personalize a aparência do site.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
+            {/* Color Mode */}
             <div>
-              <Label htmlFor="themePreference" className="text-base font-semibold">Preferência de Tema</Label>
+              <Label className="text-base font-semibold">Modo de Cor</Label>
+              <p className="text-sm text-muted-foreground mb-3">Escolha o modo de cor para seu aplicativo.</p>
               <RadioGroup
-                id="themePreference"
-                name="themePreference"
-                value={settings.themePreference || "system"}
+                value={settings.themePreference || "light"}
                 onValueChange={(value) => handleRadioChange("themePreference", value)}
-                className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4"
+                className="space-y-2"
               >
                 {[
                   { value: "light", label: "Claro" },
                   { value: "dark", label: "Escuro" },
-                  { value: "system", label: "Padrão do Sistema" },
                 ].map((item) => (
-                  <Label
-                    key={item.value}
-                    htmlFor={`theme-${item.value}`}
-                    className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-                  >
-                    <RadioGroupItem value={item.value} id={`theme-${item.value}`} className="sr-only" />
-                    {item.label}
-                  </Label>
+                  <div key={item.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={item.value} id={`theme-${item.value}`} />
+                    <Label htmlFor={`theme-${item.value}`} className="font-normal cursor-pointer">
+                      {item.label}
+                    </Label>
+                  </div>
                 ))}
               </RadioGroup>
             </div>
+
+            {/* Color Scheme */}
             <div>
-              <Label htmlFor="accentColor" className="text-base font-semibold">Cor de Destaque</Label>
-              <div className="relative mt-2">
-                <Input
-                  id="accentColor"
-                  name="accentColor"
-                  type="color"
-                  value={settings.accentColor || "#4285F4"}
-                  onChange={handleInputChange}
-                  className="w-24 h-10 p-1"
-                />
-                 <span className="ml-3 text-sm text-muted-foreground">
-                  Atual: <span style={{ color: settings.accentColor }} className="font-semibold">{settings.accentColor}</span>
-                </span>
+              <Label className="text-base font-semibold">Esquema de Cores</Label>
+              <p className="text-sm text-muted-foreground mb-3">O esquema de cores perfeito para seu aplicativo.</p>
+              <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                {accentColorOptions.map((color) => (
+                  <Button
+                    key={color.value}
+                    variant="outline"
+                    className={cn(
+                      "h-10 w-10 rounded-full p-0 border-2 flex items-center justify-center",
+                      settings.accentColor === color.value
+                        ? "border-ring ring-2 ring-ring ring-offset-2" 
+                        : "border-muted-foreground/30 hover:border-ring" 
+                    )}
+                    style={{ backgroundColor: color.value }}
+                    onClick={() => handleAccentColorChange(color.value)}
+                    aria-label={color.name}
+                  >
+                    {settings.accentColor === color.value && (
+                      <Check className="h-5 w-5 text-white mix-blend-difference" />
+                    )}
+                  </Button>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+               <p className="text-xs text-muted-foreground mt-2">
                 Nota: A aplicação completa da cor de destaque em todo o site está em desenvolvimento.
               </p>
             </div>
