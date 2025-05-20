@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon } from "lucide-react";
+import { Users, MailQuestion, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, User, UserCog, PanelLeftClose, PanelRightOpen, Star, XCircle, TicketIcon as AdminTicketIcon, Database } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,11 +12,12 @@ import type { ReactNode } from 'react';
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Import page content components
+// Import page content components for conditional rendering
 import AdminHostsPageContent from "@/app/admin/hosts/page-content";
 import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
-import AdminAdminsPageContent from "@/app/admin/users/admin/page-content"; // Updated import
+import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
 import AdminBansPage from "@/app/admin/actions/bans/page";
+import AdminKakoLiveDataListPage from "@/app/admin/kako-live/data-list/page";
 
 
 interface AdminMenuItem {
@@ -50,6 +51,12 @@ const adminMenuGroups: AdminMenuGroup[] = [
       { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
       { title: "Banimentos", icon: XCircle, link: "/admin/actions/bans" },
     ],
+  },
+  {
+    groupTitle: "Kako Live",
+    items: [
+        { title: "Lista de dados", icon: Database, link: "/admin/kako-live/data-list" },
+    ]
   },
   {
     groupTitle: "Sobre",
@@ -95,9 +102,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     } else if (pathname === "/admin/users/players") {
       setContentToRender(<AdminPlayersPageContent />);
     } else if (pathname === "/admin/users/admin") {
-      setContentToRender(<AdminAdminsPageContent />); // Use new content component
+      setContentToRender(<AdminAdminsPageContent />); 
     } else if (pathname === "/admin/actions/bans") {
       setContentToRender(<AdminBansPage />);
+    } else if (pathname === "/admin/kako-live/data-list") {
+        setContentToRender(<AdminKakoLiveDataListPage />);
     }
     // Add other else if blocks for other specific admin pages
     // Example:
@@ -106,7 +115,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     // }
     else {
       // Fallback to children for pages not explicitly handled or for nested routes
-      // This allows Next.js to handle routing for pages like /admin/language/page.tsx if they exist
       setContentToRender(children);
     }
   }, [pathname, children]);
@@ -235,5 +243,3 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
-
-    

@@ -16,6 +16,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import React, { useState, useEffect, useCallback } from "react";
+import { db, doc, updateDoc, serverTimestamp, getDocs, collection, query, where, type UserProfile } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 interface StatCardProps {
   title: string;
@@ -41,19 +45,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
 );
 
 interface AdminPlayer {
-  id: string;
-  avatarUrl: string;
-  appUserId: string; 
+  id: string; // User UID
+  avatarUrl?: string | null;
+  appUserId: string; // User UID
   name: string;
-  email: string;
-  status: 'Ativo' | 'Banido' | 'Pendente';
+  email?: string;
+  status: 'Ativo' | 'Banido';
 }
-
-const placeholderPlayers: AdminPlayer[] = [
-  { id: "p1", avatarUrl: "https://placehold.co/40x40.png", appUserId: "player001", name: "Ana Jogadora", email: "ana.j@example.com", status: "Ativo" },
-  { id: "p2", avatarUrl: "https://placehold.co/40x40.png", appUserId: "player002", name: "Bruno Gamer", email: "bruno.g@example.com", status: "Banido" },
-  { id: "p3", avatarUrl: "https://placehold.co/40x40.png", appUserId: "player003", name: "Carla Participante", email: "carla.p@example.com", status: "Pendente" },
-];
 
 const getStatusStyles = (status: AdminPlayer['status']) => {
   switch (status) {
@@ -61,14 +59,86 @@ const getStatusStyles = (status: AdminPlayer['status']) => {
       return { text: 'Ativo', className: 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' };
     case 'Banido':
       return { text: 'Banido', className: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200' };
-    case 'Pendente':
-      return { text: 'Pendente', className: 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' };
     default:
       return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200' };
   }
 };
 
 export default function AdminPlayersPageContent() {
+  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
+
+  const fetchPlayers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("role", "==", "player"));
+      const querySnapshot = await getDocs(q);
+      const fetchedPlayers: AdminPlayer[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const userData = docSnap.data() as UserProfile;
+        fetchedPlayers.push({
+          id: docSnap.id,
+          appUserId: docSnap.id,
+          name: userData.profileName || userData.displayName || "N/A",
+          avatarUrl: userData.photoURL,
+          email: userData.email || "N/A",
+          status: userData.isBanned ? 'Banido' : 'Ativo',
+        });
+      });
+      setPlayers(fetchedPlayers);
+    } catch (error) {
+      console.error("Error fetching players:", error);
+      toast({
+        title: "Erro ao buscar players",
+        description: "Não foi possível carregar a lista de players.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchPlayers();
+  }, [fetchPlayers]);
+
+  const handleBanPlayer = async (playerId: string) => {
+    console.log("Solicitado banir player:", playerId);
+     try {
+        const userDocRef = doc(db, "users", playerId);
+        await updateDoc(userDocRef, {
+            isBanned: true,
+            bannedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Player Banido", description: "O status do player foi atualizado para banido."});
+        fetchPlayers(); // Refresh list
+    } catch (error) {
+        console.error("Erro ao banir player:", error);
+        toast({ title: "Erro ao Banir", description: "Não foi possível banir o player.", variant: "destructive"});
+    }
+  };
+
+  const filteredPlayers = players.filter(player =>
+    player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    player.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    player.appUserId.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const activePlayersCount = players.filter(p => p.status === 'Ativo').length;
+  const bannedPlayersCount = players.filter(p => p.status === 'Banido').length;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full p-6">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 h-full flex flex-col p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -78,14 +148,20 @@ export default function AdminPlayersPageContent() {
         </div>
         <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Buscar players (Nome, ID, Email...)" className="pl-10 w-full h-10" />
+            <Input 
+              type="search" 
+              placeholder="Buscar players (Nome, ID, Email...)" 
+              className="pl-10 w-full h-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Total de Players" count={placeholderPlayers.length} icon={Users} bgColorClass="bg-blue-500/10" textColorClass="text-blue-500" />
-        <StatCard title="Players Ativos" count={placeholderPlayers.filter(p => p.status === 'Ativo').length} icon={CheckCircle} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
-        <StatCard title="Players Banidos" count={placeholderPlayers.filter(p => p.status === 'Banido').length} icon={XCircle} bgColorClass="bg-red-500/10" textColorClass="text-red-500" />
+        <StatCard title="Total de Players" count={players.length} icon={Users} bgColorClass="bg-blue-500/10" textColorClass="text-blue-500" />
+        <StatCard title="Players Ativos" count={activePlayersCount} icon={CheckCircle} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
+        <StatCard title="Players Banidos" count={bannedPlayersCount} icon={XCircle} bgColorClass="bg-red-500/10" textColorClass="text-red-500" />
       </div>
 
       <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -100,76 +176,88 @@ export default function AdminPlayersPageContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {placeholderPlayers.map((player) => {
-                const statusInfo = getStatusStyles(player.status);
-                return (
-                  <TableRow key={player.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell className="font-medium">
-                      <Link href={`/users/${player.appUserId}`} className="flex items-center gap-3 group">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={player.avatarUrl} alt={player.name} data-ai-hint="player avatar" />
-                          <AvatarFallback>{player.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <span className="group-hover:text-primary group-hover:underline">{player.name}</span>
-                          <div className="text-xs text-muted-foreground">{player.appUserId}</div>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
-                        {statusInfo.text}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <a 
-                        href={`mailto:${player.email}`}
-                        className="text-primary hover:underline"
-                      >
-                        {player.email}
-                      </a>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                              Ações
-                              <ChevronDown className="h-3 w-3 ml-1" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                               <XCircle className="mr-2 h-4 w-4" />
-                              Banir Player
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver Detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <KeyRound className="mr-2 h-4 w-4" />
-                                Resetar Senha
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+              {filteredPlayers.length === 0 ? (
+                 <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      Nenhum player encontrado.
                     </TableCell>
                   </TableRow>
-                );
-              })}
+              ) : (
+                filteredPlayers.map((player) => {
+                  const statusInfo = getStatusStyles(player.status);
+                  return (
+                    <TableRow key={player.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="font-medium">
+                        <Link href={`/profile/${player.appUserId}`} className="flex items-center gap-3 group">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={player.avatarUrl || undefined} alt={player.name} data-ai-hint="player avatar" />
+                            <AvatarFallback>{player.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <span className="group-hover:text-primary group-hover:underline">{player.name}</span>
+                            <div className="text-xs text-muted-foreground">{player.appUserId}</div>
+                          </div>
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
+                          {statusInfo.text}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <a 
+                          href={`mailto:${player.email}`}
+                          className="text-primary hover:underline"
+                        >
+                          {player.email}
+                        </a>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                            <Edit className="h-3 w-3 mr-1" />
+                            Editar
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                                Ações
+                                <ChevronDown className="h-3 w-3 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                onSelect={() => handleBanPlayer(player.id)}
+                                disabled={player.status === 'Banido'}
+                              >
+                                 <XCircle className="mr-2 h-4 w-4" />
+                                Banir Player
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => console.log("Ver detalhes do player", player.id)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ver Detalhes
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => console.log("Resetar senha do player", player.id)}>
+                                  <KeyRound className="mr-2 h-4 w-4" />
+                                  Resetar Senha
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground pt-2">
-        <p>Mostrando 1 a {placeholderPlayers.length} de {placeholderPlayers.length} resultados</p>
+        <p>Mostrando 1 a {filteredPlayers.length} de {filteredPlayers.length} resultados</p>
         <div className="flex items-center gap-1 mt-2 sm:mt-0">
           <Button variant="outline" size="sm" className="px-2 h-8 w-8" disabled={true}>&lt;</Button>
           <Button variant="default" size="sm" className="px-3 h-8 w-8">1</Button>
