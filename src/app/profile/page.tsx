@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, BadgeCent, Fingerprint, CalendarIcon as LucideCalendarIcon, Save, Briefcase } from "lucide-react";
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarIcon as LucideCalendarIcon, Save, Briefcase } from "lucide-react"; // Removed BadgeCent as it's not used
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -48,27 +48,33 @@ export default function ProfilePage() {
         try {
             // Attempt to parse date string that might be YYYY-MM-DD
             const parsedDate = parseISO(currentUser.birthDate);
+            // Check if parsedDate is a valid date
             if (!isNaN(parsedDate.getTime())) {
                  setEditableBirthDate(parsedDate);
             } else {
                 // Handle cases where birthDate might not be in a directly parseable ISO format
-                // For example, if it was just a string like '20/05/1990' (not recommended for storage)
-                // This part might need more robust parsing if your stored dates are varied
-                console.warn("Could not parse birthDate from currentUser:", currentUser.birthDate);
+                // e.g. DD/MM/YYYY or other non-ISO formats.
+                // This part might need more robust parsing if your stored dates are varied.
+                // For now, we attempt a simple split assuming YYYY-MM-DD if parseISO fails.
+                console.warn("Could not parse birthDate from currentUser with parseISO:", currentUser.birthDate);
                 const dateParts = currentUser.birthDate.split('-');
-                if (dateParts.length === 3) {
+                if (dateParts.length === 3) { // Attempt YYYY-MM-DD
                     const year = parseInt(dateParts[0], 10);
                     const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
                     const day = parseInt(dateParts[2], 10);
-                    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                         setEditableBirthDate(new Date(year, month, day));
+                    const tempDate = new Date(year, month, day);
+                    if (!isNaN(tempDate.getTime())) {
+                         setEditableBirthDate(tempDate);
+                    } else {
+                        setEditableBirthDate(undefined); // Fallback if still invalid
                     }
+                } else {
+                     setEditableBirthDate(undefined); // Fallback if not YYYY-MM-DD
                 }
             }
         } catch (error) {
             console.error("Error parsing birthDate from currentUser:", error);
-            // Set to undefined or some default if parsing fails
-            setEditableBirthDate(undefined);
+            setEditableBirthDate(undefined); // Set to undefined or some default if parsing fails
         }
       } else {
         setEditableBirthDate(undefined);
@@ -107,8 +113,8 @@ export default function ProfilePage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, dataToUpdate);
       toast({ title: "Perfil Atualizado", description: "Suas informações foram salvas." });
-      // Note: For immediate UI update of currentUser in context, a more robust solution
-      // (like a context update function or re-fetch) would be needed.
+      // To see changes reflected in currentUser object from useAuth,
+      // context needs a way to re-fetch or update its internal currentUser state.
       // For now, the form fields reflect the saved state.
     } catch (error) {
       console.error("Erro ao salvar perfil:", error);
@@ -182,7 +188,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
                 
-                <div className="space-y-1 pt-2">
+                <div className="space-y-1 pt-2"> {/* Added Sexo (Gender) field here */}
                   <Label htmlFor="gender-select" className="text-sm font-medium">Sexo</Label>
                   <Select
                     value={editableGender}
@@ -200,7 +206,7 @@ export default function ProfilePage() {
                   </Select>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 pt-2"> {/* Added Data de Nascimento (Date of Birth) field here */}
                   <Label htmlFor="birthdate-picker" className="text-sm font-medium">
                     Data de Nascimento
                   </Label>
@@ -210,7 +216,7 @@ export default function ProfilePage() {
                         id="birthdate-picker"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal h-10", // Adjusted height to h-10 for consistency
+                          "w-full justify-start text-left font-normal h-10",
                           !editableBirthDate && "text-muted-foreground"
                         )}
                       >
@@ -264,5 +270,3 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
-
-    
