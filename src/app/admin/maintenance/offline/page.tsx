@@ -20,8 +20,8 @@ interface SiteModule {
   name: string;
   icon: React.ElementType;
   globallyOffline: boolean;
-  isHiddenFromMenu: boolean; // New field
-  minimumAccessLevelWhenOffline: MinimumAccessLevel; // New field, replaces accessLevels
+  isHiddenFromMenu: boolean; 
+  minimumAccessLevelWhenOffline: MinimumAccessLevel; 
 }
 
 const roleDisplayNames: Record<UserRole, string> = {
@@ -35,7 +35,7 @@ const roleDisplayNames: Record<UserRole, string> = {
 const roleIcons: Record<UserRole, React.ElementType> = {
   master: ShieldCheck,
   admin: UserCog,
-  suporte: UserCog, // Assuming Suporte uses UserCog or similar
+  suporte: UserCog, 
   host: Star,
   player: User,
 };
@@ -56,7 +56,7 @@ const initialModuleStatuses: SiteModule[] = [
     icon: HomeIcon,
     globallyOffline: false,
     isHiddenFromMenu: false,
-    minimumAccessLevelWhenOffline: 'player', // Default to all allowed if offline (unless changed)
+    minimumAccessLevelWhenOffline: 'player', 
   },
   {
     id: 'hosts',
@@ -80,7 +80,7 @@ const initialModuleStatuses: SiteModule[] = [
     icon: LayoutDashboard,
     globallyOffline: false,
     isHiddenFromMenu: false,
-    minimumAccessLevelWhenOffline: 'master', // Default to master only
+    minimumAccessLevelWhenOffline: 'master', 
   },
   {
     id: 'profile',
@@ -116,15 +116,26 @@ export default function AdminMaintenanceOfflinePage() {
         const docSnap = await getDoc(maintenanceRulesDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const fetchedStatuses = (data.rules as Omit<SiteModule, 'icon'>[]).map(fsModule => {
-            const initialModule = initialModuleStatuses.find(im => im.id === fsModule.id);
-            return {
-              ...initialModule, // Get icon from initialModuleStatuses
-              ...fsModule, // Override with fetched data
-              icon: initialModule ? initialModule.icon : ServerOff, // Ensure icon is always present
-            } as SiteModule;
+          const fetchedRules = data.rules as Omit<SiteModule, 'icon'>[];
+          
+          const newModuleStatuses = initialModuleStatuses.map(initialModule => {
+            const fetchedModule = fetchedRules.find(fr => fr.id === initialModule.id);
+            return fetchedModule ? { ...initialModule, ...fetchedModule } : initialModule;
           });
-          setModuleStatuses(fetchedStatuses);
+
+          // Add any modules from Firestore that aren't in initialModuleStatuses (e.g., if new ones were added directly to DB)
+          // This is less likely with current setup but good for robustness
+          fetchedRules.forEach(fetchedModule => {
+            if (!newModuleStatuses.some(nms => nms.id === fetchedModule.id)) {
+              const correspondingInitial = initialModuleStatuses.find(im => im.id === fetchedModule.id);
+              newModuleStatuses.push({
+                ...fetchedModule,
+                icon: correspondingInitial ? correspondingInitial.icon : ServerOff, // Provide a fallback icon
+              } as SiteModule);
+            }
+          });
+          setModuleStatuses(newModuleStatuses);
+
         } else {
           console.log("Nenhuma configuração de manutenção encontrada, usando padrões.");
           setModuleStatuses(initialModuleStatuses);
@@ -289,7 +300,7 @@ export default function AdminMaintenanceOfflinePage() {
           })}
         </CardContent>
          <CardFooter className="pt-6 border-t flex justify-end">
-          <Button onClick={handleSaveChanges} disabled={isSaving}>
+          <Button onClick={handleSaveChanges} disabled={isSaving || isLoadingSettings}>
             {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar Alterações
           </Button>
