@@ -31,7 +31,7 @@ export default function LoginPage() {
   if (loading || (!loading && currentUser)) {
     // Show a loading spinner while checking auth status or if redirecting
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -39,13 +39,13 @@ export default function LoginPage() {
 
   // If not loading and no user, show the login page
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-100px)] p-4">
-      <Card className="w-full max-w-md shadow-xl relative flex flex-col aspect-[9/16] md:aspect-auto">
+    <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
+      <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)]">
         <div className="absolute top-4 left-4">
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary"
+            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary p-0" // Ensure padding doesn't add to size if icon itself is large
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
