@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Home, Users, LayoutGrid, LogIn, FileText, Crown } from 'lucide-react'; // Updated icons
+import { Home, Users, LayoutGrid, LogIn, FileText, Crown } from 'lucide-react';
 import Link from 'next/link';
 
 const geistSans = Geist({
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: 'The Presidential Agency',
   description: 'Join exciting bingo games and manage your profile with The Presidential Agency.',
   icons: {
-    icon: '/favicon.ico', // Ensure you have a favicon.ico in your public folder
+    icon: '/favicon.ico',
   },
 };
 
@@ -41,7 +41,7 @@ export default function RootLayout({
                 </Link>
               </SidebarHeader>
               <SidebarContent className="flex flex-col flex-1">
-                <SidebarMenu> {/* Main menu items */}
+                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Início">
                       <Link href="/"><Home /> <span>Início</span></Link>
@@ -64,7 +64,6 @@ export default function RootLayout({
                   </SidebarMenuItem>
                 </SidebarMenu>
                 
-                {/* Spacer to push Footer down if content is short */}
                 <div className="flex-grow" /> 
 
               </SidebarContent>
@@ -72,7 +71,7 @@ export default function RootLayout({
                  <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild tooltip="Mais">
-                           <Link href="/more">
+                           <Link href="/more"> {/* Placeholder link */}
                              <FileText /> 
                              <span>Mais</span>
                            </Link>

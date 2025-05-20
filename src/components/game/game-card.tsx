@@ -15,9 +15,9 @@ export default function GameCard({ game }: GameCardProps) {
   const getStatusVariant = (status: Game['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'Live':
-        return 'destructive'; // Or a specific "live" color, using destructive for visibility
+        return 'destructive';
       case 'Upcoming':
-        return 'default'; // Primary color for upcoming
+        return 'default';
       case 'Ended':
         return 'secondary';
       default:
@@ -27,40 +27,43 @@ export default function GameCard({ game }: GameCardProps) {
 
   return (
     <Card className="flex flex-col h-full shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader>
+      <CardHeader className="p-0">
         <Image 
             src={`https://placehold.co/600x400.png?text=${encodeURIComponent(game.title)}`} 
             alt={game.title} 
             data-ai-hint="bingo card"
             width={600} 
             height={400} 
-            className="rounded-t-md aspect-video object-cover mb-4"
+            className="rounded-t-lg aspect-video object-cover" // Changed rounded-t-md to rounded-t-lg
         />
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-2xl font-semibold">{game.title}</CardTitle>
-          <Badge variant={getStatusVariant(game.status)} className="text-xs whitespace-nowrap">{game.status}</Badge>
-        </div>
-        {game.description && <CardDescription className="mt-1 text-sm">{game.description}</CardDescription>}
       </CardHeader>
-      <CardContent className="flex-grow space-y-3 text-sm">
-        <div className="flex items-center text-muted-foreground">
-          <CalendarDays className="mr-2 h-4 w-4" />
-          <span>Starts: {new Date(game.startTime).toLocaleDateString()}</span>
+      <CardContent className="flex-grow space-y-3 text-sm p-6">
+        <div className="flex justify-between items-start mb-2">
+          <CardTitle className="text-xl font-semibold">{game.title}</CardTitle> {/* Smaller title */}
+          <Badge variant={getStatusVariant(game.status)} className="text-xs whitespace-nowrap mt-1">{game.status}</Badge>
         </div>
-        <div className="flex items-center text-muted-foreground">
-          <Clock className="mr-2 h-4 w-4" />
-          <span>Time: {new Date(game.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {game.description && <CardDescription className="text-sm text-muted-foreground mb-3">{game.description}</CardDescription>}
+        
+        <div className="space-y-2">
+            <div className="flex items-center text-muted-foreground">
+              <CalendarDays className="mr-2 h-4 w-4 text-primary" />
+              <span>Starts: {new Date(game.startTime).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center text-muted-foreground">
+              <Clock className="mr-2 h-4 w-4 text-primary" />
+              <span>Time: {new Date(game.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            {game.prize && (
+              <div className="flex items-center text-muted-foreground">
+                <DollarSign className="mr-2 h-4 w-4 text-primary" />
+                <span>Prize: {game.prize}</span>
+              </div>
+            )}
         </div>
-        {game.prize && (
-          <div className="flex items-center text-muted-foreground">
-            <DollarSign className="mr-2 h-4 w-4" />
-            <span>Prize: {game.prize}</span>
-          </div>
-        )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="p-6 pt-0">
         <Button asChild className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-          <Link href={`/games/${game.id}`}>
+          <Link href={`/games/${game.id}`}> {/* Ensure this path exists or adjust as needed */}
             <TicketIcon className="mr-2 h-4 w-4" />
             {game.status === 'Live' ? 'Join Game' : 'View Details'}
           </Link>

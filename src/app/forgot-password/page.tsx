@@ -6,7 +6,7 @@ import { KeyRound } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8">
+    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8 px-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">

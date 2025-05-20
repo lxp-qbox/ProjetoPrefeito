@@ -48,7 +48,7 @@ export default function HostGamesPage() {
         </section>
 
         {hostedGames.length === 0 && (
-          <div className="text-center py-12 bg-card rounded-lg shadow-md">
+          <div className="text-center py-12 bg-card rounded-lg shadow-md p-6">
             <Gamepad2 className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-2 text-xl font-semibold">No Games Hosted Yet</h3>
             <p className="mt-1 text-sm text-muted-foreground">

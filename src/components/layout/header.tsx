@@ -15,8 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 
 
 export default function Header() {
@@ -36,13 +35,13 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-card shadow-md sticky top-0 z-40"> {/* Reduced z-index for sidebar overlay */}
+    <header className="bg-card shadow-md sticky top-0 z-40">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="md:hidden" /> {/* Show trigger only on mobile as sidebar is collapsible by icon on desktop */}
+          <SidebarTrigger className="md:hidden" />
           <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
             <Crown className="w-7 h-7" />
-            <span className={isMobile ? "" : "hidden md:inline"}>The Presidential Agency</span> {/* Hide text on mobile if sidebar trigger is shown */}
+            <span className={isMobile ? "hidden" : "md:inline"}>The Presidential Agency</span>
           </Link>
         </div>
         <nav className="flex items-center gap-3 md:gap-4">
@@ -72,7 +71,7 @@ export default function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {currentUser.displayName || currentUser.email}
+                      {currentUser.displayName || currentUser.email?.split('@')[0]}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {currentUser.email}

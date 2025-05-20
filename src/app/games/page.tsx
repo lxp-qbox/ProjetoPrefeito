@@ -2,7 +2,7 @@
 import GameCard from "@/components/game/game-card";
 import type { Game } from "@/types";
 import { Input } from "@/components/ui/input";
-import { Search, ListFilter } from "lucide-react";
+import { Search, ListFilter, TicketIcon } from "lucide-react"; // Added TicketIcon
 import {
   Select,
   SelectContent,
@@ -87,7 +87,7 @@ export default function GamesPage() {
       )}
 
       {placeholderGames.length === 0 && (
-         <div className="text-center py-12">
+         <div className="text-center py-12 bg-card rounded-lg shadow-md p-6">
             <TicketIcon className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-2 text-xl font-semibold">No Games Found</h3>
             <p className="mt-1 text-sm text-muted-foreground">
