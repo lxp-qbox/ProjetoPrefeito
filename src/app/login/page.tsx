@@ -44,12 +44,12 @@ export default function LoginPage() {
           <Link 
             href="/" 
             aria-label="Voltar para página inicial" 
-            className="p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            className="p-2 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
         </div>
-        <CardHeader className="text-center pt-12 px-6 pb-0"> {/* Adjusted padding */}
+        <CardHeader className="text-center pt-12 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
           </div>
@@ -57,7 +57,7 @@ export default function LoginPage() {
           <CardDescription>Acesse sua conta para continuar.</CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow overflow-y-auto"> {/* CardContent default has p-6 pt-0 */}
+        <CardContent className="flex-grow overflow-y-auto">
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
