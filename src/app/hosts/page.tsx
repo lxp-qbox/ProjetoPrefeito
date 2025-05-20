@@ -21,7 +21,93 @@ import HostRow from "@/components/host/host-row";
 
 // Placeholder data for hosts - EXPORTED for use in dynamic page
 export const placeholderHosts: Host[] = [
-  // All placeholder hosts removed
+  {
+    id: "loud-coringa-01",
+    rankPosition: 1,
+    name: "LOUD_CORINGA",
+    avatarUrl: "https://placehold.co/40x40.png",
+    dataAiHint: "gamer avatar",
+    avgViewers: 25600,
+    timeStreamed: 185.2,
+    allTimePeakViewers: 78000,
+    hoursWatched: "4.7M",
+    rank: 10,
+    followersGained: 15200,
+    totalFollowers: "2.1M",
+    totalViews: "15.3M",
+    kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b",
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // Example Room ID
+    bio: "Jogador profissional e streamer. Amo interagir com vocês!",
+    streamTitle: "Gameplay Insana e Risadas!",
+    likes: 150000,
+    giftsReceived: [
+        { id: "gift1", name: "Diamante", iconUrl: "https://placehold.co/48x48.png?text=💎", count: 150, dataAiHint:"diamond gem" },
+        { id: "gift2", name: "Foguete", iconUrl: "https://placehold.co/48x48.png?text=🚀", count: 25, dataAiHint:"rocket space" },
+    ],
+    createdAt: new Date(),
+    lastSeen: new Date(),
+    source: 'manual',
+    totalDonationsValue: 1200,
+  },
+  {
+    id: "presidente-001", // Changed from new-test-host-1 for clarity
+    rankPosition: 2,
+    name: "PRESIDENTE",
+    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
+    dataAiHint: "man suit",
+    avgViewers: 18000,
+    timeStreamed: 210.5,
+    allTimePeakViewers: 55000,
+    hoursWatched: "3.8M",
+    rank: 39,
+    followersGained: 10500,
+    totalFollowers: "1.5M",
+    totalViews: "10.1M",
+    kakoLiveFuid: "0322d2dd57e74a028a9e72c2fae1fd9a",
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765",
+    bio: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas. Para fazer parte da agência, é obrigatório ser maior de idade.",
+    streamTitle: "Dominando as Arenas!",
+    likes: 276997,
+    giftsReceived: [
+      { id: "gift_miau", name: "Miau", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", count: 15, dataAiHint: "cat face" },
+      { id: "gift_amor", name: "Amor", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", count: 200, dataAiHint: "heart symbol" },
+      { id: "gift_rosas", name: "Rosas", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", count: 50, dataAiHint: "roses flower" },
+      { id: "gift_sol", name: "Sol", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", count: 100, dataAiHint: "sun bright" },
+      { id: "gift_sorvete", name: "Sorvete", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", count: 75, dataAiHint: "ice cream" },
+    ],
+    createdAt: new Date(),
+    lastSeen: new Date(),
+    source: 'kakoLive',
+    totalDonationsValue: 5000,
+  },
+  {
+    id: "streamer-galaxia-02",
+    rankPosition: 3,
+    name: "Comandante Estelar",
+    avatarUrl: "https://placehold.co/40x40.png?text=CE",
+    dataAiHint: "space commander",
+    avgViewers: 15000,
+    timeStreamed: 150.0,
+    allTimePeakViewers: 45000,
+    hoursWatched: "2.2M",
+    rank: 25,
+    followersGained: 8000,
+    totalFollowers: "950K",
+    totalViews: "7.5M",
+    kakoLiveFuid: "7929e0d0a7654b93b114b88ceef8f01f", // From your URL
+    kakoLiveRoomId: "67bb45bba2dac52d3825050f", // From your URL
+    bio: "Explorando o universo dos games, uma live de cada vez. Junte-se à tripulação!",
+    streamTitle: "Noite de Aventuras Intergalácticas!",
+    likes: 120500,
+    giftsReceived: [
+      { id: "gift_star", name: "Estrela Cadente", iconUrl: "https://placehold.co/48x48.png?text=🌠", count: 80, dataAiHint:"shooting star" },
+      { id: "gift_planet", name: "Planeta Misterioso", iconUrl: "https://placehold.co/48x48.png?text=🪐", count: 10, dataAiHint:"planet ring" },
+    ],
+    createdAt: new Date(),
+    lastSeen: new Date(),
+    source: 'manual',
+    totalDonationsValue: 750,
+  },
 ];
 
 
@@ -29,7 +115,7 @@ export default function HostsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <section className="mb-8">
-        <h1 className="text-3xl font-bold text-center mb-2 uppercase tracking-wide">
+        <h1 className="text-3xl font-bold text-center mb-2 uppercase tracking-wide text-primary">
           Hosts TOP da Agência
         </h1>
         <p className="text-sm text-muted-foreground text-center max-w-2xl mx-auto">
