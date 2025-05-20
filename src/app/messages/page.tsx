@@ -59,8 +59,6 @@ export default function MessagesPage() {
       .filter(msg => msg.conversationId === selectedConversationId)
       .map(msg => ({ ...msg, isCurrentUser: msg.senderId === currentUserId }))
       .sort((a,b) => {
-         // Basic time sorting, assumes HH:MM format or consistent date strings
-         // For robust sorting, use Date objects
          if (a.timestamp && b.timestamp) {
             return a.timestamp.localeCompare(b.timestamp);
          }
@@ -80,7 +78,7 @@ export default function MessagesPage() {
       text: newMessage.trim(),
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       isCurrentUser: true,
-      status: 'sent', // Initial status for sent messages
+      status: 'sent', 
     };
     setMessages(prev => [...prev, newMsg]);
     setNewMessage("");
@@ -92,8 +90,7 @@ export default function MessagesPage() {
     ).sort((a, b) => { 
         if (a.id === selectedConversationId) return -1;
         if (b.id === selectedConversationId) return 1;
-        // Add further sorting if needed (e.g., by pinned, then by lastMessageTime)
-        return 0; // Keep original order for others or implement time-based sorting
+        return 0; 
     }));
   };
   
@@ -108,7 +105,6 @@ export default function MessagesPage() {
 
 
   if (!currentUser) {
-    // ProtectedPage should handle this, but this is a fallback.
     return <ProtectedPage><div className="flex justify-center items-center h-full">Carregando...</div></ProtectedPage>;
   }
   
