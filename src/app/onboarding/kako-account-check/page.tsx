@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; // Added Smartphone
+import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +27,6 @@ export default function KakoAccountCheckPage() {
   const { toast } = useToast();
 
   const handleHasAccount = () => {
-    // Navigate to the Kako ID input page
     router.push("/onboarding/kako-id-input"); 
   };
 
@@ -45,8 +44,8 @@ export default function KakoAccountCheckPage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
-        kakoLiveId: "", // Explicitly set to empty as they don't have one
-        hasCompletedOnboarding: true, // Mark onboarding as complete for this path
+        kakoLiveId: "", 
+        hasCompletedOnboarding: true, 
         updatedAt: serverTimestamp(),
       });
       toast({
@@ -67,7 +66,7 @@ export default function KakoAccountCheckPage() {
   };
 
   return (
-    <Card className="w-full max-w-lg shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
        <Button
             asChild
             variant="ghost"
@@ -90,8 +89,8 @@ export default function KakoAccountCheckPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center">
-        <div className="grid grid-cols-1 gap-6 w-full"> {/* Removed md:grid-cols-2 */}
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
+        <div className="grid grid-cols-1 gap-6 w-full"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={handleHasAccount}

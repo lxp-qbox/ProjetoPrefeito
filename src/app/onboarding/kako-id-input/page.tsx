@@ -25,7 +25,7 @@ import Link from "next/link";
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSearching, setIsSearching] = useState(false); // For simulated search
+  const [isSearching, setIsSearching] = useState(false); 
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -40,14 +40,13 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    // Simulate API call to Kako Live to verify ID
+    
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsSearching(false);
     toast({
       title: "Perfil Encontrado (Simulado)",
       description: `ID ${kakoId} verificado (simulação).`,
     });
-    // In a real app, you might fetch profile details here and pre-fill/confirm.
   };
 
   const handleContinue = async () => {
@@ -95,7 +94,7 @@ export default function KakoIdInputPage() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <Button
         asChild
         variant="ghost"
@@ -118,7 +117,7 @@ export default function KakoIdInputPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
         <div className="w-full max-w-xs space-y-6">
           <div>
             <Label htmlFor="kakoId" className="text-sm font-medium mb-2 block text-left">

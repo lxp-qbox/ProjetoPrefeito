@@ -62,7 +62,7 @@ export default function RoleSelectionPage() {
   };
 
   return (
-    <Card className="w-full max-w-lg shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       {/* No back button for the very first onboarding step based on image */}
       <CardHeader className="text-center pt-10 pb-4">
         <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
@@ -71,7 +71,7 @@ export default function RoleSelectionPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center justify-center">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center justify-center overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"

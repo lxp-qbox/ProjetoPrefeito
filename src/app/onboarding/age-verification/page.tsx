@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, Users as UsersIcon, MapPin } from "lucide-react"; // Added UsersIcon and MapPin for consistency
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -107,7 +107,7 @@ export default function AgeVerificationPage() {
       setShowUnderageAlert(true);
       return;
     }
-    setShowUnderageAlert(false); // Clear alert if age is valid
+    setShowUnderageAlert(false); 
 
     setIsLoading(true);
     try {
@@ -140,7 +140,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <CardHeader className="text-center pt-10 pb-4">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
           <LucideCalendarIcon className="h-8 w-8 text-primary" />
@@ -199,7 +199,7 @@ export default function AgeVerificationPage() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={handleDateSelect} // Updated to use handleDateSelect
+                  onSelect={handleDateSelect} 
                   initialFocus
                   locale={ptBR}
                   captionLayout="dropdown-buttons"
@@ -261,5 +261,3 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
-
-    
