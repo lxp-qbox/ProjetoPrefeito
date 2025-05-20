@@ -90,7 +90,7 @@ export default function AdminPage() {
     );
   }
 
-  // Default to host management if the path is /admin
+  // Default to host management if the path is /admin/hosts or /admin
   const isHostManagementView = pathname === "/admin/hosts" || pathname === "/admin";
 
   return (
@@ -107,7 +107,7 @@ export default function AdminPage() {
                       {group.groupTitle}
                     </h2>
                   )}
-                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                  <div className={cn("space-y-2", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Changed space-y-1 to space-y-2 */}
                     {group.items.map((item) => {
                        const isActive = pathname === item.link;
                        const isLogout = item.link === "#logout";
@@ -122,8 +122,8 @@ export default function AdminPage() {
                           className={cn(
                             "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md",
                             isActive
-                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" // Active state with hover
-                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm" // Inactive state with hover
+                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary" 
+                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm" 
                           )}
                           asChild={!isLogout}
                           {...(isLogout ? {onClick: buttonAction} : {})}
