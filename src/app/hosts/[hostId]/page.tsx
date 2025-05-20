@@ -25,13 +25,13 @@ const generateUniqueId = () => {
 };
 
 type ParsedChatMessageType =
-  | { type: 'chat', id?: string, userName: string, userAvatar?: string, userMedalUrl?: string, messageData: string }
-  | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string }
+  | { type: 'chat', id?: string, userName: string, userAvatar?: string, userMedalUrl?: string, messageData: string, extractedRoomId?: string }
+  | { type: 'systemUpdate', online: number, likes: number, anchorNickname: string, extractedRoomId?: string }
   | null;
 
 
 function parseChatMessage(rawData: string): ParsedChatMessageType {
-  let parsedJson;
+  let parsedJson: any;
   try {
     const firstBraceIndex = rawData.indexOf('{');
     const lastBraceIndex = rawData.lastIndexOf('}');
@@ -41,11 +41,11 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     }
     parsedJson = JSON.parse(jsonString);
   } catch (e) {
-    // Not JSON, or malformed
     return null;
   }
 
   const serverMessageId = parsedJson.id as string | undefined;
+  const extractedRoomId = parsedJson.roomId as string | undefined;
   let userName = "Sistema";
   let userAvatar: string | undefined = undefined;
   let userMedalUrl: string | undefined = undefined;
@@ -55,19 +55,19 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
   if (messageUser && typeof messageUser === 'object') {
     userName = messageUser.nickname || messageUser.name || userName;
     userAvatar = messageUser.avatar || messageUser.avatarUrl;
-    // Assign medal if user level or fans level > 0, or if nickname exists (as a basic proxy)
-    if (messageUser.level > 0 || (parsedJson.roomUser && parsedJson.roomUser.fansLevel > 0) || messageUser.nickname) {
+    if (messageUser.nickname) { // Basic condition to show medal
         userMedalUrl = `https://app.kako.live/app/rs/medal/user/range_1.png`;
     }
   }
   
-  // Room Status Update (online viewers, likes)
+  // Room Status Update
   if (parsedJson.anchor && typeof parsedJson.anchor === 'object' && parsedJson.anchor.nickname && typeof parsedJson.online === 'number' && typeof parsedJson.likes === 'number') {
     return {
       type: 'systemUpdate',
       online: parsedJson.online,
       likes: parsedJson.likes,
-      anchorNickname: parsedJson.anchor.nickname
+      anchorNickname: parsedJson.anchor.nickname,
+      extractedRoomId
     };
   }
   // Gift Event
@@ -76,11 +76,10 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     if (parsedJson.user.level) {
         messageData += ` (Nível ${parsedJson.user.level})`;
     }
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
   }
-  // Game Event (currently ignored for chat display)
+  // Game Event (ignored for formatted chat display)
   else if (parsedJson.game && parsedJson.game.baishun2 && parsedJson.user && parsedJson.user.nickname) {
-    // console.log("Game event detected, ignoring for chat display:", parsedJson);
     return null; 
   }
   // User Join Event (type 1, type2: 1 - specific structure)
@@ -99,7 +98,7 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
         joinMessage += ` (Fã Nv. ${parsedJson.roomUser.fansLevel})`;
     }
     messageData = joinMessage;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
   }
   // User Join Event (with spectator count)
   else if (
@@ -117,24 +116,24 @@ function parseChatMessage(rawData: string): ParsedChatMessageType {
     }
     joinMessage += ` Espectadores: ${parsedJson.count}.`;
     messageData = joinMessage;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
   }
   // Standard Text Chat Message
   else if (parsedJson.user && typeof parsedJson.user === 'object' && parsedJson.user.nickname && parsedJson.text) {
     messageData = parsedJson.text;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
   }
   // Fallback for other common chat structures
   else if (parsedJson.username && (parsedJson.message || parsedJson.text || parsedJson.content)) {
     userName = parsedJson.username;
     userAvatar = parsedJson.avatar;
     messageData = parsedJson.text || parsedJson.message || parsedJson.content;
-    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData };
+    return { type: 'chat', id: serverMessageId, userName, userAvatar, userMedalUrl, messageData, extractedRoomId };
   }
    // Generic content message
   else if (parsedJson.content && !parsedJson.user && !parsedJson.anchor && !parsedJson.giftId && !parsedJson.game) { 
       messageData = parsedJson.content;
-      return { type: 'chat', id: serverMessageId, userName: "Sistema", userAvatar: undefined, userMedalUrl: undefined, messageData };
+      return { type: 'chat', id: serverMessageId, userName: "Sistema", userAvatar: undefined, userMedalUrl: undefined, messageData, extractedRoomId };
   }
 
   return null; 
@@ -170,15 +169,15 @@ export default function HostStreamPage() {
       const foundHost = placeholderHosts.find(h => h.id === hostId);
       setHost(foundHost);
       if (foundHost) {
-        setChatMessages([]); // Clear chat for new host
+        setChatMessages([]); 
         prevChatMessagesLengthRef.current = 0;
-        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with placeholder or actual data if available
-        setLiveLikes(foundHost.likes || 0); // Initialize with placeholder or actual data
+        setOnlineViewers(foundHost.avgViewers || 0); 
+        setLiveLikes(foundHost.likes || 0); 
         setIsAtBottom(true);
         setNewUnreadMessages(0);
       }
     } else {
-      setHost(null); // Explicitly set to null if no hostId
+      setHost(null); 
     }
   }, [hostId]);
 
@@ -191,7 +190,6 @@ export default function HostStreamPage() {
         if (!prevHost || !prevHost.id || !prevHost.giftsReceived || prevHost.giftsReceived.length === 0) {
           return prevHost;
         }
-        // Ensure we are only updating the gifts for the currently viewed host
         if (host?.id && prevHost.id !== host.id) {
           return prevHost;
         }
@@ -204,9 +202,9 @@ export default function HostStreamPage() {
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
-    }, 5000); // Update every 5 seconds
+    }, 5000);
     return () => clearInterval(intervalId);
-  }, [host?.id]); // Depend only on host.id for re-creating the interval
+  }, [host?.id]);
 
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -262,8 +260,6 @@ export default function HostStreamPage() {
         // console.log("Host data is null, not connecting WebSocket.");
       } else if (host) { 
         console.warn("Host ou RoomID não configurado para WebSocket.");
-        // The line below was removed as per user request
-        // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: "Host ou RoomID não configurado para chat.", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: "Missing host.kakoLiveRoomId" }]);
       }
       return;
     }
@@ -299,7 +295,15 @@ export default function HostStreamPage() {
         const processedResult = parseChatMessage(messageContentString);
 
         if (processedResult) {
-          if (processedResult.type === 'chat' && processedResult.messageData?.trim() !== "") {
+          if (processedResult.type === 'systemUpdate') {
+            if (!processedResult.extractedRoomId || (processedResult.extractedRoomId === host.kakoLiveRoomId)) {
+                setOnlineViewers(processedResult.online);
+                setLiveLikes(processedResult.likes);
+            }
+          } else if (processedResult.type === 'chat') {
+            // Determine if this message should be formatted for display
+            const shouldDisplayFormatted = processedResult.extractedRoomId && processedResult.extractedRoomId === host.kakoLiveRoomId;
+
             const potentialNewMessage: ChatMessage = {
               id: processedResult.id || generateUniqueId(), 
               user: processedResult.userName,
@@ -308,40 +312,38 @@ export default function HostStreamPage() {
               message: processedResult.messageData,
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
               rawData: messageContentString,
+              displayFormatted: shouldDisplayFormatted,
             };
 
             setChatMessages(prev => {
-              if (prev.some(msg => msg.id === potentialNewMessage.id)) {
+              if (prev.some(msg => msg.id === potentialNewMessage.id && msg.id !== undefined )) { // Check if ID exists and is not undefined
                   return prev;
               }
               if (potentialNewMessage.user === (currentUser?.profileName || 'Você')) {
                   const lastMessage = prev[prev.length - 1];
                   if (lastMessage &&
                       lastMessage.user === potentialNewMessage.user &&
-                      lastMessage.message === potentialNewMessage.message) {
+                      lastMessage.message === potentialNewMessage.message &&
+                      lastMessage.displayFormatted // Only skip if the previous was also a formatted echo
+                    ) {
                       console.log("Skipping likely echo of user's own message:", potentialNewMessage.message);
                       return prev;
                   }
               }
               return [...prev, potentialNewMessage];
             });
-
-          } else if (processedResult.type === 'systemUpdate') {
-            setOnlineViewers(processedResult.online);
-            setLiveLikes(processedResult.likes);
           }
         } else if (messageContentString?.trim() !== "") {
-          // Handle cases where parseChatMessage returns null but there's still content
-            setChatMessages(prev => [
-                ...prev,
-                {
-                  id: generateUniqueId(),
-                  user: 'Servidor (Dados)',
-                  message: messageContentString,
-                  timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                  rawData: messageContentString
-                }
-            ]);
+          // Unparseable message or explicitly ignored type (like game event from parseChatMessage)
+          const placeholderMessage: ChatMessage = {
+            id: generateUniqueId(),
+            user: 'Sistema (Dados Brutos)',
+            message: 'Conteúdo não formatado para o chat.',
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            rawData: messageContentString,
+            displayFormatted: false, 
+          };
+          setChatMessages(prev => [...prev, placeholderMessage]);
         }
       } catch (e) {
         console.error("WebSocket: Erro fatal ao processar mensagem:", e);
@@ -351,6 +353,7 @@ export default function HostStreamPage() {
           message: "Erro ao processar mensagem do WebSocket.",
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           rawData: `Erro: ${(e as Error).message}. Dados originais: ${typeof event.data === 'string' ? event.data : '[Blob/Binary Data]'}`,
+          displayFormatted: true, // System error messages should be displayed
         }]);
       }
     };
@@ -363,7 +366,14 @@ export default function HostStreamPage() {
         errorMessage = `Erro no chat: Evento do tipo ${errorEvent.type}`;
       }
       console.error("WebSocket: Erro na conexão:", errorEvent);
-      setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: errorMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: JSON.stringify(errorEvent) }]);
+      setChatMessages(prev => [...prev, {
+          id: generateUniqueId(), 
+          user: "Sistema", 
+          message: errorMessage, 
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 
+          rawData: JSON.stringify(errorEvent),
+          displayFormatted: true,
+        }]);
     };
 
     socketRef.current.onclose = (closeEvent) => {
@@ -375,7 +385,14 @@ export default function HostStreamPage() {
       }
       console.log("WebSocket: Desconectado.", closeEvent);
       if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSING && socketRef.current.readyState !== WebSocket.CLOSED) {
-         // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", message: closeMessage, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}` }]);
+         setChatMessages(prev => [...prev, {
+             id: generateUniqueId(), 
+             user: "Sistema", 
+             message: closeMessage, 
+             timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), 
+             rawData: `CloseEvent: code=${closeEvent.code}, reason=${closeEvent.reason}`,
+             displayFormatted: true,
+            }]);
       }
     };
 
@@ -392,7 +409,7 @@ export default function HostStreamPage() {
       const messageToSend = { text: newMessage.trim() }; 
       socketRef.current.send(JSON.stringify(messageToSend));
 
-      const optimisticMessage = {
+      const optimisticMessage: ChatMessage = {
         id: generateUniqueId(), 
         user: currentUser?.profileName || 'Você',
         avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
@@ -400,6 +417,7 @@ export default function HostStreamPage() {
         message: newMessage.trim(),
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         rawData: JSON.stringify({ ...messageToSend, sent: true }), 
+        displayFormatted: true, // User's own messages are always displayed
       };
       setChatMessages(prev => [...prev, optimisticMessage]);
       setNewMessage("");
@@ -412,6 +430,7 @@ export default function HostStreamPage() {
               message: "Não conectado ao chat para enviar mensagem.",
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
               rawData: "Attempted send while disconnected",
+              displayFormatted: true,
             }
           ]);
     }
@@ -577,7 +596,7 @@ export default function HostStreamPage() {
 
         {/* Right Column (Chat) */}
         <div className={`${isChatMaximized ? 'md:col-span-1' : 'md:col-span-1'}`}>
-          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> {/* Max height for chat card */}
+          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
@@ -628,41 +647,47 @@ export default function HostStreamPage() {
               <ScrollArea ref={scrollAreaRef} className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4"> 
                   {chatMessages.map((item) => (
-                    <div key={item.id} className="flex items-start space-x-3 pb-2 border-b last:border-b-0">
-                      <Avatar className="h-8 w-8 border">
-                        {item.avatar ? (
-                            <AvatarImage src={item.avatar} alt={item.user} data-ai-hint="user avatar" />
-                        ) : null}
-                        <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-1">
-                          {item.userMedalUrl && (
-                            <Image
-                              src={item.userMedalUrl}
-                              alt="Medalha"
-                              width={16}
-                              height={16}
-                              className="h-4 w-auto mr-0.5 align-middle"
-                              data-ai-hint="user medal"
-                            />
-                          )}
-                          <span className="text-sm font-semibold text-primary">{item.user}</span>
-                          <span className="text-xs text-muted-foreground">{item.timestamp}</span>
+                    <div key={item.id} className="pb-2 border-b last:border-b-0">
+                      {item.displayFormatted && (
+                        <div className="flex items-start space-x-3">
+                          <Avatar className="h-8 w-8 border">
+                            {item.avatar ? (
+                                <AvatarImage src={item.avatar} alt={item.user} data-ai-hint="user avatar" />
+                            ) : null}
+                            <AvatarFallback>{item.user ? item.user.substring(0,1).toUpperCase() : 'S'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-1">
+                              {item.userMedalUrl && (
+                                <Image
+                                  src={item.userMedalUrl}
+                                  alt="Medalha"
+                                  width={16}
+                                  height={16}
+                                  className="h-4 w-auto mr-0.5 align-middle"
+                                  data-ai-hint="user medal"
+                                />
+                              )}
+                              <span className="text-sm font-semibold text-primary">{item.user}</span>
+                              <span className="text-xs text-muted-foreground">{item.timestamp}</span>
+                            </div>
+                            <p className="text-sm text-foreground/90 break-all">{item.message}</p>
+                          </div>
                         </div>
-                        <p className="text-sm text-foreground/90 break-all">{item.message}</p>
-                        {showRawData && item.rawData && (
-                          <pre className="mt-1 text-xs bg-muted/40 p-2 rounded-md overflow-x-auto border border-border">
-                            {(() => {
-                              try {
-                                return JSON.stringify(JSON.parse(item.rawData), null, 2);
-                              } catch (e) {
-                                return item.rawData;
-                              }
-                            })()}
-                          </pre>
-                        )}
-                      </div>
+                      )}
+                      {showRawData && item.rawData && (
+                        <pre className="mt-1 text-xs bg-muted/40 p-2 rounded-md overflow-x-auto border border-border">
+                          {(() => {
+                            try {
+                              return JSON.stringify(JSON.parse(item.rawData), null, 2);
+                            } catch (e) {
+                              return item.rawData;
+                            }
+                          })()}
+                        </pre>
+                      )}
+                      {/* Render nothing if neither formatted nor raw should be shown (e.g., placeholder for a filtered raw message when showRawData is false) */}
+                      {!item.displayFormatted && !showRawData && null}
                     </div>
                   ))}
                 </div>
@@ -706,4 +731,3 @@ export default function HostStreamPage() {
     </div>
   );
 }
-

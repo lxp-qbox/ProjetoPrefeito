@@ -93,7 +93,7 @@ export interface ChatMessage {
   avatar?: string;
   message: string;
   timestamp: string;
-  userMedalUrl?: string; // Added for user badge/medal
-  rawData?: string; // To store the original raw message string
+  userMedalUrl?: string;
+  rawData?: string;
+  displayFormatted: boolean; // New flag: controls if the formatted message is shown
 }
-
