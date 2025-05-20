@@ -80,7 +80,7 @@ export default function TermsPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
-      <CardHeader className="text-center pt-10 px-6 pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
         </div>
@@ -90,7 +90,7 @@ export default function TermsPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden"> {/* Changed from overflow-y-auto to overflow-hidden for CardContent */}
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>

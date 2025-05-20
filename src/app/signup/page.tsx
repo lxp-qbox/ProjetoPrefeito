@@ -1,4 +1,6 @@
 
+"use client";
+
 import SignupForm from "@/components/auth/signup-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
@@ -22,7 +24,7 @@ export default function SignupPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-        <CardHeader className="text-center pt-10 px-6 pb-0">
+        <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
@@ -38,7 +40,7 @@ export default function SignupPage() {
         <CardFooter className="flex-col p-0">
           <div className="w-full border-t border-border" />
           <div className="w-full bg-muted p-6 text-center">
-            <Link href="/login" className="text-sm font-medium no-underline hover:text-primary hover:underline">
+            <Link href="/login" className="text-sm font-medium no-underline hover:underline hover:text-primary">
               Já tem uma conta? Entrar
             </Link>
           </div>

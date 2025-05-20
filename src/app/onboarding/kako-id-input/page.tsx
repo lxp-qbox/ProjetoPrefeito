@@ -97,6 +97,8 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
+    // If user is player, back link goes to kako-account-check.
+    // If user is host, back link goes to age-verification.
     return currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
@@ -114,7 +116,7 @@ export default function KakoIdInputPage() {
           <span className="sr-only">Voltar</span>
         </Link>
       </Button>
-      <CardHeader className="text-center pt-10 px-6 pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
