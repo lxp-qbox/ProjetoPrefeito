@@ -25,18 +25,18 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingRole, setLoadingRole] = useState<string | null>(null); // 'skip' or 'create'
+  const [loadingRole, setLoadingRole] = useState<string | null>(null); 
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  const handleChoice = async (choice: 'skip' | 'create') => {
+  const handleCompleteOnboardingWithoutId = async (choiceType: 'skip' | 'willCreate') => {
     if (!currentUser) {
       toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
       router.push("/login");
       return;
     }
-    setLoadingRole(choice);
+    setLoadingRole(choiceType);
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -46,22 +46,22 @@ export default function KakoCreationChoicePage() {
         updatedAt: serverTimestamp(),
       });
 
-      if (choice === 'skip') {
+      if (choiceType === 'skip') {
         toast({
           title: "Onboarding Concluído!",
           description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
           duration: 7000,
         });
-      } else { // 'create' choice, now represented by the button
+      } else { // 'willCreate' choice
         toast({
-          title: "Conta Criada (Sem ID Kako)!",
-          description: "Seu onboarding foi concluído. Você pode adicionar um ID Kako Live em seu perfil mais tarde.",
+          title: "Entendido!",
+          description: "Ótimo! Após criar sua conta no app Kako Live, adicione seu ID em seu perfil para acesso completo.",
           duration: 7000,
         });
       }
       router.push("/profile");
     } catch (error) {
-      console.error(`Erro ao finalizar onboarding (${choice}):`, error);
+      console.error(`Erro ao finalizar onboarding (${choiceType}):`, error);
       toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -95,13 +95,13 @@ export default function KakoCreationChoicePage() {
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="space-y-6 w-full my-auto">
+        <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? () => handleChoice('skip') : undefined}
+            onClick={!isLoading ? () => handleCompleteOnboardingWithoutId('skip') : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleChoice('skip')}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId('skip')}
             aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
@@ -119,19 +119,28 @@ export default function KakoCreationChoicePage() {
             )}
           </Card>
 
-          <Button
-            variant="default" // Or outline, secondary etc. as preferred
-            size="lg"
-            className="w-full"
-            onClick={!isLoading ? () => handleChoice('create') : undefined}
-            disabled={isLoading}
+          <Card
+            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
+            onClick={!isLoading ? () => handleCompleteOnboardingWithoutId('willCreate') : undefined}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId('willCreate')}
             aria-disabled={isLoading}
           >
-            {isLoading && loadingRole === 'create' ? (
-              <LoadingSpinner size="sm" className="mr-2" />
-            ) : null}
-            Criar conta sem ID Kako
-          </Button>
+            <div className="p-3 bg-primary/10 rounded-full mb-3">
+              <ExternalLink className="h-8 w-8 text-primary" />
+            </div>
+            {isLoading && loadingRole === 'willCreate' ? (
+              <LoadingSpinner size="md" className="my-3" />
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-1">Vou criar no app e volto depois</h3>
+                <p className="text-sm text-muted-foreground">
+                  Após criar, informe seu ID no seu perfil para acesso completo.
+                </p>
+              </>
+            )}
+          </Card>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">

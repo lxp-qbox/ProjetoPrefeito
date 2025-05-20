@@ -29,17 +29,52 @@ export default function KakoAccountCheckPage() {
   const { currentUser } = useAuth(); 
   const { toast } = useToast(); 
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
 
   const handleHasAccount = () => {
+    if (isLoading) return;
     router.push("/onboarding/kako-id-input"); 
   };
 
   const handleNeedsAccount = () => {
+    if (isLoading) return;
      router.push("/onboarding/kako-creation-choice");
   };
 
+  const handleCreateAccountWithoutId = async () => {
+    if (!currentUser) {
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
+      router.push("/login");
+      return;
+    }
+    setLoadingAction('createWithoutId');
+    setIsLoading(true);
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await updateDoc(userDocRef, {
+        kakoLiveId: "",
+        hasCompletedOnboarding: true,
+        updatedAt: serverTimestamp(),
+      });
+      toast({
+        title: "Onboarding Concluído!",
+        description: "Você pode explorar o aplicativo.",
+        duration: 5000,
+      });
+      router.push("/profile");
+    } catch (error) {
+      console.error("Erro ao finalizar onboarding (createWithoutId):", error);
+      toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+      setLoadingAction(null);
+    }
+  };
+
+
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
        <Button
             asChild
             variant="ghost"
@@ -65,13 +100,13 @@ export default function KakoAccountCheckPage() {
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="grid grid-cols-1 gap-6 w-full"> 
+        <div className="grid grid-cols-1 gap-6 w-full my-auto"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleHasAccount : undefined}
+            onClick={handleHasAccount}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleHasAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
             aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
@@ -85,10 +120,10 @@ export default function KakoAccountCheckPage() {
 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? handleNeedsAccount : undefined}
+            onClick={handleNeedsAccount}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleNeedsAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
             aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
@@ -99,6 +134,18 @@ export default function KakoAccountCheckPage() {
               Ainda não tenho uma conta no aplicativo Kako Live
             </p>
           </Card>
+          
+          <Button 
+            onClick={handleCreateAccountWithoutId} 
+            className="w-full mt-4" 
+            disabled={isLoading}
+            variant="outline"
+          >
+            {isLoading && loadingAction === 'createWithoutId' ? (
+              <LoadingSpinner size="sm" className="mr-2" />
+            ) : null}
+            Criar conta sem ID Kako
+          </Button>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
