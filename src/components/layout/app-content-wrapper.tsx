@@ -23,48 +23,48 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   }
 
   return (
-    <SidebarProvider defaultOpen={false}> 
+    <SidebarProvider defaultOpen={false}>
       <Sidebar collapsible="icon" className="border-r">
-        <SidebarHeader className="p-0"> 
+        <SidebarHeader className="p-0">
           <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
         </SidebarHeader>
-        <SidebarContent className="flex flex-col flex-1 pt-2"> 
+        <SidebarContent className="flex flex-col flex-1 pt-2">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Início">
                 <Link href="/">
-                  <Home className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
-                  <span className="transition-all delay-150 duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Início</span>
+                  <Home className="transition-all ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 duration-300 group-data-[collapsible=icon]:delay-200" />
+                  <span className="whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200">Início</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Hosts">
                 <Link href="/hosts">
-                  <Users className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
-                  <span className="transition-all delay-150 duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Hosts</span>
+                  <Users className="transition-all ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 duration-300 group-data-[collapsible=icon]:delay-200" />
+                  <span className="whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200">Hosts</span>
                   </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Bingo">
                 <Link href="/bingo">
-                  <LayoutGrid className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
-                  <span className="transition-all delay-150 duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Bingo</span>
+                  <LayoutGrid className="transition-all ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 duration-300 group-data-[collapsible=icon]:delay-200" />
+                  <span className="whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200">Bingo</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Login">
                 <Link href="/login">
-                  <LogIn className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
-                  <span className="transition-all delay-150 duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Login</span>
+                  <LogIn className="transition-all ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 duration-300 group-data-[collapsible=icon]:delay-200" />
+                  <span className="whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200">Login</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-          
-          <div className="flex-grow" /> 
+
+          <div className="flex-grow" />
 
         </SidebarContent>
         <SidebarFooter className="p-2 border-t border-sidebar-border">
@@ -72,8 +72,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Mais">
                      <Link href="/more">
-                       <FileText className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7" /> 
-                       <span className="transition-all delay-150 duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0">Mais</span>
+                       <FileText className="transition-all ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 duration-300 group-data-[collapsible=icon]:delay-200" />
+                       <span className="whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200">Mais</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -91,4 +91,3 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     </SidebarProvider>
   );
 }
-
