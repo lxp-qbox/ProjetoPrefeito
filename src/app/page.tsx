@@ -119,7 +119,7 @@ export default function HomePage() {
           </Card>
 
           {/* Tabs for feed types */}
-          <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col"> 
+          <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col overflow-hidden"> {/* Added overflow-hidden */}
             <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card border-b shrink-0"> 
               <TabsTrigger
                 value="for-you"
