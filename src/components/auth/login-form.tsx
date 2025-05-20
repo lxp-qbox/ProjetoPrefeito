@@ -21,7 +21,7 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, LogInIcon } from "lucide-react";
+import { Eye, EyeOff, LogInIcon, User, Lock, Star } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -73,9 +73,14 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel className="flex items-center">
+                Email
+              </FormLabel>
               <FormControl>
-                <Input placeholder="you@example.com" {...field} />
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="you@example.com" {...field} className="pl-10" />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -86,13 +91,17 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Senha</FormLabel>
+              <FormLabel className="flex items-center">
+                Senha
+              </FormLabel>
               <FormControl>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     {...field} 
+                    className="pl-10 pr-10"
                   />
                   <Button
                     type="button"
@@ -101,7 +110,7 @@ export default function LoginForm() {
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                   </Button>
                 </div>
               </FormControl>
@@ -114,7 +123,7 @@ export default function LoginForm() {
             control={form.control}
             name="rememberMe"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
                     checked={field.value}
@@ -136,6 +145,15 @@ export default function LoginForm() {
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Entrando..." : <> <LogInIcon className="mr-2 h-4 w-4" /> Entrar </>}
         </Button>
+         <p className="text-center text-sm text-muted-foreground">
+            Não tem uma conta?{" "}
+            <Link href="/signup" className="font-medium text-primary hover:underline">
+              Cadastre-se
+            </Link>
+        </p>
+        <div className="flex justify-center pt-2">
+            <Star className="h-4 w-4 text-muted-foreground/50" />
+        </div>
       </form>
     </Form>
   );
