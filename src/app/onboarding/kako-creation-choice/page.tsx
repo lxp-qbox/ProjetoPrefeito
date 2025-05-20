@@ -25,18 +25,18 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingRole, setLoadingRole] = useState<string | null>(null); 
+  const [loadingAction, setLoadingAction] = useState<string | null>(null); 
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  const handleCompleteOnboardingWithoutId = async (choiceType: 'skip' | 'willCreate') => {
+  const handleCompleteOnboardingWithoutId = async () => {
     if (!currentUser) {
       toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
       router.push("/login");
       return;
     }
-    setLoadingRole(choiceType);
+    setLoadingAction('skip');
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
@@ -45,28 +45,24 @@ export default function KakoCreationChoicePage() {
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
-
-      if (choiceType === 'skip') {
-        toast({
-          title: "Onboarding Concluído!",
-          description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
-          duration: 7000,
-        });
-      } else { // 'willCreate' choice
-        toast({
-          title: "Entendido!",
-          description: "Ótimo! Após criar sua conta no app Kako Live, adicione seu ID em seu perfil para acesso completo.",
-          duration: 7000,
-        });
-      }
+      toast({
+        title: "Onboarding Concluído!",
+        description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
+        duration: 7000,
+      });
       router.push("/profile");
     } catch (error) {
-      console.error(`Erro ao finalizar onboarding (${choiceType}):`, error);
+      console.error("Erro ao finalizar onboarding (skip):", error);
       toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
     } finally {
       setIsLoading(false);
-      setLoadingRole(null);
+      setLoadingAction(null);
     }
+  };
+
+  const handleProceedToIdInput = () => {
+    if (isLoading) return;
+    router.push("/onboarding/kako-id-input");
   };
 
 
@@ -94,20 +90,19 @@ export default function KakoCreationChoicePage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="grid grid-cols-1 gap-6 w-full my-auto">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-6">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? () => handleCompleteOnboardingWithoutId('skip') : undefined}
+            onClick={!isLoading ? handleCompleteOnboardingWithoutId : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId('skip')}
-            aria-disabled={isLoading}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId()}
+            aria-disabled={isLoading && loadingAction === 'skip'}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <XCircle className="h-8 w-8 text-primary" />
             </div>
-            {isLoading && loadingRole === 'skip' ? (
+            {isLoading && loadingAction === 'skip' ? (
               <LoadingSpinner size="md" className="my-3" />
             ) : (
               <>
@@ -119,29 +114,26 @@ export default function KakoCreationChoicePage() {
             )}
           </Card>
 
-          <Card
-            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={!isLoading ? () => handleCompleteOnboardingWithoutId('willCreate') : undefined}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleCompleteOnboardingWithoutId('willCreate')}
-            aria-disabled={isLoading}
-          >
-            <div className="p-3 bg-primary/10 rounded-full mb-3">
-              <ExternalLink className="h-8 w-8 text-primary" />
-            </div>
-            {isLoading && loadingRole === 'willCreate' ? (
-              <LoadingSpinner size="md" className="my-3" />
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold mb-1">Vou criar no app e volto depois</h3>
-                <p className="text-sm text-muted-foreground">
-                  Após criar, informe seu ID no seu perfil para acesso completo.
-                </p>
-              </>
-            )}
-          </Card>
-        </div>
+          <div className="text-center space-y-3 pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              Para criar sua conta Kako Live, acesse o site oficial:
+            </p>
+            <Button variant="link" asChild className="text-lg">
+              <a href="https://www.kako.live/index.html" target="_blank" rel="noopener noreferrer">
+                Acessar Kako Live <ExternalLink className="ml-2 h-5 w-5" />
+              </a>
+            </Button>
+            <Button 
+              onClick={handleProceedToIdInput} 
+              className="w-full mt-4" 
+              disabled={isLoading}
+            >
+              {isLoading && loadingAction === 'proceedToIdInput' ? (
+                 <LoadingSpinner size="sm" className="mr-2" />
+              ) : null}
+              Já baixei e criei minha conta
+            </Button>
+          </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
