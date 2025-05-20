@@ -144,7 +144,7 @@ export default function AgeVerificationPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 py-0 flex flex-col items-center overflow-y-auto">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
         <div className="w-full max-w-xs space-y-6">
           
           <div>
@@ -155,7 +155,7 @@ export default function AgeVerificationPage() {
               value={selectedGender}
               onValueChange={(value) => setSelectedGender(value as UserProfile['gender'])}
             >
-              <SelectTrigger id="gender-select" className="w-full h-12">
+              <SelectTrigger id="gender-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                 <SelectValue placeholder="Selecione seu sexo" />
               </SelectTrigger>
               <SelectContent>
@@ -177,7 +177,7 @@ export default function AgeVerificationPage() {
                   id="birthdate-picker"
                   variant={"outline"}
                   className={cn(
-                    "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0", // Added focus ring removal
+                    "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
