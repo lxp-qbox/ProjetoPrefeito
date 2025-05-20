@@ -135,6 +135,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Should not happen if role is enforced earlier, but a fallback
         router.push("/profile"); 
       }
     } catch (error) {
@@ -288,3 +289,4 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
