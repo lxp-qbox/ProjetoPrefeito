@@ -126,7 +126,7 @@ export default function RoleSelectionPage() {
         </div>
       </CardContent>
       <CardFooter className="p-6 border-t">
-        <Progress value={50} aria-label="Progresso do onboarding 50%" />
+        <Progress value={10} aria-label="Progresso do onboarding 10%" />
       </CardFooter>
     </Card>
   );
