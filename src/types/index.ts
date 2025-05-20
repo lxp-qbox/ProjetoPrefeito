@@ -35,7 +35,7 @@ export interface ReceivedGift {
   dataAiHint?: string;
 }
 
-export interface Host {
+export interface Host { // This type is for the public-facing host list (/hosts page)
   id: string; // Kako Live userId (fuid), will be document ID in Firestore 'hosts' collection
   rankPosition: number; 
   name: string; // Kako nickname
@@ -80,6 +80,11 @@ export interface UserProfile {
   birthDate?: string;        // YYYY-MM-DD
   country?: string;
   phoneNumber?: string;
+  hostStatus?: 'approved' | 'pending_review' | 'banned'; // Status for hosts
+  isBanned?: boolean; // General ban status for any user
+  banReason?: string;
+  bannedBy?: string; // UID of admin who banned
+  bannedAt?: any; // Firestore Timestamp
   civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay';
   socialLinks?: {
     twitter?: string;
@@ -203,4 +208,17 @@ export interface SuggestedUser {
   handle: string;
   avatarUrl: string;
   dataAiHint?: string;
+}
+
+// For Admin Panel Bans
+export interface BanEntry {
+  id: string; // Document ID (same as user ID)
+  userId: string;
+  userName?: string;
+  userAvatar?: string | null;
+  reason: string;
+  bannedByUid: string; // UID of admin who issued ban
+  bannedByName?: string; // Name of admin
+  bannedAt: any; // Firestore Timestamp
+  expiresAt?: any | null; // Firestore Timestamp, optional
 }
