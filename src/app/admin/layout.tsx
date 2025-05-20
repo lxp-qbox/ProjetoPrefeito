@@ -1,3 +1,4 @@
+
 "use client";
 
 import ProtectedPage from "@/components/auth/protected-page";
@@ -7,7 +8,6 @@ import { Users, MailQuestion, ShieldAlert, LayoutDashboard, TicketIcon, Settings
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReactNode } from 'react';
 
 interface AdminMenuItem {
@@ -25,18 +25,19 @@ interface AdminMenuGroup {
 
 const adminMenuGroups: AdminMenuGroup[] = [
   {
+    groupTitle: "Geral",
+    items: [
+      { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
+      { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
+      { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
+    ],
+  },
+  {
     groupTitle: "Usuários",
     items: [
       { title: "Contas de Hosts", icon: Users, link: "/admin/hosts" },
       { title: "Contas de Players", icon: User, link: "/admin/users/players" },
       { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
-    ],
-  },
-  {
-    groupTitle: "Geral",
-    items: [
-      { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
-      { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
     ],
   },
   {
@@ -103,9 +104,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       {group.groupTitle}
                     </h2>
                   )}
-                  <div className={cn("space-y-2", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Reduced space-y-1 to space-y-0.5 or space-y-1 */}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Reduced space-y-1 to space-y-0.5 or space-y-1 */}
                     {group.items.map((item) => {
-                       const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin");
+                       const isActive = pathname === item.link || (item.link === "/admin" && pathname.startsWith("/admin/hosts")) || (item.link === "/admin/hosts" && pathname === "/admin");
                        const isLogout = item.link === "#logout";
                        
                        const buttonAction = isLogout ? handleLogout : () => {
@@ -117,26 +118,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                           key={item.title}
                           variant="ghost"
                           className={cn(
-                            "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md", // Reduced py-3 to py-2.5, px-4 to px-3
+                            "w-full justify-between text-left h-auto py-3 px-3 text-sm font-normal rounded-md", 
                             isActive
                               ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                               : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm"
                           )}
-                          asChild={!isLogout} // Use asChild only if not a logout button
-                          onClick={isLogout ? buttonAction : undefined} // Apply onClick directly if it's logout
+                          asChild={!isLogout}
+                          onClick={isLogout ? buttonAction : undefined}
                         >
                           {isLogout ? (
-                             <div className="flex items-center w-full"> {/* Ensure this div is clickable if Button is not asChild */}
-                                <div className="flex items-center gap-3"> {/* Reduced gap-3 to gap-2.5 */}
-                                  <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> {/* Reduced h-5 w-5 to h-4 w-4 */}
+                             <div className="flex items-center w-full"> 
+                                <div className="flex items-center gap-3"> 
+                                  <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
                                   {item.title}
                                 </div>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
                               </div>
                           ) : (
                             <Link href={item.link} className="flex items-center w-full">
-                              <div className="flex items-center gap-3"> {/* Reduced gap-3 to gap-2.5 */}
-                                <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> {/* Reduced h-5 w-5 to h-4 w-4 */}
+                              <div className="flex items-center gap-3"> 
+                                <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} /> 
                                 {item.title}
                               </div>
                               <div className="flex items-center ml-auto">
