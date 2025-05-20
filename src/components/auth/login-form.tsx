@@ -24,8 +24,8 @@ import { useState } from "react";
 import { Eye, EyeOff, ArrowRight, User, Lock, Star } from "lucide-react";
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  email: z.string().email({ message: "Endereço de email inválido." }),
+  password: z.string().min(6, { message: "A senha precisa ter no mínimo 6 caracteres." }),
   rememberMe: z.boolean().optional(),
 });
 
@@ -56,20 +56,30 @@ export default function LoginForm() {
     },
   });
 
+  const handleRedirect = () => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const redirectPath = queryParams.get("redirect");
+    if (redirectPath) {
+      router.push(redirectPath);
+    } else {
+      router.push("/profile");
+    }
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
-        title: "Login Successful",
-        description: "Welcome back!",
+        title: "Login Bem-sucedido",
+        description: "Bem-vindo(a) de volta!",
       });
-      router.push("/profile"); 
+      handleRedirect();
     } catch (error: any) {
       console.error("Email/Password login error:", error);
       toast({
-        title: "Login Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        title: "Falha no Login",
+        description: error.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -83,15 +93,15 @@ export default function LoginForm() {
     try {
       await signInWithPopup(auth, provider);
       toast({
-        title: "Google Sign-In Successful",
-        description: "Welcome!",
+        title: "Login com Google Bem-sucedido",
+        description: "Bem-vindo(a)!",
       });
-      router.push("/profile");
+      handleRedirect();
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({
-        title: "Google Sign-In Failed",
-        description: error.message || "Could not sign in with Google. Please try again.",
+        title: "Falha no Login com Google",
+        description: error.message || "Não foi possível fazer login com o Google. Por favor, tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -113,7 +123,7 @@ export default function LoginForm() {
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="you@example.com" {...field} className="pl-10" />
+                  <Input placeholder="voce@exemplo.com" {...field} className="pl-10" />
                 </div>
               </FormControl>
               <FormMessage />
@@ -131,10 +141,10 @@ export default function LoginForm() {
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Digite sua senha" 
-                    {...field} 
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Digite sua senha"
+                    {...field}
                     className="pl-10 pr-10"
                   />
                   <Button

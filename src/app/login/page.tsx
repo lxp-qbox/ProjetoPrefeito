@@ -16,7 +16,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && currentUser) {
-      router.replace("/profile");
+      const queryParams = new URLSearchParams(window.location.search);
+      const redirectPath = queryParams.get("redirect");
+      if (redirectPath) {
+        router.replace(redirectPath);
+      } else {
+        router.replace("/profile"); // Default redirect to profile
+      }
     }
   }, [currentUser, loading, router]);
 
@@ -34,7 +40,7 @@ export default function LoginPage() {
     <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8 px-4">
       <Card className="w-full max-w-md shadow-xl relative">
         <div className="absolute top-4 left-4">
-          <Link href="/" aria-label="Go back to homepage" className="text-muted-foreground hover:text-primary transition-colors">
+          <Link href="/" aria-label="Voltar para página inicial" className="text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
           </Link>
         </div>
