@@ -25,9 +25,9 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon" className="border-r">
-        <SidebarHeader className="p-4">
+        <SidebarHeader className="p-4 flex items-center justify-center group-data-[collapsible=icon]:justify-center group-data-[state=expanded]:justify-start">
           <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
-            <Crown className="w-7 h-7" />
+            <Crown className="w-7 h-7 shrink-0" />
             <span className="group-data-[collapsible=icon]:hidden">Agency</span>
           </Link>
         </SidebarHeader>
@@ -35,22 +35,22 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Início">
-                <Link href="/"><Home /> <span>Início</span></Link>
+                <Link href="/"><Home /> <span className="group-data-[collapsible=icon]:hidden">Início</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Hosts">
-                <Link href="/hosts"><Users /> <span>Hosts</span></Link>
+                <Link href="/hosts"><Users /> <span className="group-data-[collapsible=icon]:hidden">Hosts</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Bingo">
-                <Link href="/bingo"><LayoutGrid /> <span>Bingo</span></Link>
+                <Link href="/bingo"><LayoutGrid /> <span className="group-data-[collapsible=icon]:hidden">Bingo</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Login">
-                <Link href="/login"><LogIn /> <span>Login</span></Link>
+                <Link href="/login"><LogIn /> <span className="group-data-[collapsible=icon]:hidden">Login</span></Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -62,9 +62,9 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
            <SidebarMenu>
               <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Mais">
-                     <Link href="/more"> {/* Placeholder link */}
+                     <Link href="/more">
                        <FileText /> 
-                       <span>Mais</span>
+                       <span className="group-data-[collapsible=icon]:hidden">Mais</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
