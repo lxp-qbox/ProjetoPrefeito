@@ -101,7 +101,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6 border-t mt-auto">
+      <CardFooter className="p-6"> {/* Removed border-t and mt-auto to bring button closer and remove line */}
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
