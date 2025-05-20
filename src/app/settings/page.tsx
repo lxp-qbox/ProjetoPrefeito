@@ -39,6 +39,34 @@ const accentColorOptions = [
   { name: "Cyan", value: "#00BCD4" },
 ];
 
+// Helper function to convert HEX to HSL string for CSS variables
+function hexToHslString(hex: string): string | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return null;
+
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+
+  if (max === min) {
+    h = s = 0; // achromatic
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+      default: h = 0; 
+    }
+    h /= 6;
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
 
 export default function SettingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -46,14 +74,53 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Partial<SettableUserProfileFields>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Initialize settings from currentUser or defaults
   useEffect(() => {
     if (currentUser) {
+      const initialTheme = currentUser.themePreference === 'system' ? 'light' : (currentUser.themePreference || "light");
+      const initialAccent = currentUser.accentColor || "#4285F4";
+      
       setSettings({
-        themePreference: currentUser.themePreference === 'system' ? 'light' : (currentUser.themePreference || "light"),
-        accentColor: currentUser.accentColor || "#4285F4",
+        themePreference: initialTheme,
+        accentColor: initialAccent,
       });
+
+      // Apply initial theme to document
+      document.documentElement.classList.remove('dark');
+      if (initialTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+      
+      // Apply initial accent color to document
+      const hslColor = hexToHslString(initialAccent);
+      if (hslColor) {
+        document.documentElement.style.setProperty('--primary', hslColor);
+        document.documentElement.style.setProperty('--ring', hslColor);
+      }
     }
   }, [currentUser]);
+
+  // Effect to apply theme preference (light/dark) dynamically
+  useEffect(() => {
+    if (settings.themePreference) {
+      document.documentElement.classList.remove('dark');
+      if (settings.themePreference === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, [settings.themePreference]);
+
+  // Effect to apply accent color dynamically
+  useEffect(() => {
+    if (settings.accentColor) {
+      const hslColor = hexToHslString(settings.accentColor);
+      if (hslColor) {
+        document.documentElement.style.setProperty('--primary', hslColor);
+        document.documentElement.style.setProperty('--ring', hslColor);
+      }
+    }
+  }, [settings.accentColor]);
+
 
   const handleRadioChange = (name: keyof Pick<SettableUserProfileFields, "themePreference">, value: string) => {
     setSettings((prev) => ({ ...prev, [name]: value as 'light' | 'dark' }));
@@ -73,8 +140,8 @@ export default function SettingsPage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
-        ...settings,
         themePreference: settings.themePreference === 'system' ? 'light' : settings.themePreference, // Ensure system is not saved
+        accentColor: settings.accentColor,
         updatedAt: new Date(), 
       });
       toast({ title: "Configurações Salvas", description: "Suas preferências foram atualizadas." });
@@ -104,7 +171,6 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
 
-        {/* Appearance Section */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
@@ -113,7 +179,6 @@ export default function SettingsPage() {
             <CardDescription>Personalize a aparência do site.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
-            {/* Color Mode */}
             <div>
               <Label className="text-base font-semibold">Modo de Cor</Label>
               <p className="text-sm text-muted-foreground mb-3">Escolha o modo de cor para seu aplicativo.</p>
@@ -136,7 +201,6 @@ export default function SettingsPage() {
               </RadioGroup>
             </div>
 
-            {/* Color Scheme */}
             <div>
               <Label className="text-base font-semibold">Esquema de Cores</Label>
               <p className="text-sm text-muted-foreground mb-3">O esquema de cores perfeito para seu aplicativo.</p>
@@ -162,7 +226,7 @@ export default function SettingsPage() {
                 ))}
               </div>
                <p className="text-xs text-muted-foreground mt-2">
-                Nota: A aplicação completa da cor de destaque em todo o site está em desenvolvimento.
+                Nota: A aplicação da cor de destaque em todo o site é uma prévia. O salvamento persistirá sua escolha.
               </p>
             </div>
           </CardContent>
@@ -176,3 +240,5 @@ export default function SettingsPage() {
     </ProtectedPage>
   );
 }
+
+    
