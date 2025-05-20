@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import type { UserProfile } from "@/types";
+import { Progress } from "@/components/ui/progress";
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -63,8 +64,20 @@ export default function RoleSelectionPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+       <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            title="Voltar para Termos"
+        >
+            <Link href="/onboarding/terms">
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+        </Button>
       <CardHeader className="text-center pt-10 pb-4">
-        <CardTitle className="text-3xl font-bold">Olá!</CardTitle>
+        <CardTitle className="text-3xl font-bold mt-8">Olá!</CardTitle>
         <CardDescription className="mt-2">
           Para começar, escolha como você pretende utilizar sua conta:
         </CardDescription>
@@ -109,6 +122,9 @@ export default function RoleSelectionPage() {
           </Card>
         </div>
       </CardContent>
+      <CardFooter className="p-6 border-t">
+        <Progress value={50} aria-label="Progresso do onboarding 50%" />
+      </CardFooter>
     </Card>
   );
 }
