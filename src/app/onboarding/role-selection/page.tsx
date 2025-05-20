@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Users, Gamepad2, ArrowLeft, Star } from "lucide-react";
+import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react"; // Adicionado ArrowLeft
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -78,7 +78,7 @@ export default function RoleSelectionPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="text-center pt-10 pb-4">
+      <CardHeader className="text-center pt-10 pb-4"> {/* Mantido pt-10 para espaço do botão voltar */}
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
