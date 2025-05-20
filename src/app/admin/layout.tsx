@@ -96,7 +96,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex-grow flex flex-col md:flex-row gap-0 md:gap-0 overflow-hidden h-full">
           {/* Admin Navigation Sidebar */}
           <nav className="w-full md:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-1 space-y-4"> {/* Reduced overall padding slightly */}
+            <div className="p-2 space-y-4"> {/* Changed p-1 to p-2 */}
               {adminMenuGroups.map((group, groupIndex) => (
                 <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
                   {group.groupTitle && (
@@ -104,7 +104,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       {group.groupTitle}
                     </h2>
                   )}
-                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Reduced space-y-1 to space-y-0.5 or space-y-1 */}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}> {/* Kept space-y-1 */}
                     {group.items.map((item) => {
                        const isActive = pathname === item.link || (item.link === "/admin" && pathname.startsWith("/admin/hosts")) || (item.link === "/admin/hosts" && pathname === "/admin");
                        const isLogout = item.link === "#logout";
