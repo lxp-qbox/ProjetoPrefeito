@@ -70,19 +70,16 @@ export default function LoginForm() {
           router.replace("/onboarding/role-selection");
         } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
           router.replace("/onboarding/age-verification");
-        } else {
-          // Check role for further specific onboarding if hasCompletedOnboarding is false or undefined
-          if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-            if (userProfile.role === 'host') {
-              router.replace("/onboarding/kako-id-input");
-            } else if (userProfile.role === 'player') {
-              router.replace("/onboarding/kako-account-check");
-            } else {
-              router.replace("/profile"); // Fallback if role is weird but onboarding not complete
-            }
+        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+          if (userProfile.role === 'host') {
+            router.replace("/onboarding/kako-id-input");
+          } else if (userProfile.role === 'player') {
+            router.replace("/onboarding/kako-account-check");
           } else {
-            router.replace("/profile"); // Onboarding complete, go to profile
+            router.replace("/profile"); // Fallback for unexpected role but onboarding not complete
           }
+        } else {
+          router.replace("/profile"); // Onboarding complete, go to profile
         }
       } else {
         // New user created via Google Sign-In or if somehow doc doesn't exist
@@ -100,8 +97,6 @@ export default function LoginForm() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       if (!userCredential.user.emailVerified) {
-        // Optionally resend verification email if you want
-        // await sendEmailVerification(userCredential.user);
         toast({
           title: "Email Não Verificado",
           description: "Por favor, verifique seu email antes de fazer login. Se necessário, um novo email de verificação pode ser enviado.",
@@ -265,3 +260,5 @@ export default function LoginForm() {
     </Form>
   );
 }
+
+    

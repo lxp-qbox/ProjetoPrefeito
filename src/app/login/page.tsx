@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
@@ -17,7 +18,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && currentUser) {
-      // If user is loaded and exists, check onboarding status
       if (!currentUser.agreedToTermsAt) {
         router.replace("/onboarding/terms");
       } else if (!currentUser.role) {
@@ -25,17 +25,16 @@ export default function LoginPage() {
       } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country || !currentUser.phoneNumber) {
         router.replace("/onboarding/age-verification");
       } else {
-        // Check role for further specific onboarding if hasCompletedOnboarding is false or undefined
         if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
           if (currentUser.role === 'host') {
             router.replace("/onboarding/kako-id-input");
           } else if (currentUser.role === 'player') {
             router.replace("/onboarding/kako-account-check");
           } else {
-            router.replace("/profile"); // Fallback if role is weird but onboarding not complete
+            router.replace("/profile"); 
           }
         } else {
-          router.replace("/profile"); // Onboarding complete, go to profile
+          router.replace("/profile"); 
         }
       }
     }
@@ -79,3 +78,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

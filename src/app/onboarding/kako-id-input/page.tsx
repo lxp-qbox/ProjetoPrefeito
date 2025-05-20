@@ -25,13 +25,12 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
-const DEFAULT_AVATAR_PLACEHOLDER = "https://placehold.co/96x96.png?text=?"; // Generic placeholder
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(DEFAULT_AVATAR_PLACEHOLDER);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [profileFound, setProfileFound] = useState(false);
 
@@ -49,15 +48,13 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    setProfileImageUrl(DEFAULT_AVATAR_PLACEHOLDER); // Reset to default placeholder
+    setProfileImageUrl(null); 
     setProfileName(null);
     setProfileFound(false);
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Simulated "found" logic
-    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") { // Example ID for "PRESIDENTE"
+    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") { 
       setProfileImageUrl("https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200");
       setProfileName("PRESIDENTE");
       setProfileFound(true);
@@ -65,7 +62,7 @@ export default function KakoIdInputPage() {
         title: "Perfil Encontrado!",
         description: `ID ${kakoId} verificado para PRESIDENTE.`,
       });
-    } else if (kakoId.trim() === "123456") { // Another example
+    } else if (kakoId.trim() === "123456") { 
         setProfileImageUrl("https://placehold.co/96x96.png?text=JG");
         setProfileName("João Gamer");
         setProfileFound(true);
@@ -75,6 +72,7 @@ export default function KakoIdInputPage() {
         });
     } else {
       setProfileFound(false);
+      setProfileImageUrl(null);
       toast({
         title: "Perfil Não Encontrado",
         description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
@@ -108,8 +106,8 @@ export default function KakoIdInputPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: kakoId.trim(),
-        profileName: profileFound && profileName ? profileName : currentUser.profileName, // Update profileName if found
-        photoURL: profileFound && profileImageUrl !== DEFAULT_AVATAR_PLACEHOLDER ? profileImageUrl : currentUser.photoURL, // Update photoURL if found & not default
+        profileName: profileFound && profileName ? profileName : currentUser.profileName, 
+        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL, 
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
@@ -162,19 +160,29 @@ export default function KakoIdInputPage() {
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-xs mx-auto space-y-6">
+        <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
           <div className="flex flex-col items-center space-y-3 mb-6">
             <Avatar className="h-24 w-24 border-2 border-primary/30">
-              <AvatarImage src={profileImageUrl || undefined} alt={profileName || "Avatar do perfil"} />
+              {profileImageUrl && <AvatarImage src={profileImageUrl} alt={profileName || "Avatar do perfil"} />}
               <AvatarFallback>
-                {profileName ? (
+                {profileFound && profileName ? (
                   profileName.substring(0, 2).toUpperCase()
                 ) : (
                   <UserCircle2 className="h-12 w-12 text-muted-foreground" />
                 )}
               </AvatarFallback>
             </Avatar>
-            {profileName && <p className="font-semibold text-primary">{profileName}</p>}
+            <div className="h-6 text-center">
+              {isSearching ? (
+                <p className="text-sm text-muted-foreground">Buscando...</p>
+              ) : profileFound && profileName ? (
+                <p className="font-semibold text-primary">{profileName}</p>
+              ) : !profileFound && kakoId.trim() && !isSearching ? (
+                 <p className="text-sm text-muted-foreground">Anônimo</p>
+              ): (
+                <p>&nbsp;</p> 
+              )}
+            </div>
           </div>
 
           <div>
@@ -188,17 +196,19 @@ export default function KakoIdInputPage() {
                 value={kakoId}
                 onChange={(e) => {
                     setKakoId(e.target.value);
-                    setProfileFound(false); // Reset found status if ID changes
-                    setProfileImageUrl(DEFAULT_AVATAR_PLACEHOLDER);
-                    setProfileName(null);
+                    if(profileFound) { // Reset if ID changes after a successful find
+                        setProfileFound(false); 
+                        setProfileImageUrl(null);
+                        setProfileName(null);
+                    }
                 }}
-                className="flex-grow"
+                className="flex-grow h-12"
               />
               <Button
                 variant="outline"
                 onClick={handleSearchProfile}
                 disabled={isSearching || !kakoId.trim()}
-                className="shrink-0"
+                className="shrink-0 h-12"
               >
                 {isSearching ? <LoadingSpinner size="sm" /> : <Search className="h-4 w-4" />}
                 <span className="sr-only sm:not-sr-only sm:ml-2">Buscar</span>
@@ -228,3 +238,5 @@ export default function KakoIdInputPage() {
     </Card>
   );
 }
+
+    

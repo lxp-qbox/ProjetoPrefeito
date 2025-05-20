@@ -45,7 +45,7 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return ""; // If input is cleared or only whitespace, return empty.
+  if (!value.trim()) return ""; 
 
   const originalStartsWithPlus = value.charAt(0) === '+';
   
@@ -178,7 +178,6 @@ export default function AgeVerificationPage() {
         router.push("/onboarding/kako-account-check");
       } else {
         // Fallback if role is not set or unexpected, though role selection should precede this.
-        // Consider if this path needs review based on full onboarding logic.
         router.push("/profile"); 
       }
     } catch (error) {
@@ -217,7 +216,9 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preenche<br />as informacoes abaixo
+          Para prosseguir, preenche 
+          <br />
+          as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
