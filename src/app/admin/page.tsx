@@ -33,11 +33,11 @@ export default function AdminPage() {
   }
 
   const adminSections = [
-    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
+    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, // "Dashboard" now renders Host Management
     { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
     { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
     { title: "Configurações", icon: Settings, link: "/admin/settings" },
-    { title: "Meu Perfil", icon: UserCircle2, link: "/profile" },
+    { title: "Meu Perfil", icon: UserCircle2, link: "/profile" }, // This still points to main profile
   ];
 
   // Determine what content to show based on the path
@@ -58,45 +58,47 @@ export default function AdminPage() {
         </section>
 
         <div className="flex flex-col md:flex-row gap-6">
+          {/* Admin Navigation Sidebar */}
           <nav className="w-full md:w-72 flex-shrink-0">
-            <Card className="shadow-lg">
-              <CardContent className="p-1 space-y-1"> {/* Reduced padding from p-2 to p-1 */}
+            <div className="bg-card rounded-lg shadow-md border border-border">
+              <div className="p-2 space-y-1">
                 {adminSections.map((section) => {
-                  const isActive = pathname === section.link;
+                  const isActive = pathname === section.link || (section.link === "/admin" && pathname.startsWith("/admin/hosts"));
                   return (
                     <Button
                       key={section.title}
-                      variant={isActive ? "default" : "ghost"}
+                      variant={isActive ? "secondary" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left h-auto py-2.5 px-2 text-sm font-medium rounded-md", // Reduced horizontal padding from px-3 to px-2
+                        "w-full justify-start text-left h-auto py-2.5 px-3 text-sm font-medium rounded-md",
                         isActive
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          ? "bg-secondary text-secondary-foreground hover:bg-secondary/90" // Using secondary for active state
                           : "text-card-foreground hover:bg-muted"
                       )}
                       asChild
                     >
                       <Link href={section.link} className="flex items-center gap-2.5">
-                        <section.icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                        <section.icon className={cn("h-4 w-4", isActive ? "text-secondary-foreground" : "text-muted-foreground")} />
                         {section.title}
                       </Link>
                     </Button>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </nav>
 
+          {/* Admin Content Area */}
           <main className="flex-grow">
             {isHostManagementView ? (
               <AdminHostsPageContent />
             ) : (
               <Card className="shadow-lg h-full">
                 <CardHeader>
-                  <CardTitle>Seção em Desenvolvimento</CardTitle>
+                  <CardTitle className="text-xl">Seção: {adminSections.find(s => s.link === pathname)?.title || pathname.split('/').pop()?.toUpperCase()}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    O conteúdo para {pathname.replace("/admin/", "")} será exibido aqui quando implementado.
+                    O conteúdo para esta seção será exibido aqui quando implementado.
                   </p>
                 </CardContent>
               </Card>
