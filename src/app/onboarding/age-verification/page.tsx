@@ -136,6 +136,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Should not happen if role is enforced earlier
         router.push("/profile"); 
       }
     } catch (error) {
@@ -168,13 +169,15 @@ export default function AgeVerificationPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <LucideCalendarIcon className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu sexo,<br />data de nascimento e país.
+          Para prosseguir, por favor, informe seu sexo,
+          <br />
+          data de nascimento e país.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />

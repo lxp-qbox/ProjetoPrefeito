@@ -81,13 +81,15 @@ export default function RoleSelectionPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Star className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
+        <CardTitle className="text-2xl font-bold">Ol&aacute;!</CardTitle>
         <CardDescription>
-          Para começar, escolha como você<br />pretende utilizar sua conta:
+          Para come&ccedil;ar, escolha como voc&ecirc;
+          <br />
+          pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />

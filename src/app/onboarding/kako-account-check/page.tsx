@@ -15,27 +15,27 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react"; 
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-// import { useAuth } from "@/hooks/use-auth"; // Not needed if not saving here
-// import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase"; // Not saving directly here anymore
-// import { useToast } from "@/hooks/use-toast"; // Not needed if not saving here
-// import { useState } from "react";
-// import LoadingSpinner from "@/components/ui/loading-spinner";
+import { useAuth } from "@/hooks/use-auth"; 
+import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase"; 
+import { useToast } from "@/hooks/use-toast"; 
+import { useState } from "react";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  // const { currentUser } = useAuth(); // Not needed if not saving here
-  // const { toast } = useToast(); // Not needed if not saving here
-  // const [isLoading, setIsLoading] = useState(false); // Not needed if not saving here
+  const { currentUser } = useAuth(); 
+  const { toast } = useToast(); 
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleHasAccount = () => {
     router.push("/onboarding/kako-id-input"); 
   };
 
   const handleNeedsAccount = () => {
-    router.push("/onboarding/kako-creation-choice");
+     router.push("/onboarding/kako-creation-choice");
   };
 
   return (
@@ -52,13 +52,15 @@ export default function KakoAccountCheckPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>
         <CardDescription>
-          Você já possui uma conta<br />no aplicativo Kako Live?
+          Você já possui uma conta
+          <br />
+          no aplicativo Kako Live?
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -66,10 +68,11 @@ export default function KakoAccountCheckPage() {
         <div className="grid grid-cols-1 gap-6 w-full"> 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={handleHasAccount}
+            onClick={!isLoading ? handleHasAccount : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleHasAccount()}
+            aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <CheckCircle className="h-8 w-8 text-primary" />
@@ -82,10 +85,11 @@ export default function KakoAccountCheckPage() {
 
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={handleNeedsAccount}
+            onClick={!isLoading ? handleNeedsAccount : undefined}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleNeedsAccount()}
+            aria-disabled={isLoading}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <Phone className="h-8 w-8 text-primary" />

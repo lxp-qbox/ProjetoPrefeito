@@ -44,6 +44,7 @@ export default function KakoIdInputPage() {
     }
     setIsSearching(true);
     
+    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500)); 
     setIsSearching(false);
     toast({
@@ -98,6 +99,8 @@ export default function KakoIdInputPage() {
 
   const determineBackLink = () => {
     if (!currentUser) return "/onboarding/kako-account-check"; // Fallback
+    // For hosts, they come directly from age-verification.
+    // For players, they come from kako-account-check.
     return currentUser.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
@@ -115,13 +118,15 @@ export default function KakoIdInputPage() {
           <span className="sr-only">Voltar</span>
         </Link>
       </Button>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pt-[60px] pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
         <CardDescription>
-          Insira seu ID do aplicativo Kako Live<br />para continuar.
+          Insira seu ID do aplicativo Kako Live
+          <br />
+          para continuar.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
