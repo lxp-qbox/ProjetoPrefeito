@@ -69,7 +69,7 @@ function hexToHslString(hex: string): string | null {
 
 
 export default function SettingsPage() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser } = useAuth(); // currentUser will be available here if ProtectedPage allows rendering
   const { toast } = useToast();
   const [settings, setSettings] = useState<Partial<SettableUserProfileFields>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -152,15 +152,9 @@ export default function SettingsPage() {
       setIsSaving(false);
     }
   };
-
-  if (authLoading || !currentUser) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
+  
+  // ProtectedPage will handle the loading and currentUser check.
+  // We can assume currentUser is populated if this content renders.
   return (
     <ProtectedPage>
       <div className="space-y-8 max-w-3xl mx-auto">
@@ -240,5 +234,3 @@ export default function SettingsPage() {
     </ProtectedPage>
   );
 }
-
-    

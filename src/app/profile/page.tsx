@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProfilePage() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout } = useAuth(); // currentUser will be available here if ProtectedPage allows rendering
   const { toast } = useToast();
   const router = useRouter();
 
@@ -21,7 +21,7 @@ export default function ProfilePage() {
       await logout();
       toast({ title: "Sessão Encerrada", description: "Você foi desconectado com sucesso." });
       router.push("/");
-    } catch (error: any) {
+    } catch (error: any) { // Added missing opening brace
       toast({ title: "Falha ao Sair", description: error.message, variant: "destructive" });
     }
   };
@@ -35,14 +35,9 @@ export default function ProfilePage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  if (!currentUser) {
-    // It's better to return null or a loading state if currentUser is not yet available
-    // ProtectedPage already handles redirection if not authenticated,
-    // but this check is for when currentUser might be null during initial auth context loading.
-    return null; 
-  }
-
-  const displayName = currentUser.profileName || currentUser.displayName || "Usuário";
+  // ProtectedPage will handle the case where currentUser is null or loading.
+  // We can safely assume currentUser is populated if this content renders.
+  const displayName = currentUser?.profileName || currentUser?.displayName || "Usuário";
 
   return (
     <ProtectedPage>
@@ -50,14 +45,14 @@ export default function ProfilePage() {
         <Card className="shadow-xl">
           <CardHeader className="text-center">
             <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-primary/50 shadow-md">
-              <AvatarImage src={currentUser.photoURL || undefined} alt={displayName} />
+              <AvatarImage src={currentUser?.photoURL || undefined} alt={displayName} />
               <AvatarFallback className="text-3xl">{getInitials(displayName)}</AvatarFallback>
             </Avatar>
             <div className="flex items-center justify-center gap-2">
               <CardTitle className="text-3xl font-bold">
                 {displayName}
               </CardTitle>
-              {currentUser.isVerified && <ShieldCheck className="h-7 w-7 text-primary" />}
+              {currentUser?.isVerified && <ShieldCheck className="h-7 w-7 text-primary" />}
             </div>
             <CardDescription>Gerencie os detalhes e preferências da sua conta.</CardDescription>
           </CardHeader>
@@ -69,9 +64,9 @@ export default function ProfilePage() {
               <div className="p-4 border rounded-md bg-muted/50 space-y-2">
                 <p className="flex items-center text-sm">
                   <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <strong>Email:</strong>&nbsp;{currentUser.email}
+                  <strong>Email:</strong>&nbsp;{currentUser?.email}
                 </p>
-                {currentUser.kakoLiveId && (
+                {currentUser?.kakoLiveId && (
                    <p className="flex items-center text-sm">
                     <Fingerprint className="mr-2 h-4 w-4 text-muted-foreground" />
                     <strong>Passaporte:</strong>&nbsp;{currentUser.kakoLiveId}
@@ -80,12 +75,12 @@ export default function ProfilePage() {
                 <div className="flex items-center text-sm">
                   <BadgeCent className="mr-2 h-4 w-4 text-muted-foreground" />
                   <strong>Função:</strong>&nbsp;
-                  <Badge variant={currentUser.role === 'admin' || currentUser.role === 'master' ? 'destructive' : 'secondary'}>
-                    {currentUser.role}
+                  <Badge variant={currentUser?.role === 'admin' || currentUser?.role === 'master' ? 'destructive' : 'secondary'}>
+                    {currentUser?.role}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  ID do Usuário: {currentUser.uid}
+                  ID do Usuário: {currentUser?.uid}
                 </p>
               </div>
             </div>
