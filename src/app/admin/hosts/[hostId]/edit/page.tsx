@@ -2,13 +2,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Control, FieldValues } from "react-hook-form"; // Added for Controller
+import type { Control, FieldValues } from "react-hook-form";
 import { useRouter, useParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form"; // Added Controller
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,9 +16,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Search as SearchIcon } from "lucide-react"; // Added SearchIcon
 import Link from "next/link";
-import { countries } from "@/lib/countries";
+// Removed countries import as it's not directly used in this simplified version,
+// country is read-only based on initial UserProfile data.
+
+// Simplified KakoProfile type for this component's simulation
+interface SimulatedKakoProfile {
+  id: string; // This would be the fuid or a unique Kako ID
+  numId?: number;
+  nickname: string;
+  signature: string;
+}
+
+// Simulated data - in a real app, this would come from an API call
+const simulatedKakoProfiles: SimulatedKakoProfile[] = [
+  {
+    id: "0322d2dd57e74a028a9e72c2fae1fd9a", // PRESIDENTE's fuid
+    numId: 1008850234,
+    nickname: "PRESIDENTE",
+    signature: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas.",
+  },
+  {
+    id: "c2e7c033b41243b5b09f42aa50edf4a1", // KAROL's fuid
+    numId: 1001007128,
+    nickname: "KAROL❤️WILLIAN🦊FOX",
+    signature: "Amor e lealdade sempre!",
+  },
+  {
+    id: "12345simulado", // A generic simulated ID
+    nickname: "Host Simulado",
+    signature: "Esta é uma bio simulada para testes.",
+  }
+];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -56,6 +86,9 @@ export default function EditHostPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hostData, setHostData] = useState<UserProfile | null>(null);
+
+  const [kakoProfileUrl, setKakoProfileUrl] = useState("");
+  const [isFetchingKakoData, setIsFetchingKakoData] = useState(false);
 
   const form = useForm<EditHostFormValues>({
     resolver: zodResolver(editHostSchema),
@@ -102,6 +135,34 @@ export default function EditHostPage() {
     }
   }, [hostId, toast, router, form]);
 
+  const handleFetchKakoData = async () => {
+    if (!kakoProfileUrl.trim()) {
+      toast({ title: "URL Inválida", description: "Por favor, insira uma URL do perfil Kako Live.", variant: "destructive" });
+      return;
+    }
+    setIsFetchingKakoData(true);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+
+    let foundProfile: SimulatedKakoProfile | undefined = undefined;
+    for (const profile of simulatedKakoProfiles) {
+      if (kakoProfileUrl.includes(profile.id) || (profile.numId && kakoProfileUrl.includes(profile.numId.toString()))) {
+        foundProfile = profile;
+        break;
+      }
+    }
+
+    if (foundProfile) {
+      form.setValue("profileName", foundProfile.nickname, { shouldValidate: true });
+      form.setValue("kakoLiveId", foundProfile.id, { shouldValidate: true }); // Using the string ID (fuid)
+      form.setValue("bio", foundProfile.signature, { shouldValidate: true });
+      toast({ title: "Dados Encontrados", description: "Campos do formulário preenchidos com dados do Kako Live." });
+    } else {
+      toast({ title: "Dados Não Encontrados", description: "Não foi possível encontrar um perfil Kako Live para esta URL ou ID.", variant: "destructive" });
+    }
+    setIsFetchingKakoData(false);
+  };
+
+
   const onSubmit = async (data: EditHostFormValues) => {
     if (!hostId) return;
     setIsSaving(true);
@@ -109,11 +170,11 @@ export default function EditHostPage() {
       const hostDocRef = doc(db, "users", hostId);
       const updateData: Partial<UserProfile> = {
         profileName: data.profileName,
-        displayName: data.profileName, // Keep displayName in sync with profileName for hosts
+        displayName: data.profileName,
         kakoLiveId: data.kakoLiveId,
-        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""), // Store only digits and +
+        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""),
         hostStatus: data.hostStatus,
-        adminLevel: data.adminLevel, // Zod already ensures this is 'master', 'admin', 'suporte', or null
+        adminLevel: data.adminLevel,
         bio: data.bio,
         updatedAt: serverTimestamp(),
       };
@@ -161,6 +222,31 @@ export default function EditHostPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Capturar Dados do Perfil Kako Live</CardTitle>
+          <CardDescription>Insira a URL do perfil Kako Live para tentar preencher automaticamente alguns campos.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="kakoProfileUrl">URL do Perfil Kako Live</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                id="kakoProfileUrl"
+                placeholder="https://app.kako.live/app/profile/..."
+                value={kakoProfileUrl}
+                onChange={(e) => setKakoProfileUrl(e.target.value)}
+              />
+              <Button onClick={handleFetchKakoData} disabled={isFetchingKakoData || !kakoProfileUrl.trim()}>
+                {isFetchingKakoData ? <LoadingSpinner size="sm" className="mr-2" /> : <SearchIcon className="mr-2 h-4 w-4" />}
+                Buscar Dados
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
           <CardTitle>Informações do Host</CardTitle>
         </CardHeader>
         <CardContent>
@@ -191,6 +277,7 @@ export default function EditHostPage() {
                   {...form.register("phoneNumber")}
                   onChange={(e) => form.setValue("phoneNumber", formatPhoneNumberForDisplay(e.target.value))}
                   className="mt-1"
+                  placeholder="+00 (00) 00000-0000"
                 />
               </div>
               <div>
@@ -228,7 +315,7 @@ export default function EditHostPage() {
                   render={({ field }) => (
                     <Select
                         onValueChange={(value) => field.onChange(value === NONE_ADMIN_LEVEL_VALUE ? null : value as UserProfile['adminLevel'])}
-                        value={field.value === null ? NONE_ADMIN_LEVEL_VALUE : field.value || NONE_ADMIN_LEVEL_VALUE}
+                        value={field.value === null || field.value === undefined ? NONE_ADMIN_LEVEL_VALUE : field.value}
                     >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Selecione um nível" />
@@ -256,7 +343,7 @@ export default function EditHostPage() {
               <Button type="button" variant="outline" onClick={() => router.push("/admin/hosts")} className="mr-2">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || isFetchingKakoData}>
                 {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                 Update Profile
               </Button>
@@ -268,3 +355,4 @@ export default function EditHostPage() {
   );
 }
 
+    
