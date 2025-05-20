@@ -200,7 +200,7 @@ export default function LoginForm() {
         </div>
 
         <Button
-          variant="outline"
+          variant="ghost"
           type="button"
           className="w-full hover:bg-muted hover:text-secondary-foreground"
           onClick={handleGoogleSignIn}
