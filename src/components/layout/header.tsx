@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Crown, LogIn, LogOut, UserCircle2, Gamepad2, LifeBuoy, TicketIcon } from "lucide-react";
+import { Crown, LogIn, LogOut, UserCircle2, Gamepad2, LifeBuoy, TicketIcon, Maximize, Minimize } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -16,12 +16,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { useState, useEffect } from "react";
 
 
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
   const { isMobile } = useSidebar();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function onFullscreenChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (err) {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.error(`Error attempting to exit full-screen mode: ${err.message} (${err.name})`);
+        }
+      }
+    }
+  };
 
 
   const handleLogout = async () => {
@@ -38,15 +66,19 @@ export default function Header() {
     <header className="bg-card sticky top-0 z-40 border-b border-border h-16 flex items-center">
       <div className="px-6 w-full flex justify-between items-center">
         <div className="flex items-center gap-2">
-          {/* This trigger is for mobile when the main sidebar is collapsed. The main sidebar has its own trigger. */}
           <SidebarTrigger className="md:hidden" />
           <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary hover:opacity-80 transition-opacity">
             <Crown className="w-7 h-7" />
-            {/* Conditionally hide text on mobile if sidebar is also icon-only, or always show on larger screens */}
             <span className={isMobile ? "hidden" : "md:inline"}>The Presidential Agency</span>
           </Link>
         </div>
-        <nav className="flex items-center gap-3 md:gap-4">
+        <nav className="flex items-center gap-1 md:gap-2"> {/* Reduced gap slightly */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-muted-foreground hover:text-primary">
+              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              <span className="sr-only">{isFullscreen ? "Sair da Tela Cheia" : "Entrar em Tela Cheia"}</span>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-sm md:text-base">
             <Link href="/games">
               <TicketIcon className="w-4 h-4 mr-1 md:mr-2" /> Jogos
@@ -93,7 +125,6 @@ export default function Header() {
                     Meus Jogos Criados
                   </Link>
                 </DropdownMenuItem>
-                {/* Mobile only links from sidebar */}
                 <div className="md:hidden">
                   <DropdownMenuSeparator />
                    <DropdownMenuItem asChild>
