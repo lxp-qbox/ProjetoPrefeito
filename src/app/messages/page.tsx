@@ -116,8 +116,8 @@ export default function MessagesPage() {
 
   return (
     <ProtectedPage>
-      <div className="h-full flex flex-col"> {/* This div takes full height from parent */}
-        <div className="flex-grow flex overflow-hidden"> {/* This div is for the two-pane layout */}
+      <div className="h-full flex flex-col">
+        <div className="flex-grow flex overflow-hidden">
           {/* Left Pane: Conversation List */}
           <div className="w-full md:w-1/3 lg:w-1/4 border-r border-border flex flex-col bg-card">
             <div className="p-4 border-b border-border">
@@ -156,13 +156,15 @@ export default function MessagesPage() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-sm truncate">{convo.userName}</h3>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{convo.lastMessageTime}</span>
+                        <h3 className="font-semibold text-sm truncate pr-2">{convo.userName}</h3>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{convo.lastMessageTime}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{convo.lastMessage}</p>
-                      {convo.unreadCount && convo.unreadCount > 0 && (
-                        <Badge variant="destructive" className="mt-1 float-right">{convo.unreadCount}</Badge>
-                      )}
+                      <div className="flex justify-between items-center mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate pr-2">{convo.lastMessage}</p>
+                        {convo.unreadCount && convo.unreadCount > 0 && (
+                          <Badge variant="destructive" className="text-xs px-1.5 py-0.5 rounded-full shrink-0">{convo.unreadCount}</Badge>
+                        )}
+                      </div>
                     </div>
                   </button>
                 ))
@@ -174,7 +176,7 @@ export default function MessagesPage() {
           <div className="flex-1 flex flex-col bg-background">
             {selectedConversationId && selectedConversation ? (
               <>
-                <div className="p-4 border-b border-border bg-card"> {/* Header for selected conversation */}
+                <div className="p-4 border-b border-border bg-card">
                     <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10 border">
                             <AvatarImage src={selectedConversation.userAvatar} alt={selectedConversation.userName} data-ai-hint="user avatar chat" />
@@ -182,7 +184,7 @@ export default function MessagesPage() {
                         </Avatar>
                         <div>
                             <h2 className="text-lg font-semibold">{selectedConversation.userName}</h2>
-                            <p className="text-xs text-muted-foreground">Online</p> {/* Placeholder status */}
+                            <p className="text-xs text-muted-foreground">Online</p>
                         </div>
                     </div>
                 </div>
