@@ -3,7 +3,7 @@ export interface Game {
   id: string;
   title: string;
   startTime: Date; // For upcoming: start time. For ended: can be original start time or actual end time.
-  status: 'Upcoming' | 'Live' | 'Ended';
+  status: 'Upcoming' | 'Live' | 'Ended' | 'Aberta'; // Added 'Aberta' status
   hostedBy?: string;
   description?: string; // General game description
   prize?: string;
@@ -14,6 +14,10 @@ export interface Game {
   additionalInfo?: string; // e.g., "24 participantes!" shown on the "Next Game" card
   startTimeDisplay?: string; // e.g., "20:00" for display
   endTimeDisplay?: string; // e.g., "16:30" for display for finished games
+
+  // Fields for Game Play Page
+  generatedCards?: number;
+  countdownSeconds?: number;
 }
 
 export interface SupportTicket {
@@ -22,3 +26,4 @@ export interface SupportTicket {
   userId?: string; // Optional: associate ticket with user
   createdAt: Date;
 }
+
