@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"; // Removed Card
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -69,7 +69,7 @@ export default function TermsPage() {
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/role-selection"); 
+      router.push("/onboarding/role-selection");
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -79,7 +79,7 @@ export default function TermsPage() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
@@ -90,7 +90,7 @@ export default function TermsPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden"> {/* Changed from overflow-y-auto */}
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
@@ -108,6 +108,6 @@ export default function TermsPage() {
       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
       </CardFooter>
-    </Card>
+    </>
   );
 }

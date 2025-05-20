@@ -7,14 +7,23 @@ import Link from "next/link";
 import { UserPlus, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"]; // Not used by this page directly, but for context
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function SignupPage() {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
-      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <div className={cn(
+      "flex justify-center items-center h-screen overflow-hidden",
+      !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+      isMobile && "bg-card p-0"
+    )}>
+      <Card className={cn(
+        "w-full max-w-md flex flex-col overflow-hidden",
+        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
+        isMobile && "h-full shadow-none rounded-none"
+      )}>
         <Button
             asChild
             variant="ghost"
@@ -28,7 +37,7 @@ export default function SignupPage() {
             </Link>
         </Button>
         <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">Criar Conta</CardTitle>

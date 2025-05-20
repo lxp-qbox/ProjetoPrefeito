@@ -4,17 +4,19 @@
 import LoginForm from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { LogIn, ArrowLeft } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!loading && currentUser) {
@@ -31,27 +33,38 @@ export default function LoginPage() {
           } else if (currentUser.role === 'player') {
             router.replace("/onboarding/kako-account-check");
           } else {
-            router.replace("/profile"); 
+            router.replace("/profile");
           }
         } else {
-          router.replace("/profile"); 
+          router.replace("/profile");
         }
       }
     }
   }, [currentUser, loading, router]);
 
-  if (loading || (!loading && currentUser)) { 
+  if (loading || (!loading && currentUser)) {
     return (
-      <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
+      <div className={cn(
+        "flex justify-center items-center h-screen overflow-hidden",
+        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+        isMobile && "bg-card p-0"
+      )}>
         <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
-      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
-        {/* Back button was removed as per user request */}
+    <div className={cn(
+      "flex justify-center items-center h-screen overflow-hidden",
+      !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+      isMobile && "bg-card p-0"
+    )}>
+      <Card className={cn(
+        "w-full max-w-md flex flex-col overflow-hidden",
+        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
+        isMobile && "h-full shadow-none rounded-none"
+      )}>
         <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />

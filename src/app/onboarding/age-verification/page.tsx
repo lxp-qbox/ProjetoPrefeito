@@ -1,17 +1,10 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -72,7 +65,6 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
-
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
@@ -115,7 +107,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!phoneNumber.trim()) {
+     if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -177,8 +169,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback if role is not set or unexpected, though role selection should precede this.
-        router.push("/profile"); 
+        router.push("/profile");
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -197,7 +188,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <>
       <Button
         asChild
         variant="ghost"
@@ -216,9 +207,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preenche 
-          <br />
-          as informacoes abaixo
+          Para prosseguir, preenche<br />as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -348,8 +337,6 @@ export default function AgeVerificationPage() {
       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
-    </Card>
+    </>
   );
 }
-
-    

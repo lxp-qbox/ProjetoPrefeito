@@ -1,16 +1,10 @@
 
 "use client";
 
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
@@ -18,7 +12,6 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 
@@ -28,26 +21,27 @@ export default function KakoAccountCheckPage() {
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false); // General loading state for card clicks
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
 
   const handleHasAccount = () => {
     if (isLoading) return;
+    setLoadingAction('hasAccount');
     setIsLoading(true);
     router.push("/onboarding/kako-id-input");
-    // No need to set isLoading to false here as navigation will occur
   };
 
   const handleNeedsAccount = () => {
     if (isLoading) return;
+    setLoadingAction('needsAccount');
     setIsLoading(true);
      router.push("/onboarding/kako-creation-choice");
-    // No need to set isLoading to false here as navigation will occur
   };
 
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <>
        <Button
             asChild
             variant="ghost"
@@ -61,14 +55,12 @@ export default function KakoAccountCheckPage() {
             </Link>
         </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Conta Kako Live</CardTitle>
         <CardDescription>
-          Você já possui uma conta
-          <br />
-          no aplicativo Kako Live?
+          Você já possui uma conta<br />no aplicativo Kako Live?
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -80,9 +72,9 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
-            aria-disabled={isLoading}
+            aria-disabled={isLoading || (isLoading && loadingAction !== 'hasAccount')}
           >
-            {isLoading && router.asPath.endsWith("/onboarding/kako-id-input") ? <LoadingSpinner size="md" className="my-3" /> : (
+            {isLoading && loadingAction === 'hasAccount' ? <LoadingSpinner size="md" className="my-3" /> : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-3">
                   <CheckCircle className="h-8 w-8 text-primary" />
@@ -101,9 +93,9 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
-            aria-disabled={isLoading}
+            aria-disabled={isLoading || (isLoading && loadingAction !== 'needsAccount')}
           >
-             {isLoading && router.asPath.endsWith("/onboarding/kako-creation-choice") ? <LoadingSpinner size="md" className="my-3" /> : (
+             {isLoading && loadingAction === 'needsAccount' ? <LoadingSpinner size="md" className="my-3" /> : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-3">
                   <Phone className="h-8 w-8 text-primary" />
@@ -120,6 +112,6 @@ export default function KakoAccountCheckPage() {
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
-    </Card>
+    </>
   );
 }

@@ -1,19 +1,12 @@
 
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Smartphone, ArrowLeft, DownloadCloud, ExternalLink } from "lucide-react";
+import { Smartphone, ArrowLeft, DownloadCloud, ExternalLink, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -63,12 +56,13 @@ export default function KakoCreationChoicePage() {
   const handleProceedToIdInput = () => {
     if (isLoading) return;
     setLoadingAction('proceedToIdInput');
+    setIsLoading(true); // Set loading to true as we are navigating
     router.push("/onboarding/kako-id-input");
   };
 
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+    <>
        <Button
             asChild
             variant="ghost"
@@ -91,7 +85,7 @@ export default function KakoCreationChoicePage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-6">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-4">
           <Card className="shadow-md border-primary/20">
             <CardHeader className="flex-row items-center space-x-3 pb-3">
               <div className="p-2 bg-primary/10 rounded-full">
@@ -138,6 +132,6 @@ export default function KakoCreationChoicePage() {
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
-    </Card>
+    </>
   );
 }

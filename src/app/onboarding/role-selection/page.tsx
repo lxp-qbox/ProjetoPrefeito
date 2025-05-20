@@ -1,17 +1,10 @@
 
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -68,7 +61,7 @@ export default function RoleSelectionPage() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <>
        <Button
             asChild
             variant="ghost"
@@ -82,26 +75,24 @@ export default function RoleSelectionPage() {
             </Link>
         </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Ol&aacute;!</CardTitle>
+        <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
         <CardDescription>
-          Para come&ccedil;ar, escolha como voc&ecirc;
-          <br />
-          pretende utilizar sua conta:
+          Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
-        <div className="grid grid-cols-1 gap-6 w-full">
+        <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('host')}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('host')}
-            aria-disabled={isLoading}
+            aria-disabled={isLoading || (isLoading && loadingRole !== 'host')}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-4">
               <Users className="h-10 w-10 text-primary" />
@@ -124,7 +115,7 @@ export default function RoleSelectionPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('player')}
-            aria-disabled={isLoading}
+            aria-disabled={isLoading || (isLoading && loadingRole !== 'player')}
           >
             <div className="p-3 bg-primary/10 rounded-full mb-4">
               <Gamepad2 className="h-10 w-10 text-primary" />
@@ -145,6 +136,6 @@ export default function RoleSelectionPage() {
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
-    </Card>
+    </>
   );
 }

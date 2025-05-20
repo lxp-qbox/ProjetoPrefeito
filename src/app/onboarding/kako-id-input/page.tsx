@@ -1,17 +1,10 @@
 
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -48,13 +41,13 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    setProfileImageUrl(null); 
+    setProfileImageUrl(null);
     setProfileName(null);
     setProfileFound(false);
 
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") { 
+    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") {
       setProfileImageUrl("https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200");
       setProfileName("PRESIDENTE");
       setProfileFound(true);
@@ -62,7 +55,7 @@ export default function KakoIdInputPage() {
         title: "Perfil Encontrado!",
         description: `ID ${kakoId} verificado para PRESIDENTE.`,
       });
-    } else if (kakoId.trim() === "123456") { 
+    } else if (kakoId.trim() === "123456") {
         setProfileImageUrl("https://placehold.co/96x96.png?text=JG");
         setProfileName("João Gamer");
         setProfileFound(true);
@@ -106,8 +99,8 @@ export default function KakoIdInputPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: kakoId.trim(),
-        profileName: profileFound && profileName ? profileName : currentUser.profileName, 
-        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL, 
+        profileName: profileFound && profileName ? profileName : currentUser.profileName,
+        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL,
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
@@ -134,7 +127,7 @@ export default function KakoIdInputPage() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <>
       <Button
         asChild
         variant="ghost"
@@ -153,9 +146,7 @@ export default function KakoIdInputPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
         <CardDescription>
-          Insira seu ID do aplicativo Kako Live
-          <br />
-          para continuar.
+          Insira seu ID do aplicativo Kako Live<br />para continuar.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -180,7 +171,7 @@ export default function KakoIdInputPage() {
               ) : !profileFound && kakoId.trim() && !isSearching ? (
                  <p className="text-sm text-muted-foreground">Anônimo</p>
               ): (
-                <p>&nbsp;</p> 
+                <p>&nbsp;</p>
               )}
             </div>
           </div>
@@ -196,8 +187,8 @@ export default function KakoIdInputPage() {
                 value={kakoId}
                 onChange={(e) => {
                     setKakoId(e.target.value);
-                    if(profileFound) { // Reset if ID changes after a successful find
-                        setProfileFound(false); 
+                    if(profileFound) {
+                        setProfileFound(false);
                         setProfileImageUrl(null);
                         setProfileName(null);
                     }
@@ -235,8 +226,6 @@ export default function KakoIdInputPage() {
       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
-    </Card>
+    </>
   );
 }
-
-    
