@@ -2,7 +2,7 @@
 "use client";
 
 import LoginForm from "@/components/auth/login-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import { LogIn, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -54,6 +54,17 @@ export default function LoginPage() {
         <CardContent>
           <LoginForm />
         </CardContent>
+        <CardFooter className="flex-col p-0">
+          <div className="w-full border-t border-border" /> 
+          <div className="w-full bg-muted p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Não tem uma conta?{" "}
+              <Link href="/signup" className="font-medium text-primary hover:underline">
+                Cadastre-se
+              </Link>
+            </p>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

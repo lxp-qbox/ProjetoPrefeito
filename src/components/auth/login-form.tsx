@@ -21,7 +21,7 @@ import { auth, GoogleAuthProvider } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, ArrowRight, User, Lock, Star } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, User, Lock } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Endereço de email inválido." }),
@@ -205,16 +205,7 @@ export default function LoginForm() {
             </>
           )}
         </Button>
-
-         <p className="text-center text-sm text-muted-foreground">
-            Não tem uma conta?{" "}
-            <Link href="/signup" className="font-medium text-primary hover:underline">
-              Cadastre-se
-            </Link>
-        </p>
-        <div className="flex justify-center pt-2">
-            <Star className="h-4 w-4 text-muted-foreground/50" />
-        </div>
+        {/* "Não tem uma conta?" and Star icon removed from here */}
       </form>
     </Form>
   );
