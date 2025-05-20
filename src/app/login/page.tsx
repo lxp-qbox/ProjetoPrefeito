@@ -17,7 +17,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && currentUser) {
-      router.replace("/profile"); // Always redirect to profile
+      // Check onboarding status if user is already logged in
+      if (!currentUser.agreedToTermsAt) {
+        router.replace("/onboarding/terms");
+      } else if (!currentUser.birthDate) {
+        router.replace("/onboarding/age-verification");
+      } else if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+        // Placeholder for future onboarding steps
+        // For now, if birthDate exists, assume current onboarding is done
+        router.replace("/profile"); 
+      }
+      else {
+        router.replace("/profile");
+      }
     }
   }, [currentUser, loading, router]);
 
@@ -32,7 +44,7 @@ export default function LoginPage() {
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
       <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
-        {/* Back arrow button removed */}
+        {/* Back arrow button removed as per previous request */}
         <CardHeader className="text-center pt-12 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />

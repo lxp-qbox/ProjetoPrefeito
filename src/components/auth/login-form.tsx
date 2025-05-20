@@ -17,12 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase"; // Added db, doc, getDoc
+import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
-import type { UserProfile } from "@/types"; // Added UserProfile type
+import type { UserProfile } from "@/types";
 
 // Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -64,8 +64,16 @@ export default function LoginForm() {
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        if (!userProfile.hasCompletedOnboarding) {
+        if (!userProfile.agreedToTermsAt) {
           router.push("/onboarding/terms");
+        } else if (!userProfile.birthDate) {
+          router.push("/onboarding/age-verification");
+        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+          // This will be the placeholder for future onboarding steps.
+          // For now, if they have birthDate, we assume they're past current onboarding.
+          // If we had a "kakoID" step, we'd check for that here.
+          // If all steps are done, this field 'hasCompletedOnboarding' would be true.
+          router.push("/profile"); // Fallback if hasCompletedOnboarding isn't explicitly true yet but other steps are done.
         } else {
           router.push("/profile");
         }
@@ -84,6 +92,18 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      if (!userCredential.user.emailVerified) {
+        toast({
+          title: "Email Não Verificado",
+          description: "Por favor, verifique seu email antes de fazer login. Um novo email de verificação foi enviado.",
+          variant: "destructive",
+          duration: 9000,
+        });
+        // Optionally resend verification email if desired
+        // await sendEmailVerification(userCredential.user); 
+        setLoading(false);
+        return;
+      }
       toast({
         title: "Login Bem-sucedido",
         description: "Bem-vindo(a) de volta!",
@@ -91,9 +111,17 @@ export default function LoginForm() {
       await handleRedirect(userCredential.user.uid);
     } catch (error: any) {
       console.error("Email/Password login error:", error);
+      let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = "Email ou senha inválidos.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
       toast({
         title: "Falha no Login",
-        description: error.message || "Ocorreu um erro inesperado. Por favor, tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
