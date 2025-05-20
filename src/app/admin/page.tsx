@@ -33,7 +33,7 @@ export default function AdminPage() {
   }
 
   const adminSections = [
-    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, // Points to the host management view
+    { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, 
     { title: "Bingo", icon: TicketIcon, link: "/admin/bingo" },
     { title: "Tickets", icon: MailQuestion, link: "/admin/tickets" },
     { title: "Configurações", icon: Settings, link: "/admin/settings" },
@@ -41,8 +41,6 @@ export default function AdminPage() {
   ];
 
   // Determine what content to show based on the path
-  // For this iteration, if path is /admin, show AdminHostsPageContent.
-  // A more robust solution for multiple admin sub-pages would use Next.js routing conventions (e.g. layout.tsx for admin).
   const isHostManagementView = pathname === "/admin";
 
 
@@ -70,15 +68,15 @@ export default function AdminPage() {
                       key={section.title}
                       variant={isActive ? "default" : "ghost"}
                       className={cn(
-                        "w-full justify-start text-left h-auto py-3 px-4 text-sm font-medium rounded-md",
+                        "w-full justify-start text-left h-auto py-2.5 px-3 text-sm font-medium rounded-md", // Adjusted padding
                         isActive
                           ? "bg-primary text-primary-foreground hover:bg-primary/90"
                           : "text-card-foreground hover:bg-muted"
                       )}
                       asChild
                     >
-                      <Link href={section.link} className="flex items-center gap-3">
-                        <section.icon className={cn("h-5 w-5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                      <Link href={section.link} className="flex items-center gap-2.5"> {/* Adjusted gap */}
+                        <section.icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} /> {/* Adjusted icon size */}
                         {section.title}
                       </Link>
                     </Button>
