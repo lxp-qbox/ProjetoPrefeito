@@ -265,8 +265,8 @@ export default function AdminHostsPageContent() {
                 <TableRow>
                   <TableHead className="w-[60px] px-4 text-center">LIVE</TableHead>
                   <TableHead className="min-w-[200px]">NOME</TableHead>
-                  <TableHead>STATUS</TableHead>
                   <TableHead>WHATSAPP</TableHead>
+                  <TableHead>STATUS</TableHead>
                   <TableHead className="text-right w-[200px]">AÇÕES</TableHead>
                 </TableRow>
               </TableHeader>
@@ -298,11 +298,6 @@ export default function AdminHostsPageContent() {
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
-                            {statusInfo.text}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
                           <a
                             href={formatWhatsAppLink(host.whatsapp)}
                             target="_blank"
@@ -311,6 +306,11 @@ export default function AdminHostsPageContent() {
                           >
                             {host.whatsapp || "N/A"}
                           </a>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
+                            {statusInfo.text}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -399,5 +399,7 @@ export default function AdminHostsPageContent() {
     </>
   );
 }
+
+    
 
     
