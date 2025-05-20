@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon } from "lucide-react";
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check } from "lucide-react"; // Added Check
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -106,11 +106,13 @@ export default function ProfilePage() {
                   }
               }
               if (!parsedDate || !isValid(parsedDate)) {
-                  parsedDate = parseISO(currentUser.birthDate);
+                  // Attempt parsing with parseISO as a fallback for 'YYYY-MM-DD'
+                  const isoDate = parseISO(currentUser.birthDate);
+                  if(isValid(isoDate)) parsedDate = isoDate;
               }
             } else if (currentUser.birthDate instanceof Date) { 
               parsedDate = currentUser.birthDate;
-            // @ts-ignore
+            // @ts-ignore Cannot find name 'Timestamp'. Did you mean 'NodeJS.Timeout'?ts(2591)
             } else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
                 // @ts-ignore
                 parsedDate = currentUser.birthDate.toDate();
@@ -201,7 +203,7 @@ export default function ProfilePage() {
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-start gap-4">
               <Avatar className="w-20 h-20 md:w-24 md:h-24 border-2 border-primary/30 shadow-md">
-                <AvatarImage src={currentUser?.photoURL || undefined} alt={displayName} />
+                <AvatarImage src={currentUser?.photoURL || undefined} alt={displayName} data-ai-hint="profile picture" />
                 <AvatarFallback className="text-3xl">{getInitials(displayName)}</AvatarFallback>
               </Avatar>
               <div className="flex-grow">
@@ -214,7 +216,7 @@ export default function ProfilePage() {
                     <Button variant="ghost" size="icon" className="text-muted-foreground">
                       <MessageSquare className="h-5 w-5" />
                     </Button>
-                    <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Button className="bg-primary text-primary-foreground">
                       <Check className="mr-2 h-4 w-4" /> Seguindo
                     </Button>
                   </div>
@@ -404,6 +406,46 @@ export default function ProfilePage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                   {currentUser?.email && (
+                     <div className="space-y-1">
+                        <Label htmlFor="email-profile" className="text-sm font-medium">Email</Label>
+                         <div className="relative">
+                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="email-profile" type="email" value={currentUser.email} readOnly disabled className="pl-10 h-12 bg-muted/50" />
+                        </div>
+                    </div>
+                  )}
+
+                  {currentUser?.kakoLiveId && (
+                    <div className="space-y-1">
+                        <Label htmlFor="kako-id-profile" className="text-sm font-medium">Passaporte (ID Kako Live)</Label>
+                        <div className="relative">
+                             <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="kako-id-profile" type="text" value={currentUser.kakoLiveId} readOnly disabled className="pl-10 h-12 bg-muted/50" />
+                        </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Função</Label>
+                       <div className="flex items-center text-sm">
+                          <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <Badge variant="outline">{currentUser?.role === 'host' ? 'Anfitrião' : 'Participante'}</Badge>
+                      </div>
+                  </div>
+
+                  {currentUser?.adminLevel && (
+                    <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
+                        <div className="flex items-center text-sm">
+                            <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <Badge variant="destructive">
+                            {currentUser.adminLevel.charAt(0).toUpperCase() + currentUser.adminLevel.slice(1)}
+                            </Badge>
+                        </div>
+                    </div>
+                  )}
                   
                   <Button onClick={handleSaveProfile} className="w-full mt-4" disabled={isSaving}>
                     {isSaving ? <LoadingSpinner size="sm" className="mr-2"/> : <Save className="mr-2 h-4 w-4" />}
@@ -429,3 +471,4 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
+
