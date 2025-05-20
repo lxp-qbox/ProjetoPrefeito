@@ -27,9 +27,10 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, CheckCircle, ArrowLeft, AlertTriangle, Phone } from "lucide-react";
+import { CalendarDays, CheckCircle, ArrowLeft, AlertTriangle, Phone, UserCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -49,6 +50,7 @@ export default function AgeVerificationPage() {
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [rememberMe, setRememberMe] = useState<boolean>(false); // New state for "Lembrar de mim"
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -86,7 +88,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!phoneNumber.trim()) {
+     if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -143,13 +145,11 @@ export default function AgeVerificationPage() {
         description: "Suas informações foram registradas com sucesso.",
       });
 
-      // Navigate based on role
       if (currentUser.role === 'host') {
         router.push("/onboarding/kako-id-input");
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback if role is somehow not set (should not happen if role selection is mandatory)
         router.push("/profile");
       }
     } catch (error) {
@@ -169,7 +169,7 @@ export default function AgeVerificationPage() {
   const minCalendarDate = subYears(new Date(), 100);
 
   return (
-    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
+    <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <Button
         asChild
         variant="ghost"
@@ -183,8 +183,8 @@ export default function AgeVerificationPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
-          <CalendarDays className="h-8 w-8 text-primary" />
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+          <UserCheck className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
@@ -201,11 +201,6 @@ export default function AgeVerificationPage() {
             </Label>
             <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                {/* 
-                  For advanced dynamic phone number formatting as the user types, 
-                  a dedicated library like 'react-phone-number-input' would be recommended.
-                  The current implementation uses a simple tel input with a placeholder.
-                */}
                 <Input
                     id="phone-number"
                     type="tel"
@@ -215,6 +210,17 @@ export default function AgeVerificationPage() {
                     className="pl-10 h-12"
                 />
             </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-1">
+            <Checkbox
+              id="rememberMe"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
+            />
+            <Label htmlFor="rememberMe" className="text-sm font-normal text-muted-foreground cursor-pointer">
+              Lembrar de mim
+            </Label>
           </div>
 
           <div>
@@ -326,3 +332,5 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
+    

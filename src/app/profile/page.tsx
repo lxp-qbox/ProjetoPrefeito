@@ -56,34 +56,37 @@ export default function ProfilePage() {
         try {
             let parsedDate: Date | null = null;
             if (typeof currentUser.birthDate === 'string') {
+              // Attempt to parse YYYY-MM-DD first
               const dateParts = currentUser.birthDate.split('-');
-              if (dateParts.length === 3) { // YYYY-MM-DD
+              if (dateParts.length === 3) {
                   const year = parseInt(dateParts[0], 10);
-                  const month = parseInt(dateParts[1], 10) - 1; 
+                  const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed in JS Date
                   const day = parseInt(dateParts[2], 10);
                   if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
                     parsedDate = new Date(year, month, day);
                   }
-              } else {
+              }
+              // Fallback to parseISO if YYYY-MM-DD fails or format is different
+              if (!parsedDate || !isValid(parsedDate)) {
                   parsedDate = parseISO(currentUser.birthDate);
               }
             } else if (currentUser.birthDate instanceof Date) {
               parsedDate = currentUser.birthDate;
             }
-            // @ts-ignore firebase.firestore.Timestamp
+            // @ts-ignore Firestore Timestamp
             else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
-                // @ts-ignore firebase.firestore.Timestamp
+                // @ts-ignore Firestore Timestamp
                 parsedDate = currentUser.birthDate.toDate();
             }
             
             if (parsedDate && isValid(parsedDate)) {
                  setEditableBirthDate(parsedDate);
             } else {
-                console.warn("Could not parse birthDate from currentUser:", currentUser.birthDate);
+                console.warn("Could not parse birthDate from currentUser on profile page:", currentUser.birthDate);
                 setEditableBirthDate(undefined);
             }
         } catch (error) {
-            console.error("Error parsing birthDate from currentUser:", error);
+            console.error("Error parsing birthDate from currentUser on profile page:", error);
             setEditableBirthDate(undefined);
         }
       } else {
@@ -195,6 +198,21 @@ export default function ProfilePage() {
                 </div>
                 
                 <div className="space-y-1 pt-2">
+                  <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
+                  <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                          id="phone-number-profile"
+                          type="tel"
+                          placeholder="+55 11 91234-5678"
+                          value={editablePhoneNumber}
+                          onChange={(e) => setEditablePhoneNumber(e.target.value)}
+                          className="pl-10 h-12"
+                      />
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-2">
                   <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
                   <Select
                     value={editableGender}
@@ -274,22 +292,6 @@ export default function ProfilePage() {
                   </Select>
                 </div>
 
-                <div className="space-y-1 pt-2">
-                    <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
-                    <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            id="phone-number-profile"
-                            type="tel"
-                            placeholder="+55 11 91234-5678"
-                            value={editablePhoneNumber}
-                            onChange={(e) => setEditablePhoneNumber(e.target.value)}
-                            className="pl-10 h-12"
-                        />
-                    </div>
-                </div>
-
-
                 <p className="text-xs text-muted-foreground pt-1">
                   ID do Usuário: {currentUser?.uid}
                 </p>
@@ -316,3 +318,5 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
+
+    
