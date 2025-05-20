@@ -18,11 +18,12 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const router = useRouter();
 
   const standalonePaths = ['/login', '/signup', '/forgot-password'];
-  const isStandalonePage = standalonePaths.includes(pathname);
+  // Ensure onboarding paths are also treated as standalone
+  const isStandalonePage = standalonePaths.includes(pathname) || pathname.startsWith('/onboarding');
 
   useEffect(() => {
     if (!authLoading && !currentUser && !isStandalonePage) {
-      router.replace("/login"); // Redirect to login without redirect param
+      router.replace("/login"); 
     }
   }, [authLoading, currentUser, isStandalonePage, pathname, router]);
 
@@ -43,7 +44,9 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  if (!authLoading && !currentUser && !isStandalonePage) {
+  // This explicit check handles the case where auth is loaded, user is null, but it's not a standalone page.
+  // It ensures that if we reach this point and there's no user, they get redirected.
+  if (!authLoading && !currentUser) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -85,10 +88,10 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Mensagem">
+              <SidebarMenuButton asChild tooltip="Mensagens">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Mensagem</span>
+                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Mensagens</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
