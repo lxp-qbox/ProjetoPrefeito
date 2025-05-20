@@ -37,8 +37,8 @@ export default function LoginPage() {
 
   // If not loading and no user, show the login page
   return (
-    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8 px-4">
-      <Card className="w-full max-w-md shadow-xl relative">
+    <div className="flex justify-center items-center min-h-[calc(100vh-100px)] p-4">
+      <Card className="w-full max-w-md shadow-xl relative flex flex-col aspect-[9/16] md:aspect-auto">
         <div className="absolute top-4 left-4">
           <Link href="/" aria-label="Voltar para página inicial" className="text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-6 w-6" />
@@ -51,7 +51,7 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold">Entrar</CardTitle>
           <CardDescription>Acesse sua conta para continuar.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow overflow-y-auto">
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
