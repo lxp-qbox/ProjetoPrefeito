@@ -2,41 +2,80 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ServerOff, Gamepad2, MessageSquare, CreditCard } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ServerOff, Home as HomeIcon, ShieldCheck, UserCog, Star, User } from "lucide-react";
 
-interface ModuleStatus {
-  id: string;
-  name: string;
-  icon: React.ElementType;
-  isOffline: boolean;
+interface ModuleAccessStatus {
+  globallyOffline: boolean;
+  accessLevels: {
+    master: 'normal' | 'maintenance' | 'blocked';
+    admin: 'normal' | 'maintenance' | 'blocked';
+    suporte: 'normal' | 'maintenance' | 'blocked';
+    host: 'normal' | 'maintenance' | 'blocked';
+    player: 'normal' | 'maintenance' | 'blocked';
+  };
 }
 
-const initialModules: ModuleStatus[] = [
-  { id: "bingo_games", name: "Jogos de Bingo", icon: Gamepad2, isOffline: false },
-  { id: "live_chat", name: "Chat Ao Vivo", icon: MessageSquare, isOffline: false },
-  { id: "payments", name: "Sistema de Pagamentos", icon: CreditCard, isOffline: false },
-  // Adicione mais módulos conforme necessário
-];
+const initialHomePageStatus: ModuleAccessStatus = {
+  globallyOffline: false,
+  accessLevels: {
+    master: 'normal',
+    admin: 'normal',
+    suporte: 'normal',
+    host: 'normal',
+    player: 'normal',
+  },
+};
+
+type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
+
+const roleDisplayNames: Record<UserRole, string> = {
+  master: "Master",
+  admin: "Admin",
+  suporte: "Suporte",
+  host: "Host",
+  player: "Player",
+};
+
+const roleIcons: Record<UserRole, React.ElementType> = {
+    master: ShieldCheck,
+    admin: UserCog,
+    suporte: UserCog, // Using UserCog for Suporte as well, can be changed
+    host: Star,
+    player: User,
+}
 
 export default function AdminMaintenanceOfflinePage() {
-  const [modules, setModules] = useState<ModuleStatus[]>(initialModules);
+  const [homePageStatus, setHomePageStatus] = useState<ModuleAccessStatus>(initialHomePageStatus);
 
-  const handleToggleModule = (moduleId: string) => {
-    setModules((prevModules) =>
-      prevModules.map((module) =>
-        module.id === moduleId ? { ...module, isOffline: !module.isOffline } : module
-      )
-    );
-    // Aqui você adicionaria a lógica para comunicar essa mudança ao backend
-    console.log(`Module ${moduleId} toggled to ${!modules.find(m=>m.id === moduleId)?.isOffline}`);
+  const handleGlobalToggleHome = (isOffline: boolean) => {
+    setHomePageStatus((prev) => ({ ...prev, globallyOffline: isOffline }));
+    // Here you would also call a function to save this global status to your backend.
+    console.log(`Página Inicial (Home) global status toggled to: ${isOffline ? 'Offline' : 'Online'}`);
   };
+
+  const handleRoleAccessChange = (role: UserRole, access: 'normal' | 'maintenance' | 'blocked') => {
+    if (!access) return; // This check is fine, though access should always be one of the strings here
+    setHomePageStatus((prev) => ({
+      ...prev,
+      accessLevels: {
+        ...prev.accessLevels,
+        [role]: access,
+      },
+    }));
+    // Here you would also call a function to save this specific role's access level.
+    console.log(`Access for role ${role} on Home page set to: ${access}`);
+  };
+
 
   return (
     <div className="space-y-6 bg-card p-6 rounded-lg shadow-lg h-full">
-      <h1 className="text-2xl font-semibold text-foreground">Gerenciar Status Offline de Módulos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Gerenciar Status Offline de Módulos</h1>
+      </div>
       
       <Card>
         <CardHeader>
@@ -45,43 +84,79 @@ export default function AdminMaintenanceOfflinePage() {
             Controle de Módulos Offline
           </CardTitle>
           <CardDescription>
-            Ative ou desative módulos específicos do site. Módulos offline exibirão uma mensagem de manutenção para os usuários. 
-            <strong className="text-destructive"> (Funcionalidade em desenvolvimento - os toggles são apenas visuais).</strong>
+            Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina permissões de acesso granulares por função.
+            <strong className="text-destructive block mt-1"> (Funcionalidade em desenvolvimento - os toggles são apenas visuais para esta demonstração).</strong>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {modules.map((module) => {
-            const Icon = module.icon;
-            return (
-              <div key={module.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50">
-                <div className="flex items-center">
-                  <Icon className="mr-3 h-5 w-5 text-muted-foreground" />
-                  <Label htmlFor={`module-${module.id}`} className="text-sm font-medium">
-                    {module.name}
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id={`module-${module.id}`}
-                    checked={module.isOffline}
-                    onCheckedChange={() => handleToggleModule(module.id)}
-                    aria-label={`Status offline para ${module.name}`}
-                  />
-                  <span className={`text-xs font-semibold ${module.isOffline ? 'text-destructive' : 'text-green-600'}`}>
-                    {module.isOffline ? "Offline" : "Online"}
-                  </span>
-                </div>
+        <CardContent className="space-y-6">
+          {/* Página Inicial (Home) Module Control */}
+          <Card className="p-4 border-border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <HomeIcon className="mr-3 h-6 w-6 text-primary" />
+                <Label htmlFor="home-global-status" className="text-lg font-semibold">
+                  Página Inicial (Home)
+                </Label>
               </div>
-            );
-          })}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="home-global-status"
+                  checked={homePageStatus.globallyOffline}
+                  onCheckedChange={handleGlobalToggleHome}
+                  aria-label="Status global offline para Página Inicial"
+                />
+                <span className={`text-sm font-semibold ${homePageStatus.globallyOffline ? 'text-destructive' : 'text-green-600'}`}>
+                  {homePageStatus.globallyOffline ? "Globalmente Offline" : "Globalmente Online"}
+                </span>
+              </div>
+            </div>
+
+            {homePageStatus.globallyOffline && (
+              <div className="mt-4 pt-4 border-t border-border space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  A página inicial está configurada como offline. Defina abaixo quem ainda pode acessá-la:
+                </p>
+                {(Object.keys(homePageStatus.accessLevels) as UserRole[]).map((role) => {
+                  const RoleIcon = roleIcons[role];
+                  return (
+                    <div key={role} className="flex items-center justify-between p-2 border rounded-md bg-muted/30">
+                      <div className="flex items-center">
+                        <RoleIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor={`home-${role}-access`} className="text-sm font-medium">
+                          {roleDisplayNames[role]}
+                        </Label>
+                      </div>
+                      <Select
+                        value={homePageStatus.accessLevels[role]}
+                        onValueChange={(value) => handleRoleAccessChange(role, value as 'normal' | 'maintenance' | 'blocked')}
+                      >
+                        <SelectTrigger id={`home-${role}-access`} className="w-[200px] h-9 text-xs">
+                          <SelectValue placeholder="Definir acesso" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Acesso Normal</SelectItem>
+                          <SelectItem value="maintenance">Ver Manutenção</SelectItem>
+                          <SelectItem value="blocked">Bloqueado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+          {/* End Página Inicial (Home) Module Control */}
+
         </CardContent>
       </Card>
 
-      <p className="text-sm text-muted-foreground">
-        <strong>Nota:</strong> Esta é uma interface de demonstração. As alterações feitas aqui não afetarão o status real do site até que a funcionalidade completa do backend seja implementada.
-      </p>
+      <CardFooter className="pt-6 border-t">
+        <p className="text-xs text-muted-foreground">
+          <strong>Nota Importante:</strong> Esta interface é uma demonstração para controle de acesso.
+          As alterações feitas aqui são visuais e não afetam o comportamento real do site até que a lógica de backend
+          e as verificações de permissão em cada rota sejam implementadas.
+        </p>
+      </CardFooter>
     </div>
   );
 }
-
-    
