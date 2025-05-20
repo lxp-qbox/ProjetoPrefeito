@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   RadioGroup,
@@ -19,13 +18,13 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, updateDoc } from "@/lib/firebase";
-import { Palette, UserCircle, Link as LinkIcon, Image as ImageIcon, Save, Check } from "lucide-react";
+import { Palette, Save, Check } from "lucide-react";
 import type { UserProfile } from "@/types";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
 
-type SettableUserProfileFields = Pick<UserProfile, "themePreference" | "accentColor" | "bio" | "profileName" | "kakoLiveId" | "gender" | "birthDate" | "civilStatus" | "socialLinks">;
+type SettableUserProfileFields = Pick<UserProfile, "themePreference" | "accentColor">;
 
 const accentColorOptions = [
   { name: "Blue", value: "#4285F4" }, // Default Primary
@@ -52,31 +51,9 @@ export default function SettingsPage() {
       setSettings({
         themePreference: currentUser.themePreference === 'system' ? 'light' : (currentUser.themePreference || "light"),
         accentColor: currentUser.accentColor || "#4285F4",
-        profileName: currentUser.profileName || "",
-        kakoLiveId: currentUser.kakoLiveId || "",
-        bio: currentUser.bio || "",
-        gender: currentUser.gender || "preferNotToSay",
-        birthDate: currentUser.birthDate || "",
-        civilStatus: currentUser.civilStatus || "preferNotToSay",
-        socialLinks: currentUser.socialLinks || {},
       });
     }
   }, [currentUser]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setSettings((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSocialLinkChange = (platform: keyof NonNullable<UserProfile["socialLinks"]>, value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      socialLinks: {
-        ...prev.socialLinks,
-        [platform]: value,
-      }
-    }));
-  };
 
   const handleRadioChange = (name: keyof Pick<SettableUserProfileFields, "themePreference">, value: string) => {
     setSettings((prev) => ({ ...prev, [name]: value as 'light' | 'dark' }));
@@ -123,7 +100,7 @@ export default function SettingsPage() {
         <CardHeader className="px-0 pt-0">
           <CardTitle className="text-3xl font-bold">Configurações</CardTitle>
           <CardDescription>
-            Gerencie as configurações da sua conta, informações de perfil e preferências do site.
+            Gerencie as preferências de aparência do site.
           </CardDescription>
         </CardHeader>
 
@@ -191,79 +168,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Profile Information Section */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl">
-              <UserCircle className="mr-2 h-5 w-5 text-primary" /> Informações do Perfil
-            </CardTitle>
-            <CardDescription>Atualize os detalhes do seu perfil público.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             <div className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="profileName">Nome de Perfil</Label>
-                <Input id="profileName" name="profileName" value={settings.profileName || ""} onChange={handleInputChange} placeholder="Seu nome de exibição" />
-              </div>
-              <div>
-                <Label htmlFor="kakoLiveId">Passaporte (ID do Kako Live)</Label>
-                <Input id="kakoLiveId" name="kakoLiveId" value={settings.kakoLiveId || ""} onChange={handleInputChange} placeholder="Seu ID Kako Live" />
-              </div>
-               <div>
-                <Label htmlFor="bio">Bio (máx 100 caracteres)</Label>
-                <Input id="bio" name="bio" value={settings.bio || ""} onChange={handleInputChange} placeholder="Conte-nos sobre você" maxLength={100} />
-              </div>
-                 <p className="text-muted-foreground text-sm">
-                    Edição para gênero, data de nascimento e outros campos de perfil em breve.
-                 </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Social Links Section */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl">
-              <LinkIcon className="mr-2 h-5 w-5 text-primary" /> Links Sociais
-            </CardTitle>
-            <CardDescription>Conecte suas contas de mídia social.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             <div className="space-y-4">
-              {(['twitter', 'instagram', 'facebook', 'youtube', 'twitch'] as const).map(platform => (
-                <div key={platform}>
-                  <Label htmlFor={`social-${platform}`} className="capitalize">{platform}</Label>
-                  <Input 
-                    id={`social-${platform}`} 
-                    name={`social-${platform}`}
-                    value={settings.socialLinks?.[platform] || ""}
-                    onChange={(e) => handleSocialLinkChange(platform, e.target.value)}
-                    placeholder={`URL do seu perfil ${platform} ou nome de usuário`} 
-                  />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Manage Photos Section (Placeholder) */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl">
-              <ImageIcon className="mr-2 h-5 w-5 text-primary" /> Gerenciar Fotos
-            </CardTitle>
-            <CardDescription>Atualize seu avatar, imagem de cabeçalho e galeria do perfil.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Funcionalidade para upload e gerenciamento de fotos do perfil em breve.
-            </p>
-          </CardContent>
-        </Card>
-
         <Button onClick={handleSaveSettings} disabled={isSaving} size="lg" className="w-full sm:w-auto">
           {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-5 w-5" />}
-          Salvar Todas as Configurações
+          Salvar Configurações de Aparência
         </Button>
       </div>
     </ProtectedPage>
