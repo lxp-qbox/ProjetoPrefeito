@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react"; // Renamed to avoid conflict
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,9 +28,11 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { format, subYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AgeVerificationPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [confirmedOver18, setConfirmedOver18] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -60,6 +62,14 @@ export default function AgeVerificationPage() {
       toast({
         title: "Atenção",
         description: "Por favor, selecione sua data de nascimento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!confirmedOver18) {
+      toast({
+        title: "Confirmação Necessária",
+        description: "Por favor, confirme que você tem 18 anos ou mais.",
         variant: "destructive",
       });
       return;
@@ -119,51 +129,64 @@ export default function AgeVerificationPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 py-0 flex flex-col items-center">
-        <div className="w-full max-w-xs">
-          <Label htmlFor="birthdate-picker" className="text-sm font-medium mb-2 block text-left">
-            Selecione sua data
-          </Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="birthdate-picker"
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-normal h-12",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <LucideCalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? (
-                  format(selectedDate, "PPP", { locale: ptBR })
-                ) : (
-                  <span>Selecione uma data</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                initialFocus
-                locale={ptBR}
-                captionLayout="dropdown-buttons"
-                fromYear={minDate.getFullYear()}
-                toYear={maxDate.getFullYear()}
-                defaultMonth={subYears(new Date(), 18)} // Default to 18 years ago
-                disabled={(date) => date > new Date() || date < minDate } // Disable future dates and dates too far in past
-              />
-            </PopoverContent>
-          </Popover>
+      <CardContent className="flex-grow px-6 py-0 flex flex-col items-center overflow-y-auto">
+        <div className="w-full max-w-xs space-y-6">
+          <div>
+            <Label htmlFor="birthdate-picker" className="text-sm font-medium mb-2 block text-left">
+              Selecione sua data
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="birthdate-picker"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal h-12",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <LucideCalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? (
+                    format(selectedDate, "PPP", { locale: ptBR })
+                  ) : (
+                    <span>Selecione uma data</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                  locale={ptBR}
+                  captionLayout="dropdown-buttons"
+                  fromYear={minDate.getFullYear()}
+                  toYear={maxDate.getFullYear()}
+                  defaultMonth={subYears(new Date(), 18)} 
+                  disabled={(date) => date > new Date() || date < minDate }
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox 
+              id="confirm-age" 
+              checked={confirmedOver18} 
+              onCheckedChange={(checked) => setConfirmedOver18(Boolean(checked))}
+            />
+            <Label htmlFor="confirm-age" className="text-sm font-normal text-muted-foreground cursor-pointer">
+              Confirmo que tenho 18 anos ou mais.
+            </Label>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="p-6 border-t mt-auto">
         <Button
           onClick={handleContinue}
           className="w-full"
-          disabled={!selectedDate || isLoading}
+          disabled={!selectedDate || !confirmedOver18 || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -176,3 +199,4 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
