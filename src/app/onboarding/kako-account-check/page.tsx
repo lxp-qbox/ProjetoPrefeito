@@ -4,7 +4,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card as ChoiceCard } from "@/components/ui/card"; // Renamed to avoid conflict
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
@@ -36,7 +37,37 @@ export default function KakoAccountCheckPage() {
     if (isLoading) return;
     setLoadingAction('needsAccount');
     setIsLoading(true);
-     router.push("/onboarding/kako-creation-choice");
+    router.push("/onboarding/kako-creation-choice");
+  };
+
+  const handleCreateAccountWithoutId = async () => {
+    if (!currentUser) {
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
+      router.push("/login");
+      return;
+    }
+    setLoadingAction('createWithoutId');
+    setIsLoading(true);
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await updateDoc(userDocRef, {
+        kakoLiveId: "",
+        hasCompletedOnboarding: true,
+        updatedAt: serverTimestamp(),
+      });
+      toast({
+        title: "Onboarding Concluído!",
+        description: "Você pode explorar o aplicativo.",
+        duration: 7000,
+      });
+      router.push("/profile");
+    } catch (error) {
+      console.error("Erro ao finalizar onboarding (createWithoutId):", error);
+      toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+      setLoadingAction(null);
+    }
   };
 
 
@@ -66,7 +97,7 @@ export default function KakoAccountCheckPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full my-auto">
-          <Card
+          <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={handleHasAccount}
             role="button"
@@ -85,9 +116,9 @@ export default function KakoAccountCheckPage() {
                 </p>
               </>
             )}
-          </Card>
+          </ChoiceCard>
 
-          <Card
+          <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={handleNeedsAccount}
             role="button"
@@ -106,7 +137,7 @@ export default function KakoAccountCheckPage() {
                 </p>
               </>
             )}
-          </Card>
+          </ChoiceCard>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">

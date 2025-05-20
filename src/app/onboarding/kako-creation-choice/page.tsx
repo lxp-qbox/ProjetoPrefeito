@@ -4,7 +4,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card as ChoiceCard } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Smartphone, ArrowLeft, DownloadCloud, ExternalLink, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -56,7 +57,7 @@ export default function KakoCreationChoicePage() {
   const handleProceedToIdInput = () => {
     if (isLoading) return;
     setLoadingAction('proceedToIdInput');
-    setIsLoading(true); // Set loading to true as we are navigating
+    setIsLoading(true); 
     router.push("/onboarding/kako-id-input");
   };
 
@@ -86,7 +87,7 @@ export default function KakoCreationChoicePage() {
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto space-y-4">
-          <Card className="shadow-md border-primary/20">
+          <ChoiceCard className="shadow-md border-primary/20">
             <CardHeader className="flex-row items-center space-x-3 pb-3">
               <div className="p-2 bg-primary/10 rounded-full">
                 <DownloadCloud className="h-6 w-6 text-primary" />
@@ -103,13 +104,13 @@ export default function KakoCreationChoicePage() {
                 </a>
               </Button>
             </CardContent>
-          </Card>
+          </ChoiceCard>
 
           <div className="space-y-4 mt-auto pt-4">
             <Button
               onClick={handleProceedToIdInput}
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading && loadingAction !== 'proceedToIdInput'}
             >
               {isLoading && loadingAction === 'proceedToIdInput' ? (
                 <LoadingSpinner size="sm" className="mr-2" />
@@ -120,7 +121,7 @@ export default function KakoCreationChoicePage() {
               variant="outline"
               onClick={handleCompleteOnboardingWithoutId}
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading && loadingAction !== 'completeWithoutId'}
             >
               {isLoading && loadingAction === 'completeWithoutId' ? (
                 <LoadingSpinner size="sm" className="mr-2" />

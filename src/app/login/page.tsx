@@ -26,18 +26,16 @@ export default function LoginPage() {
         router.replace("/onboarding/role-selection");
       } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country || !currentUser.phoneNumber) {
         router.replace("/onboarding/age-verification");
-      } else {
-        if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
-          if (currentUser.role === 'host') {
-            router.replace("/onboarding/kako-id-input");
-          } else if (currentUser.role === 'player') {
-            router.replace("/onboarding/kako-account-check");
-          } else {
-            router.replace("/profile");
-          }
+      } else if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+        if (currentUser.role === 'host') {
+          router.replace("/onboarding/kako-id-input");
+        } else if (currentUser.role === 'player') {
+          router.replace("/onboarding/kako-account-check");
         } else {
           router.replace("/profile");
         }
+      } else {
+        router.replace("/profile");
       }
     }
   }, [currentUser, loading, router]);

@@ -4,7 +4,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card as ChoiceCard } from "@/components/ui/card"; // Renamed to avoid conflict
 import { Separator } from "@/components/ui/separator";
 import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -86,7 +87,7 @@ export default function RoleSelectionPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full my-auto">
-          <Card
+          <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('host')}
             role="button"
@@ -94,22 +95,22 @@ export default function RoleSelectionPage() {
             onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('host')}
             aria-disabled={isLoading || (isLoading && loadingRole !== 'host')}
           >
-            <div className="p-3 bg-primary/10 rounded-full mb-4">
-              <Users className="h-10 w-10 text-primary" />
-            </div>
             {isLoading && loadingRole === 'host' ? (
               <LoadingSpinner size="md" className="my-3" />
             ) : (
               <>
+                <div className="p-3 bg-primary/10 rounded-full mb-4">
+                  <Users className="h-10 w-10 text-primary" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">Sou host.</h3>
                 <p className="text-sm text-muted-foreground">
                   Faço parte da agência do Presidente
                 </p>
               </>
             )}
-          </Card>
+          </ChoiceCard>
 
-          <Card
+          <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('player')}
             role="button"
@@ -117,20 +118,20 @@ export default function RoleSelectionPage() {
             onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('player')}
             aria-disabled={isLoading || (isLoading && loadingRole !== 'player')}
           >
-            <div className="p-3 bg-primary/10 rounded-full mb-4">
-              <Gamepad2 className="h-10 w-10 text-primary" />
-            </div>
             {isLoading && loadingRole === 'player' ? (
               <LoadingSpinner size="md" className="my-3" />
             ) : (
               <>
+                <div className="p-3 bg-primary/10 rounded-full mb-4">
+                  <Gamepad2 className="h-10 w-10 text-primary" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">Sou participante.</h3>
                 <p className="text-sm text-muted-foreground">
                   Quero participar dos jogos
                 </p>
               </>
             )}
-          </Card>
+          </ChoiceCard>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">

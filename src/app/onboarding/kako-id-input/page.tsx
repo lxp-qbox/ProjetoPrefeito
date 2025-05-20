@@ -122,7 +122,7 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
-    if (!currentUser) return "/onboarding/kako-account-check"; // Fallback
+    if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
     return currentUser.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 
@@ -154,7 +154,7 @@ export default function KakoIdInputPage() {
         <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
           <div className="flex flex-col items-center space-y-3 mb-6">
             <Avatar className="h-24 w-24 border-2 border-primary/30">
-              {profileImageUrl && <AvatarImage src={profileImageUrl} alt={profileName || "Avatar do perfil"} />}
+              {profileImageUrl && <AvatarImage src={profileImageUrl} alt={profileName || "Avatar do perfil"} data-ai-hint="user avatar" />}
               <AvatarFallback>
                 {profileFound && profileName ? (
                   profileName.substring(0, 2).toUpperCase()
@@ -163,7 +163,7 @@ export default function KakoIdInputPage() {
                 )}
               </AvatarFallback>
             </Avatar>
-            <div className="h-6 text-center">
+            <div className="h-6 mt-2 text-center">
               {isSearching ? (
                 <p className="text-sm text-muted-foreground">Buscando...</p>
               ) : profileFound && profileName ? (
@@ -171,7 +171,7 @@ export default function KakoIdInputPage() {
               ) : !profileFound && kakoId.trim() && !isSearching ? (
                  <p className="text-sm text-muted-foreground">Anônimo</p>
               ): (
-                <p>&nbsp;</p>
+                <p>&nbsp;</p> 
               )}
             </div>
           </div>

@@ -107,7 +107,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-     if (!phoneNumber.trim()) {
+    if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
