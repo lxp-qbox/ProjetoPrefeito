@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
-import { countries } from "@/lib/countries"; 
+import { countries } from "@/lib/countries";
 import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -33,15 +34,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { format, subYears } from "date-fns";
+import { format, subYears, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>(undefined);
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -56,6 +59,13 @@ export default function AgeVerificationPage() {
     return age;
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (showUnderageAlert) {
+      setShowUnderageAlert(false); // Reset alert when date changes
+    }
+  };
+
   const handleContinue = async () => {
     if (!currentUser) {
       toast({
@@ -66,7 +76,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    
+
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -94,14 +104,10 @@ export default function AgeVerificationPage() {
 
     const age = calculateAge(selectedDate);
     if (age < 18) {
-      toast({
-        title: "Verificação de Idade Falhou",
-        description: "Você precisa ter pelo menos 18 anos para usar nossos serviços.",
-        variant: "destructive",
-        icon: <AlertTriangle className="h-5 w-5" />,
-      });
+      setShowUnderageAlert(true);
       return;
     }
+    setShowUnderageAlert(false); // Clear alert if age is valid
 
     setIsLoading(true);
     try {
@@ -116,7 +122,7 @@ export default function AgeVerificationPage() {
         title: "Informações Salvas",
         description: "Suas informações foram registradas com sucesso.",
       });
-      router.push("/onboarding/kako-account-check"); 
+      router.push("/onboarding/kako-account-check");
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
@@ -129,9 +135,9 @@ export default function AgeVerificationPage() {
       setIsLoading(false);
     }
   };
-  
-  const maxDate = new Date(); 
-  const minDate = subYears(new Date(), 100); 
+
+  const maxCalendarDate = new Date();
+  const minCalendarDate = subYears(new Date(), 100);
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] overflow-hidden">
@@ -141,13 +147,12 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, por favor, informe seu sexo,<br /> data de nascimento e país.
+          Para prosseguir, por favor, informe seu sexo,<br />data de nascimento e país.
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center overflow-y-auto">
         <div className="w-full max-w-xs space-y-6">
-          
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
               Sexo
@@ -194,14 +199,14 @@ export default function AgeVerificationPage() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={handleDateSelect} // Updated to use handleDateSelect
                   initialFocus
                   locale={ptBR}
                   captionLayout="dropdown-buttons"
-                  fromYear={minDate.getFullYear()}
-                  toYear={maxDate.getFullYear()}
-                  defaultMonth={subYears(new Date(), 18)} 
-                  disabled={(date) => date > new Date() || date < minDate }
+                  fromYear={minCalendarDate.getFullYear()}
+                  toYear={maxCalendarDate.getFullYear()}
+                  defaultMonth={subYears(new Date(), 18)}
+                  disabled={(date) => date > maxCalendarDate || date < minCalendarDate }
                 />
               </PopoverContent>
             </Popover>
@@ -228,6 +233,15 @@ export default function AgeVerificationPage() {
             </Select>
           </div>
 
+          {showUnderageAlert && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Idade Insuficiente</AlertTitle>
+              <AlertDescription>
+                Você precisa ter pelo menos 18 anos para usar nossos serviços.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </CardContent>
       <CardFooter className="p-6 border-t mt-auto">
@@ -247,3 +261,5 @@ export default function AgeVerificationPage() {
     </Card>
   );
 }
+
+    
