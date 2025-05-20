@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import type { Host, ChatMessage } from '@/types';
-import { placeholderHosts } from '../page'; // Import placeholderHosts
+import { placeholderHosts } from '../page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,13 +37,15 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     parsedJson = JSON.parse(rawData);
   } catch (e) {
     if (rawData && rawData.trim() !== "") {
+      // If parsing fails but rawData is not empty, treat it as a simple text message
       return { type: 'chat', userName: "Texto", userAvatar: `https://placehold.co/32x32.png?text=T`, messageData: rawData };
     }
+    // console.warn("Could not parse message or empty rawData:", rawData, e);
     return null;
   }
 
-  let userName = "Servidor";
-  let userAvatar = "";
+  let userName = "Servidor"; // Default for system or unknown messages
+  let userAvatar = ""; // Default, can be a system icon or placeholder
   let messageData = "";
 
   // Room Status Update (Viewers, Likes, Anchor Info)
@@ -153,19 +155,19 @@ function parseChatMessage(rawData: string): ParsedMessageResult {
     userAvatar = `https://placehold.co/32x32.png?text=A`;
     return { type: 'chat', userName, userAvatar, messageData };
   } else if (Object.keys(parsedJson).length > 0 && typeof parsedJson !== 'string') { 
-    console.warn("Mensagem JSON não reconhecida:", parsedJson);
+    // console.warn("Mensagem JSON não reconhecida:", parsedJson);
     return null; // Do not display unknown complex JSON objects in chat
   }
 
-  return null; 
+  return null; // If no specific structure matches
 }
 
-const SCROLL_THRESHOLD = 10; 
+const SCROLL_THRESHOLD = 10; // Pixels of tolerance for being "at the bottom"
 
 export default function HostStreamPage() {
   const params = useParams();
   const hostId = typeof params.hostId === 'string' ? params.hostId : undefined;
-  const [host, setHost] = useState<Host | null | undefined>(undefined);
+  const [host, setHost] = useState<Host | null | undefined>(undefined); // undefined for loading, null for not found, Host for found
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
@@ -183,20 +185,22 @@ export default function HostStreamPage() {
   useEffect(() => {
     if (hostId) {
       const foundHost = placeholderHosts.find(h => h.id === hostId);
-      setHost(foundHost);
+      setHost(foundHost); // Will be 'undefined' if not found, which is fine for now
       if (foundHost) {
+        // Reset chat and related states when host changes
         setChatMessages([]);
         setNewUnreadMessages(0);
         setIsAtBottom(true);
         prevChatMessagesLengthRef.current = 0;
-        setOnlineViewers(foundHost.avgViewers || 0); 
-        setLiveLikes(foundHost.likes || 0); 
+        setOnlineViewers(foundHost.avgViewers || 0); // Initialize with placeholder or actual if available
+        setLiveLikes(foundHost.likes || 0); // Initialize with placeholder or actual if available
       }
     } else {
-      setHost(null);
+      setHost(null); // No hostId provided
     }
   }, [hostId]);
 
+  // Gift update simulation
   useEffect(() => {
     if (!host?.id || !host.giftsReceived || host.giftsReceived.length === 0) {
       return;
@@ -210,42 +214,25 @@ export default function HostStreamPage() {
         const updatedGifts = prevHost.giftsReceived.map(gift => ({ ...gift }));
         const randomIndex = Math.floor(Math.random() * updatedGifts.length);
         
+        // Ensure the gift exists before trying to increment its count
         if (updatedGifts[randomIndex]) { 
             updatedGifts[randomIndex].count = (updatedGifts[randomIndex].count || 0) + Math.floor(Math.random() * 3) + 1;
         }
         return { ...prevHost, giftsReceived: updatedGifts };
       });
-    }, 5000);
+    }, 5000); // Update every 5 seconds
     return () => clearInterval(intervalId);
-  }, [host?.id]); 
+  }, [host?.id]); // Re-run if the host ID changes
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    const viewport = scrollViewportRef.current;
-    if (viewport) {
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-    }
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    const viewport = scrollViewportRef.current;
-    if (viewport) {
-      const atBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + SCROLL_THRESHOLD;
-      setIsAtBottom(atBottom);
-      if (atBottom) {
-        setNewUnreadMessages(0);
-      }
-    }
-  }, []);
-
+  // WebSocket connection
   useEffect(() => {
-    if (host === undefined) { 
+    if (host === undefined) { // Still loading host data
       return;
     }
 
     if (!host || !host.kakoLiveRoomId) {
        if (host !== undefined && (chatMessages.length === 0 || (chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.message !== "Host ou RoomID não configurado para o chat."))) {
-         // Do not add system message here to keep chat clean, console log is enough
-         // console.log("Host ou RoomID não configurado para o chat.");
+         // console.log("Host ou RoomID não configurado para o chat."); // Avoid adding to chat UI
        }
       return;
     }
@@ -254,9 +241,11 @@ export default function HostStreamPage() {
     socketRef.current = new WebSocket(wsUrl);
     
     console.log(`Tentando conectar a ${wsUrl}...`);
+    // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: `Tentando conectar a ${wsUrl}...`, timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
 
     socketRef.current.onopen = () => {
       console.log("WebSocket conectado!");
+      // setChatMessages(prev => [...prev, {id: generateUniqueId(), user: "Sistema", avatar: "", message: "Conectado ao chat!", timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}]);
     };
 
     socketRef.current.onmessage = async (event) => {
@@ -271,6 +260,7 @@ export default function HostStreamPage() {
       } else if (typeof event.data === 'string') {
         messageContentString = event.data;
       } else {
+        // Attempt to stringify other types, though usually it's string or Blob
         try {
             messageContentString = JSON.stringify(event.data);
         } catch {
@@ -298,6 +288,7 @@ export default function HostStreamPage() {
 
     socketRef.current.onerror = (errorEvent) => {
       let errorMessage = "Erro na conexão do chat.";
+       // Try to get a more specific message if available
        if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent && (errorEvent as any).message) {
         errorMessage = `Erro no chat: ${(errorEvent as any).message}`;
       } else if (typeof errorEvent === 'object' && errorEvent !== null && 'type' in errorEvent) {
@@ -322,23 +313,51 @@ export default function HostStreamPage() {
         socketRef.current.close();
       }
     };
-  }, [host?.id, host?.kakoLiveRoomId]); // Removed chatMessages from dependencies
+  }, [host?.id, host?.kakoLiveRoomId]); // Only re-run if host or room ID changes
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const viewport = scrollViewportRef.current;
+    if (viewport) {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+    }
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const viewport = scrollViewportRef.current;
+    if (viewport) {
+      const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - SCROLL_THRESHOLD;
+      setIsAtBottom(atBottom);
+      if (atBottom) {
+        setNewUnreadMessages(0);
+      }
+    }
+  }, [setIsAtBottom, setNewUnreadMessages]);
 
 
   useEffect(() => {
     const viewportElement = scrollViewportRef.current; 
     if (!viewportElement) {
+        // Attempt to find it again if the ref isn't populated on first pass
+        // This can happen if child components render asynchronously or with delays.
         const el = document.querySelector('.chat-scroll-area div[data-radix-scroll-area-viewport]');
         if (el) {
             scrollViewportRef.current = el as HTMLDivElement;
             scrollViewportRef.current.addEventListener('scroll', handleScroll);
+            // Initial scroll and state check
             setTimeout(() => {
-                scrollToBottom('auto'); 
-                handleScroll();
-            }, 200);
+                scrollToBottom('auto'); // Initial scroll to bottom
+                handleScroll(); // Set initial isAtBottom state
+            }, 200); // Delay to allow layout to settle
         } else {
             // console.warn("Chat scroll viewport not found for event listener attachment.");
         }
+    } else {
+        // Ref was already populated
+        viewportElement.addEventListener('scroll', handleScroll);
+        setTimeout(() => {
+            scrollToBottom('auto');
+            handleScroll();
+        }, 200);
     }
     
     return () => {
@@ -362,22 +381,25 @@ export default function HostStreamPage() {
     }
     prevChatMessagesLengthRef.current = chatMessages.length;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatMessages, isAtBottom, scrollToBottom]);
+  }, [chatMessages, isAtBottom, scrollToBottom, setNewUnreadMessages]);
 
 
   const handleSendMessage = () => {
     if (newMessage.trim() && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      // Format for Kako Live based on observed messages (simplified)
       const messageToSend = {
-        type: 'chat_message', 
+        type: 'chat_message', // This is a guess, might need specific type from Kako
         content: newMessage.trim(),
+        // user: { nickname: currentUser?.profileName || 'Você' } // Kako might infer user from connection
       };
       socketRef.current.send(JSON.stringify(messageToSend));
 
+      // Optimistic UI update
       setChatMessages(prev => [
         ...prev,
         {
           id: generateUniqueId(),
-          user: currentUser?.profileName || 'Você',
+          user: currentUser?.profileName || 'Você', // Use profileName or display name
           avatar: currentUser?.photoURL || `https://placehold.co/32x32.png?text=${(currentUser?.profileName || 'V').substring(0,1).toUpperCase()}`,
           message: newMessage.trim(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -385,12 +407,13 @@ export default function HostStreamPage() {
       ]);
       setNewMessage("");
     } else if (newMessage.trim()) {
+        // If socket not open, still add to local chat as a system message or just log
         setChatMessages(prev => [
             ...prev,
             {
               id: generateUniqueId(),
               user: 'Sistema',
-              avatar: '',
+              avatar: '', // No avatar for system
               message: "Não conectado ao chat para enviar mensagem.",
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             }
@@ -429,6 +452,7 @@ export default function HostStreamPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/hosts">
@@ -439,11 +463,14 @@ export default function HostStreamPage() {
         <h1 className="text-2xl font-bold text-center flex-grow mr-8 sm:mr-0 truncate px-2">
           {pageTitle}
         </h1>
-        <div className="w-8 h-8"></div> 
+        <div className="w-8 h-8"></div> {/* Spacer to balance the back button */}
       </div>
 
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Column (Video and Host Info) */}
         <div className="md:col-span-2 space-y-6">
+         {/* Video Player Card */}
          <Card className="shadow-xl overflow-hidden">
             <CardHeader className="pb-2 flex-row justify-between items-center">
               <CardTitle className="text-xl text-primary">Transmissão de {host.name}</CardTitle>
@@ -465,6 +492,7 @@ export default function HostStreamPage() {
             <CardContent className="p-0 sm:p-2 md:p-4">
             {host.kakoLiveFuid && host.kakoLiveRoomId ? (
                 <div className="bg-black rounded-md overflow-hidden shadow-inner aspect-video flex flex-col items-center justify-center text-muted-foreground">
+                  {/* Using iframe to embed Kako Live player */}
                   <iframe
                     src={`https://app.kako.live/app/gzl_live.html?fuid=${host.kakoLiveFuid}&id=${host.kakoLiveRoomId}&type=live`}
                     width="100%"
@@ -486,6 +514,7 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
+          {/* Host Info Card */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -505,7 +534,7 @@ export default function HostStreamPage() {
               {host.likes !== undefined && ( 
                 <div className="flex items-center">
                   <Heart className="h-4 w-4 mr-2 text-destructive" />
-                  <p><strong>Likes (inicial):</strong> {(liveLikes !== null ? liveLikes : host.likes).toLocaleString('pt-BR')}</p>
+                  <p><strong>Curtidas (inicial):</strong> {(liveLikes !== null ? liveLikes : host.likes).toLocaleString('pt-BR')}</p>
                 </div>
               )}
               <p className="text-xs text-muted-foreground pt-2">
@@ -514,6 +543,7 @@ export default function HostStreamPage() {
             </CardContent>
           </Card>
 
+          {/* Gifts Received Card */}
           {host.giftsReceived && host.giftsReceived.length > 0 && (
             <Card className="shadow-lg">
               <CardHeader>
@@ -557,8 +587,9 @@ export default function HostStreamPage() {
           )}
         </div>
 
+        {/* Right Column (Chat) */}
         <div className="md:col-span-1">
-          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
+          <Card className="shadow-lg h-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]"> {/* Max height for chat card */}
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
               <CardTitle className="text-lg font-semibold">Chat ao Vivo</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground">
@@ -570,7 +601,7 @@ export default function HostStreamPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0 min-h-0 relative"> 
+            <CardContent className="flex-grow p-0 min-h-0 relative"> {/* flex-grow and p-0 for ScrollArea */}
               <ScrollArea className="h-full chat-scroll-area">
                 <div className="p-4 space-y-4">
                   {chatMessages.map((item) => (
@@ -630,3 +661,4 @@ export default function HostStreamPage() {
     </div>
   );
 }
+
