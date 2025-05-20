@@ -45,11 +45,11 @@ export default function LoginPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            className="rounded-full text-muted-foreground hover:bg-gradient-to-b hover:from-white hover:to-gray-200 hover:text-primary transition-colors"
             asChild
           >
             <Link href="/" aria-label="Voltar para página inicial">
-              <ArrowLeft className="h-6 w-6" /> {/* Increased icon size */}
+              <ArrowLeft className="h-6 w-6" />
             </Link>
           </Button>
         </div>
