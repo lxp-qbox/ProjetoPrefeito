@@ -78,6 +78,7 @@ export interface UserProfile {
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay'; // sexo
   birthDate?: string;        // data de nascimento (e.g., YYYY-MM-DD)
   country?: string;          // País do usuário
+  phoneNumber?: string;      // Celular (WhatsApp)
   civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // status civil
   socialLinks?: {            // link de rede social
     twitter?: string;
@@ -107,4 +108,3 @@ export interface ChatMessage {
   userId?: string; // User ID of the message sender
   userLevel?: number; // Level of the message sender
 }
-

@@ -5,14 +5,15 @@ import ProtectedPage from "@/components/auth/protected-page";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarIcon as LucideCalendarIcon, Save, Briefcase, Globe } from "lucide-react";
+import { LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import type { UserProfile } from "@/types";
-import { countries } from "@/lib/countries"; // Import countries list
+import { countries } from "@/lib/countries"; 
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -41,25 +42,38 @@ export default function ProfilePage() {
   const [editableCountry, setEditableCountry] = useState<string | undefined>(undefined);
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [editableBirthDate, setEditableBirthDate] = useState<Date | undefined>(undefined);
+  const [editablePhoneNumber, setEditablePhoneNumber] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
 
   useEffect(() => {
     if (currentUser) {
       setEditableCountry(currentUser.country || undefined);
       setEditableGender(currentUser.gender || 'preferNotToSay');
+      setEditablePhoneNumber(currentUser.phoneNumber || "");
       if (currentUser.birthDate) {
         try {
-            const dateParts = currentUser.birthDate.split('-');
             let parsedDate: Date | null = null;
-
-            if (dateParts.length === 3) { // YYYY-MM-DD
-                const year = parseInt(dateParts[0], 10);
-                const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
-                const day = parseInt(dateParts[2], 10);
-                parsedDate = new Date(year, month, day);
-            } else {
-                // Attempt direct parsing for other potential ISO formats
-                parsedDate = parseISO(currentUser.birthDate);
+            if (typeof currentUser.birthDate === 'string') {
+              const dateParts = currentUser.birthDate.split('-');
+              if (dateParts.length === 3) { // YYYY-MM-DD
+                  const year = parseInt(dateParts[0], 10);
+                  const month = parseInt(dateParts[1], 10) - 1; 
+                  const day = parseInt(dateParts[2], 10);
+                  if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    parsedDate = new Date(year, month, day);
+                  }
+              } else {
+                  parsedDate = parseISO(currentUser.birthDate);
+              }
+            } else if (currentUser.birthDate instanceof Date) {
+              parsedDate = currentUser.birthDate;
+            }
+            // @ts-ignore firebase.firestore.Timestamp
+            else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') { 
+                // @ts-ignore firebase.firestore.Timestamp
+                parsedDate = currentUser.birthDate.toDate();
             }
             
             if (parsedDate && isValid(parsedDate)) {
@@ -101,6 +115,7 @@ export default function ProfilePage() {
     if (editableCountry) dataToUpdate.country = editableCountry;
     if (editableGender) dataToUpdate.gender = editableGender;
     if (editableBirthDate) dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
+    if (editablePhoneNumber.trim()) dataToUpdate.phoneNumber = editablePhoneNumber.trim();
     
 
     try {
@@ -119,7 +134,7 @@ export default function ProfilePage() {
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
     const nameParts = name.split(' ');
-    if (nameParts.length > 1) {
+    if (nameParts.length > 1 && nameParts[0] && nameParts[1]) {
       return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
@@ -180,25 +195,6 @@ export default function ProfilePage() {
                 </div>
                 
                 <div className="space-y-1 pt-2">
-                  <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
-                  <Select
-                    value={editableCountry}
-                    onValueChange={(value) => setEditableCountry(value)}
-                  >
-                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                      <SelectValue placeholder="Selecione seu país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.name}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 pt-2">
                   <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
                   <Select
                     value={editableGender}
@@ -220,7 +216,7 @@ export default function ProfilePage() {
                   <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">
                     Data de Nascimento
                   </Label>
-                  <Popover>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="birthdate-picker-profile"
@@ -242,18 +238,58 @@ export default function ProfilePage() {
                       <Calendar
                         mode="single"
                         selected={editableBirthDate}
-                        onSelect={setEditableBirthDate}
+                        onSelect={(date) => {
+                           setEditableBirthDate(date);
+                           if(date) setIsCalendarOpen(false);
+                        }}
                         initialFocus
                         locale={ptBR}
                         captionLayout="dropdown-buttons"
                         fromYear={minCalendarDate.getFullYear()}
                         toYear={maxCalendarDate.getFullYear()}
                         defaultMonth={subYears(new Date(), 18)}
-                        disabled={(date) => date > new Date() || date < minCalendarDate }
+                        disabled={(date) => date > maxCalendarDate || date < minCalendarDate }
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
+                
+                <div className="space-y-1 pt-2">
+                  <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
+                  <Select
+                    value={editableCountry}
+                    onValueChange={(value) => setEditableCountry(value)}
+                  >
+                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                      <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Selecione seu país" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country.code} value={country.name}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 pt-2">
+                    <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
+                    <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            id="phone-number-profile"
+                            type="tel"
+                            placeholder="+55 11 91234-5678"
+                            value={editablePhoneNumber}
+                            onChange={(e) => setEditablePhoneNumber(e.target.value)}
+                            className="pl-10 h-12"
+                        />
+                    </div>
+                </div>
+
+
                 <p className="text-xs text-muted-foreground pt-1">
                   ID do Usuário: {currentUser?.uid}
                 </p>

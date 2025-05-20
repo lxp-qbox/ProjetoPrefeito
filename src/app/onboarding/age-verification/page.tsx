@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, ArrowLeft, AlertTriangle } from "lucide-react";
+import { CalendarDays, CheckCircle, ArrowLeft, AlertTriangle, Phone } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -47,6 +48,7 @@ export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -84,7 +86,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-     if (!selectedGender) {
+    if (!selectedGender) {
       toast({
         title: "Atenção",
         description: "Por favor, selecione seu sexo.",
@@ -108,8 +110,15 @@ export default function AgeVerificationPage() {
       });
       return;
     }
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, informe seu número de celular.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-
     const age = calculateAge(selectedDate);
     if (age < 18) {
       setShowUnderageAlert(true);
@@ -120,12 +129,15 @@ export default function AgeVerificationPage() {
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userDocRef, {
+      const dataToUpdate: Partial<UserProfile> = {
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
+        phoneNumber: phoneNumber.trim(),
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      await updateDoc(userDocRef, dataToUpdate);
       toast({
         title: "Informações Salvas",
         description: "Suas informações foram registradas com sucesso.",
@@ -136,7 +148,6 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Should not happen if role is enforced earlier
         router.push("/profile"); 
       }
     } catch (error) {
@@ -157,34 +168,34 @@ export default function AgeVerificationPage() {
 
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] overflow-hidden">
-       <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar"
-        >
-            <Link href="/onboarding/role-selection">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
-        </Button>
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+        title="Voltar"
+      >
+        <Link href="/onboarding/role-selection">
+          <ArrowLeft className="h-8 w-8" />
+          <span className="sr-only">Voltar</span>
+        </Link>
+      </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
-          <LucideCalendarIcon className="h-8 w-8 text-primary" />
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+          <CalendarDays className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
           Para prosseguir, por favor, informe seu sexo,
           <br />
-          data de nascimento e país.
+          data de nascimento, país e celular.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-xs mx-auto space-y-6">
+        <div className="w-full max-w-xs mx-auto space-y-4">
           <div>
-            <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
+            <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
             </Label>
             <Select
@@ -204,7 +215,7 @@ export default function AgeVerificationPage() {
           </div>
 
           <div>
-            <Label htmlFor="birthdate-picker" className="text-sm font-medium mb-2 block text-left">
+            <Label htmlFor="birthdate-picker" className="text-sm font-medium mb-1 block text-left">
               Data de Nascimento
             </Label>
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -217,7 +228,7 @@ export default function AgeVerificationPage() {
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
-                  <LucideCalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarDays className="mr-2 h-4 w-4" />
                   {selectedDate ? (
                     format(selectedDate, "PPP", { locale: ptBR })
                   ) : (
@@ -243,7 +254,7 @@ export default function AgeVerificationPage() {
           </div>
         
           <div>
-            <Label htmlFor="country-select" className="text-sm font-medium mb-2 block text-left">
+            <Label htmlFor="country-select" className="text-sm font-medium mb-1 block text-left">
               País
             </Label>
             <Select
@@ -263,6 +274,23 @@ export default function AgeVerificationPage() {
             </Select>
           </div>
 
+          <div>
+            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+              Celular (WhatsApp)
+            </Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+55 11 91234-5678"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+          </div>
+
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -276,7 +304,7 @@ export default function AgeVerificationPage() {
          <Button
           onClick={handleContinue}
           className="w-full mt-auto"
-          disabled={!selectedCountry || !selectedGender || !selectedDate || isLoading}
+          disabled={!selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />

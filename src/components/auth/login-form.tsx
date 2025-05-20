@@ -16,12 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, sendEmailVerification } from "firebase/auth";
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, User, Lock } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, User, Lock } from "lucide-react";
 import type { UserProfile } from "@/types";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -68,14 +68,21 @@ export default function LoginForm() {
           router.replace("/onboarding/terms");
         } else if (!userProfile.role) {
           router.replace("/onboarding/role-selection");
-        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) {
+        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
           router.replace("/onboarding/age-verification");
-        } else if (userProfile.role === 'host' && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
-          router.replace("/onboarding/kako-id-input");
-        } else if (userProfile.role === 'player' && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
-          router.replace("/onboarding/kako-account-check");
         } else {
-          router.push("/profile"); // Onboarding complete, go to profile
+          // Check role for further specific onboarding if hasCompletedOnboarding is false or undefined
+          if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+            if (userProfile.role === 'host') {
+              router.replace("/onboarding/kako-id-input");
+            } else if (userProfile.role === 'player') {
+              router.replace("/onboarding/kako-account-check");
+            } else {
+              router.replace("/profile"); // Fallback if role is weird but onboarding not complete
+            }
+          } else {
+            router.replace("/profile"); // Onboarding complete, go to profile
+          }
         }
       } else {
         // New user created via Google Sign-In or if somehow doc doesn't exist
@@ -84,7 +91,7 @@ export default function LoginForm() {
     } catch (error) {
       console.error("Error fetching user profile for redirect:", error);
       toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
-      router.push("/profile"); 
+      router.replace("/profile"); 
     }
   };
 
@@ -93,9 +100,11 @@ export default function LoginForm() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       if (!userCredential.user.emailVerified) {
+        // Optionally resend verification email if you want
+        // await sendEmailVerification(userCredential.user);
         toast({
           title: "Email Não Verificado",
-          description: "Por favor, verifique seu email antes de fazer login. Um novo email de verificação foi enviado.",
+          description: "Por favor, verifique seu email antes de fazer login. Se necessário, um novo email de verificação pode ser enviado.",
           variant: "destructive",
           duration: 9000,
         });
@@ -157,6 +166,7 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -172,6 +182,7 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

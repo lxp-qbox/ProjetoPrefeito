@@ -17,27 +17,25 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && currentUser) {
+      // If user is loaded and exists, check onboarding status
       if (!currentUser.agreedToTermsAt) {
         router.replace("/onboarding/terms");
       } else if (!currentUser.role) {
         router.replace("/onboarding/role-selection");
-      } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country) {
+      } else if (!currentUser.birthDate || !currentUser.gender || !currentUser.country || !currentUser.phoneNumber) {
         router.replace("/onboarding/age-verification");
       } else {
-        if (currentUser.role === 'host') {
-          if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
-             router.replace("/onboarding/kako-id-input");
-          } else {
-             router.replace("/profile");
-          }
-        } else if (currentUser.role === 'player') {
-          if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+        // Check role for further specific onboarding if hasCompletedOnboarding is false or undefined
+        if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+          if (currentUser.role === 'host') {
+            router.replace("/onboarding/kako-id-input");
+          } else if (currentUser.role === 'player') {
             router.replace("/onboarding/kako-account-check");
           } else {
-            router.replace("/profile");
+            router.replace("/profile"); // Fallback if role is weird but onboarding not complete
           }
         } else {
-          router.replace("/profile"); 
+          router.replace("/profile"); // Onboarding complete, go to profile
         }
       }
     }
@@ -60,11 +58,13 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
           <CardDescription>
-            Acesse sua conta<br />para continuar.
+            Acesse sua conta
+            <br />
+            para continuar.
           </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow px-6 pt-0 pb-6 overflow-y-auto">
+        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
