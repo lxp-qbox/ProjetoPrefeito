@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
+  manifest: '/manifest.json', // Added manifest link
 };
 
 export default function RootLayout({
@@ -27,6 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#4285F4" /> 
+      </head>
       {/* Applied Poppins variable */}
       <body className={`${poppins.variable} font-sans antialiased flex flex-col min-h-screen bg-background`}>
         <AuthProvider>

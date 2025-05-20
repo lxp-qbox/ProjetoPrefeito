@@ -18,7 +18,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const router = useRouter();
 
   const standalonePaths = ['/login', '/signup', '/forgot-password'];
-  // Ensure onboarding paths are also treated as standalone
   const isStandalonePage = standalonePaths.includes(pathname) || pathname.startsWith('/onboarding');
 
   useEffect(() => {
@@ -26,6 +25,14 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       router.replace("/login"); 
     }
   }, [authLoading, currentUser, isStandalonePage, pathname, router]);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => console.log('Service Worker registered with scope:', registration.scope))
+        .catch((error) => console.error('Service Worker registration failed:', error));
+    }
+  }, []);
 
   if (authLoading && !isStandalonePage) {
     return (
@@ -44,8 +51,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  // This explicit check handles the case where auth is loaded, user is null, but it's not a standalone page.
-  // It ensures that if we reach this point and there's no user, they get redirected.
   if (!authLoading && !currentUser) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
@@ -67,7 +72,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Início">
                 <Link href="/">
                   <Home className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Início</span>
+                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Início</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -75,7 +80,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Hosts">
                 <Link href="/hosts">
                   <Users className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Hosts</span>
+                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Hosts</span>
                   </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -83,7 +88,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Jogos">
                 <Link href="/games">
                   <TicketIcon className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Jogos</span>
+                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Jogos</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -91,7 +96,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Mensagens">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Mensagens</span>
+                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Mensagens</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -106,7 +111,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Perfil">
                      <Link href="/profile">
                        <UserCircle2 className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Perfil</span>
+                       <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Perfil</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -114,7 +119,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Configurações">
                      <Link href="/settings">
                        <Settings className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all ease-out duration-200 delay-300 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Config</span>
+                       <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Config</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>

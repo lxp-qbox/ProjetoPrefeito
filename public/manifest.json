@@ -1,0 +1,24 @@
+
+{
+  "name": "The Presidential Agency",
+  "short_name": "PrezAgency",
+  "description": "Sua plataforma web para jogos de bingo emocionantes e gerenciamento de perfil com The Presidential Agency.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#4285F4",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
