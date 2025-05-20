@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import './globals.css';
@@ -6,9 +7,8 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Home, Folders, Sparkles, Shapes, Plus, MoreHorizontal, Crown } from 'lucide-react';
+import { Home, Users, LayoutGrid, LogIn, FileText, Crown } from 'lucide-react'; // Updated icons
 import Link from 'next/link';
-import { Button } from '@/components/ui/button'; // Added Button import
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -48,48 +48,32 @@ export default function RootLayout({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Projetos">
-                      <Link href="/projects"><Folders /> <span>Projetos</span></Link>
+                    <SidebarMenuButton asChild tooltip="Hosts">
+                      <Link href="/hosts"><Users /> <span>Hosts</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Suíte IA">
-                      <Link href="/ai-suite"><Sparkles /> <span>Suíte IA</span></Link>
+                    <SidebarMenuButton asChild tooltip="Bingo">
+                      <Link href="/bingo"><LayoutGrid /> <span>Bingo</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Estoque">
-                      <Link href="/stock"><Shapes /> <span>Estoque</span></Link>
+                    <SidebarMenuButton asChild tooltip="Login">
+                      <Link href="/login"><LogIn /> <span>Login</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
                 
-                {/* Spacer to push Novo and Footer down if content is short */}
+                {/* Spacer to push Footer down if content is short */}
                 <div className="flex-grow" /> 
 
-                {/* Section for the Plus button */}
-                <SidebarMenu className="p-2"> 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      asChild 
-                      tooltip="Novo" 
-                      variant="outline"
-                      className="justify-center"
-                    >
-                      <Link href="/create">
-                        <Plus />
-                        <span>Novo</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 border-t border-sidebar-border">
                  <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild tooltip="Mais">
                            <Link href="/more">
-                             <MoreHorizontal /> 
+                             <FileText /> 
                              <span>Mais</span>
                            </Link>
                         </SidebarMenuButton>
