@@ -41,10 +41,11 @@ export default function KakoIdInputPage() {
       return;
     }
     setIsSearching(true);
-    setProfileImageUrl(null);
-    setProfileName(null);
+    setProfileImageUrl(null); // Reset image to default/fallback
+    setProfileName(null);     // Reset name
     setProfileFound(false);
 
+    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") {
@@ -56,7 +57,7 @@ export default function KakoIdInputPage() {
         description: `ID ${kakoId} verificado para PRESIDENTE.`,
       });
     } else if (kakoId.trim() === "123456") {
-        setProfileImageUrl("https://placehold.co/96x96.png?text=JG");
+        setProfileImageUrl("https://placehold.co/96x96.png?text=JG"); // Generic placeholder
         setProfileName("João Gamer");
         setProfileFound(true);
         toast({
@@ -65,7 +66,7 @@ export default function KakoIdInputPage() {
         });
     } else {
       setProfileFound(false);
-      setProfileImageUrl(null);
+      // No need to set profileName to "Anônimo" here, display logic handles it
       toast({
         title: "Perfil Não Encontrado",
         description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
@@ -99,6 +100,7 @@ export default function KakoIdInputPage() {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: kakoId.trim(),
+        // Update profileName and photoURL in Firestore only if a profile was found from Kako
         profileName: profileFound && profileName ? profileName : currentUser.profileName,
         photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL,
         hasCompletedOnboarding: true,
@@ -168,10 +170,8 @@ export default function KakoIdInputPage() {
                 <p className="text-sm text-muted-foreground">Buscando...</p>
               ) : profileFound && profileName ? (
                 <p className="font-semibold text-primary">{profileName}</p>
-              ) : !profileFound && kakoId.trim() && !isSearching ? (
+              ) : (
                  <p className="text-sm text-muted-foreground">Anônimo</p>
-              ): (
-                <p>&nbsp;</p> 
               )}
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function KakoIdInputPage() {
                 value={kakoId}
                 onChange={(e) => {
                     setKakoId(e.target.value);
-                    if(profileFound) {
+                    if(profileFound) { // Reset if user types new ID after a successful search
                         setProfileFound(false);
                         setProfileImageUrl(null);
                         setProfileName(null);
