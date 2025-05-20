@@ -83,7 +83,7 @@ export default function RoleSelectionPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="mb-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col items-center justify-center overflow-y-auto">
+      <CardContent className="flex-grow px-6 pt-6 pb-6 overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
           <Card
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
