@@ -21,7 +21,7 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, LogInIcon, User, Lock, Star } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, User, Lock, Star } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -74,7 +74,7 @@ export default function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center">
-                Email
+                Email *
               </FormLabel>
               <FormControl>
                 <div className="relative">
@@ -92,14 +92,14 @@ export default function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center">
-                Senha
+                Senha *
               </FormLabel>
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
+                    placeholder="Digite sua senha" 
                     {...field} 
                     className="pl-10 pr-10"
                   />
@@ -143,7 +143,7 @@ export default function LoginForm() {
           </Link>
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Entrando..." : <> <LogInIcon className="mr-2 h-4 w-4" /> Entrar </>}
+          {loading ? "Entrando..." : <> <ArrowRight className="mr-2 h-4 w-4" /> Entrar </>}
         </Button>
          <p className="text-center text-sm text-muted-foreground">
             Não tem uma conta?{" "}
