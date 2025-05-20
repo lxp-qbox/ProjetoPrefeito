@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { Separator } from "@/components/ui/separator"; // Added Separator import
+import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
@@ -45,19 +45,19 @@ export default function LoginPage() {
             <ArrowLeft className="h-6 w-6" />
           </Link>
         </div>
-        <CardHeader className="text-center pt-12">
+        <CardHeader className="text-center pt-12 px-6 pb-0"> {/* Adjusted padding */}
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-3xl font-bold">Entrar</CardTitle>
           <CardDescription>Acesse sua conta para continuar.</CardDescription>
-          <Separator className="my-4" /> {/* Added Separator */}
         </CardHeader>
-        <CardContent className="flex-grow overflow-y-auto">
+        <Separator className="my-6" /> {/* Moved Separator here with vertical margin */}
+        <CardContent className="flex-grow overflow-y-auto"> {/* CardContent default has p-6 pt-0 */}
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
-          <div className="w-full border-t border-border" /> 
+          <div className="w-full border-t border-border" />
           <div className="w-full bg-muted p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Não tem uma conta?{" "}
