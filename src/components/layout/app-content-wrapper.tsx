@@ -2,6 +2,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
+import { useEffect } from 'react'; // Added useEffect
 import { useAuth } from '@/hooks/use-auth';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
@@ -9,16 +10,27 @@ import Header from '@/components/layout/header';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
 import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
 
 export default function AppContentWrapper({ children }: { children: ReactNode }) {
-  const { loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter(); // Added router
 
   const standalonePaths = ['/login', '/signup', '/forgot-password'];
   const isStandalonePage = standalonePaths.includes(pathname);
 
-  if (authLoading && !isStandalonePage) { // Show full-page spinner only for non-standalone pages during initial auth load
+  useEffect(() => {
+    if (!authLoading && !currentUser && !isStandalonePage) {
+      let loginRedirectPath = "/login";
+      if (pathname !== "/" && pathname !== "") { // Don't redirect to home after login if already on home
+        loginRedirectPath += `?redirect=${pathname}`;
+      }
+      router.replace(loginRedirectPath);
+    }
+  }, [authLoading, currentUser, isStandalonePage, pathname, router]);
+
+  if (authLoading && !isStandalonePage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -26,7 +38,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
   
-  // For standalone pages like login, let them handle their own loading/display entirely if authLoading is true
   if (isStandalonePage) {
     return (
       <>
@@ -35,6 +46,18 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       </>
     );
   }
+
+  // If loading is done, and user is still not logged in, but we are NOT on a standalone page,
+  // this means the redirect from useEffect above should have happened or is in progress.
+  // To prevent rendering the main layout briefly before redirect, show a spinner or null.
+  if (!authLoading && !currentUser && !isStandalonePage) {
+    return (
+      <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -69,10 +92,10 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Mensagem">
+              <SidebarMenuButton asChild tooltip="Mensagens">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:duration-200">Mensagem</span>
+                  <span className="transition-all ease-out duration-300 delay-250 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] group-data-[collapsible=icon]:duration-200">Mensagens</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
