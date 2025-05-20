@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
-import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LogIn, LayoutDashboard } from 'lucide-react';
+import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard } from 'lucide-react'; // Removed LogIn as it's not used here
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -19,13 +19,13 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const router = useRouter();
 
   const standalonePaths = ['/login', '/signup', '/forgot-password'];
-  const isStandalonePage = standalonePaths.includes(pathname) || pathname.startsWith('/onboarding');
+  const isAuthOrOnboardingPage = standalonePaths.includes(pathname) || pathname.startsWith('/onboarding');
 
   useEffect(() => {
-    if (!authLoading && !currentUser && !isStandalonePage) {
+    if (!authLoading && !currentUser && !isAuthOrOnboardingPage) {
       router.replace("/login");
     }
-  }, [authLoading, currentUser, isStandalonePage, pathname, router]);
+  }, [authLoading, currentUser, isAuthOrOnboardingPage, pathname, router]);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -35,7 +35,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }, []);
 
-  if (authLoading && !isStandalonePage) {
+  if (authLoading && !isAuthOrOnboardingPage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -43,7 +43,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  if (isStandalonePage) {
+  if (isAuthOrOnboardingPage) {
     return (
       <>
         {children}
@@ -52,15 +52,18 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  if (!authLoading && !currentUser) {
-    // This state should ideally not be reached if the useEffect above correctly redirects.
-    // However, as a fallback, show a loader.
+  // This check is important for scenarios where useAuth might still be loading
+  // but the user is already determined to be unauthenticated by the effect above.
+  if (!currentUser && !authLoading) {
+     // Redirect should have happened, but as a fallback, show loader or minimal UI.
+     // Or, if redirect is instant, this might not even be hit often.
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
+
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -88,7 +91,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Jogos">
-                <Link href="/bingo"> {/* Updated href to /bingo */}
+                <Link href="/bingo">
                   <TicketIcon className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:delay-200" />
                   <span className="transition-all ease-out duration-300 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 group-data-[collapsible=icon]:duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Jogos</span>
                 </Link>
@@ -140,7 +143,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       </Sidebar>
       <SidebarInset>
         <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow px-4 py-8"> {/* Removed container and mx-auto */}
           {children}
         </main>
       </SidebarInset>
