@@ -66,9 +66,7 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      // For now, redirect to profile. The next onboarding step (age verification) isn't built.
-      // router.push("/onboarding/age-verification"); 
-      router.push("/profile"); 
+      router.push("/onboarding/age-verification"); 
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
