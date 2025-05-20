@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, Users, Clock, CheckCircle, XCircle, MoreHorizontal, ChevronDown, Edit } from "lucide-react";
 import Link from "next/link";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -105,9 +104,7 @@ export default function AdminHostsPageContent() {
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
-                <TableHead className="w-[50px] px-4">
-                  <Checkbox id="select-all-hosts" aria-label="Selecionar todos os hosts" />
-                </TableHead>
+                <TableHead className="w-[60px] px-4 text-center">LIVE</TableHead>
                 <TableHead className="min-w-[200px]">NOME</TableHead>
                 <TableHead>PAÍS</TableHead>
                 <TableHead>STATUS</TableHead>
@@ -120,8 +117,8 @@ export default function AdminHostsPageContent() {
                 const statusInfo = getStatusStyles(host.status);
                 return (
                   <TableRow key={host.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell className="px-4">
-                      <Checkbox id={`select-host-${host.id}`} aria-label={`Selecionar host ${host.name}`} />
+                    <TableCell className="px-4 text-center">
+                      <span className={`h-3 w-3 rounded-full inline-block ${host.isLive ? 'bg-green-500' : 'bg-red-500'}`}></span>
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link href={`/hosts/${host.kakoId}`} className="flex items-center gap-3 group">
@@ -193,3 +190,4 @@ export default function AdminHostsPageContent() {
     </div>
   );
 }
+
