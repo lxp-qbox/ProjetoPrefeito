@@ -4,9 +4,9 @@
 import LoginForm from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { LogIn, ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogIn } from "lucide-react"; // Removed Star icon
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // Added useSearchParams
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
@@ -15,23 +15,24 @@ import { Button } from "@/components/ui/button";
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get search params
+  const redirectParam = searchParams.get("redirect"); // Check for redirect param
 
   useEffect(() => {
     if (!loading && currentUser) {
-      const queryParams = new URLSearchParams(window.location.search);
-      const redirectPath = queryParams.get("redirect");
+      const redirectPath = redirectParam; // Use redirectParam directly
       if (redirectPath) {
         router.replace(redirectPath);
       } else {
         router.replace("/profile"); // Default redirect to profile
       }
     }
-  }, [currentUser, loading, router]);
+  }, [currentUser, loading, router, redirectParam]);
 
-  if (loading || (!loading && currentUser)) {
+  if (loading || (!loading && currentUser && !redirectParam)) { // Adjusted condition slightly for clarity if redirecting logged-in user
     // Show a loading spinner while checking auth status or if redirecting
     return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900">
+      <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -41,18 +42,20 @@ export default function LoginPage() {
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
       <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
-        <div className="absolute top-4 left-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary p-0"
-            asChild
-          >
-            <Link href="/" aria-label="Voltar para página inicial">
-              <ArrowLeft className="h-10 w-10" />
-            </Link>
-          </Button>
-        </div>
+        {redirectParam && ( // Conditionally render the back arrow
+          <div className="absolute top-4 left-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full text-muted-foreground hover:bg-muted hover:text-primary p-0"
+              asChild
+            >
+              <Link href="/" aria-label="Voltar para página inicial">
+                <ArrowLeft className="h-10 w-10" />
+              </Link>
+            </Button>
+          </div>
+        )}
         <CardHeader className="text-center pt-12 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary" />
