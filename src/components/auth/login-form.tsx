@@ -11,7 +11,7 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  FormLabel, // Keep FormLabel import if other parts of the form might use it, or clean up if not needed anywhere
+  // FormLabel, // No longer used
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,7 +22,7 @@ import { auth, GoogleAuthProvider } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, EyeOff, User, Lock } from "lucide-react"; // Removed ArrowRight
+import { Eye, EyeOff, User, Lock } from "lucide-react";
 
 // Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -167,7 +167,7 @@ export default function LoginForm() {
               <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
-                    id="rememberMeLogin" 
+                    id="rememberMeLogin"
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
@@ -211,3 +211,5 @@ export default function LoginForm() {
     </Form>
   );
 }
+
+    
