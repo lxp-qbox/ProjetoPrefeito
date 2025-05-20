@@ -199,11 +199,11 @@ export default function LoginForm() {
           </div>
         </div>
 
-        <Button 
-          variant="outline" 
-          type="button" 
-          className="w-full hover:bg-muted hover:text-secondary-foreground" 
-          onClick={handleGoogleSignIn} 
+        <Button
+          variant="outline"
+          type="button"
+          className="w-full hover:bg-muted hover:text-secondary-foreground"
+          onClick={handleGoogleSignIn}
           disabled={loading || googleLoading}
         >
           {googleLoading ? "Entrando com Google..." : (
