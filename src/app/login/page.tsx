@@ -10,10 +10,15 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Separator } from "@/components/ui/separator";
+import { useSearchParams } from "next/navigation"; // Keep for potential future use if back button logic changes
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+
 
 export default function LoginPage() {
   const { currentUser, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Keep for potential future use
 
   useEffect(() => {
     if (!loading && currentUser) {
@@ -44,7 +49,7 @@ export default function LoginPage() {
     }
   }, [currentUser, loading, router]);
 
-  if (loading || (!loading && currentUser)) { 
+  if (loading || (!loading && currentUser && !searchParams.get('redirect'))) { // Added !searchParams.get('redirect') to avoid flash on redirect
     return (
       <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
         <LoadingSpinner size="lg" />
@@ -54,7 +59,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex justify-center items-center h-screen p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 overflow-hidden">
-      <Card className="w-full max-w-md shadow-xl relative flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
+      <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
         
         <CardHeader className="text-center pt-10 px-6 pb-0">
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
@@ -66,7 +71,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow overflow-y-auto px-6 pt-0 pb-6">
+        <CardContent className="flex-grow px-6 pt-0 pb-6 overflow-y-auto">
           <LoginForm />
         </CardContent>
         <CardFooter className="flex-col p-0">

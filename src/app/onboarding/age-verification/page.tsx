@@ -84,6 +84,14 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
+    if (!selectedCountry) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione seu país.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!selectedGender) {
       toast({
         title: "Atenção",
@@ -100,14 +108,7 @@ export default function AgeVerificationPage() {
       });
       return;
     }
-    if (!selectedCountry) {
-      toast({
-        title: "Atenção",
-        description: "Por favor, selecione seu país.",
-        variant: "destructive",
-      });
-      return;
-    }
+    
 
     const age = calculateAge(selectedDate);
     if (age < 18) {
@@ -179,7 +180,7 @@ export default function AgeVerificationPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-6">
-          <div>
+           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-2 block text-left">
               Sexo
             </Label>

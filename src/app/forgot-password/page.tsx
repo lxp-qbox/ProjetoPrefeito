@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
           </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow px-6 pt-0 pb-6">
+        <CardContent className="flex-grow px-6 pt-0 pb-6 overflow-y-auto">
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-sm">
             Lembrou sua senha?{" "}

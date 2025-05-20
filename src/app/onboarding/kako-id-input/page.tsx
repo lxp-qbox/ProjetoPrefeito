@@ -97,6 +97,8 @@ export default function KakoIdInputPage() {
   };
 
   const determineBackLink = () => {
+    // If user is a host, they came from age-verification.
+    // If user is a player, they came from kako-account-check.
     return currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check";
   }
 

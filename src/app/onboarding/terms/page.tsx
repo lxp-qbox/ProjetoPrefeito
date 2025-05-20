@@ -81,7 +81,7 @@ export default function TermsPage() {
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <CardHeader className="text-center pt-10 px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-3 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <FileText className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Termos de Uso e Privacidade</CardTitle>
