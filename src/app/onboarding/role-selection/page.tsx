@@ -20,9 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import type { UserProfile } from "@/types";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -141,7 +139,7 @@ export default function RoleSelectionPage() {
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
+        <Progress value={50} className="h-1.5 w-full" aria-label="Progresso do onboarding 50%" />
       </CardFooter>
     </Card>
   );

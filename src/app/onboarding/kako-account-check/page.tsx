@@ -18,14 +18,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  // isLoading state might not be needed here anymore if both paths navigate
-  // const [isLoading, setIsLoading] = useState(false); 
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -34,7 +30,6 @@ export default function KakoAccountCheckPage() {
   };
 
   const handleNeedsAccount = () => {
-    // Navigate to the new screen where user decides about creating Kako account
     router.push("/onboarding/kako-creation-choice");
   };
 
@@ -70,7 +65,6 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
-            // aria-disabled={isLoading} // isLoading might be removed
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <CheckCircle className="h-8 w-8 text-primary" />
@@ -87,7 +81,6 @@ export default function KakoAccountCheckPage() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
-            // aria-disabled={isLoading} // isLoading might be removed
           >
             <div className="p-3 bg-primary/10 rounded-full mb-3">
               <Phone className="h-8 w-8 text-primary" />
@@ -96,12 +89,11 @@ export default function KakoAccountCheckPage() {
             <p className="text-sm text-muted-foreground">
               Ainda não tenho uma conta no aplicativo Kako Live
             </p>
-            {/* {isLoading && <LoadingSpinner size="sm" className="mt-2" />} */}
           </Card>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <Progress value={100} className="h-1.5 w-full" aria-label="Progresso do onboarding 100%" />
       </CardFooter>
     </Card>
   );

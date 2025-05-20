@@ -21,9 +21,7 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function KakoIdInputPage() {
   const [kakoId, setKakoId] = useState("");
@@ -96,6 +94,13 @@ export default function KakoIdInputPage() {
     }
   };
 
+  const determineBackLink = () => {
+    if (currentUser?.role === 'host') {
+      return "/onboarding/age-verification";
+    }
+    return "/onboarding/kako-account-check";
+  }
+
   return (
     <Card className="w-full max-w-md shadow-xl flex flex-col max-h-[calc(100%-2rem)] aspect-[9/16] md:aspect-auto overflow-hidden">
       <Button
@@ -105,7 +110,7 @@ export default function KakoIdInputPage() {
         className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
         title="Voltar"
       >
-        <Link href={currentUser?.role === 'host' ? "/onboarding/age-verification" : "/onboarding/kako-account-check"}>
+        <Link href={determineBackLink()}>
           <ArrowLeft className="h-8 w-8" />
           <span className="sr-only">Voltar</span>
         </Link>
@@ -165,7 +170,7 @@ export default function KakoIdInputPage() {
         </Button>
       </CardFooter>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <Progress value={100} className="h-1.5 w-full" aria-label="Progresso do onboarding 100%" />
       </CardFooter>
     </Card>
   );

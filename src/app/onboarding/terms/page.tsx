@@ -14,18 +14,9 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, CheckCircle } from "lucide-react";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
-
-export default function TermsPage() {
-  const [agreed, setAgreed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
-
-  const placeholderTerms = `
+const placeholderTerms = `
 Bem-vindo à The Presidential Agency!
 Estes termos e condições descrevem as regras e regulamentos para o uso do website da The Presidential Agency.
 Ao acessar este website, presumimos que você aceita estes termos e condições na íntegra. Não continue a usar o website da The Presidential Agency se você não aceitar todos os termos e condições declarados nesta página.
@@ -49,6 +40,13 @@ Este é um texto de placeholder. Em uma aplicação real, este seria substituíd
 É crucial que você leia e entenda nossos termos completos antes de prosseguir.
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
   `.trim().repeat(3);
+
+export default function TermsPage() {
+  const [agreed, setAgreed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
 
   const handleContinue = async () => {
     if (!currentUser) {
@@ -92,21 +90,21 @@ Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px] mb-4">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
-        <div className="flex justify-center items-center space-x-2 mt-auto pt-4">
+        <div className="flex justify-center items-center space-x-2 mt-auto pt-4 mb-4">
           <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
           <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
             Li e estou de acordo
           </Label>
         </div>
       </CardContent>
-      <CardFooter className="p-6 pt-2">
+      <CardFooter className="p-6 pt-0">
         <Button onClick={handleContinue} className="w-full" disabled={!agreed || isLoading}>
           {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
           Continuar
         </Button>
       </CardFooter>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
+        <Progress value={25} className="h-1.5 w-full" aria-label="Progresso do onboarding 25%" />
       </CardFooter>
     </Card>
   );

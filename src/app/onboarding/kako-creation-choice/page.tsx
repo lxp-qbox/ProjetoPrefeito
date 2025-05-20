@@ -19,9 +19,7 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -67,7 +65,7 @@ export default function KakoCreationChoicePage() {
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       await updateDoc(userDocRef, {
-        kakoLiveId: "", // Still empty, as they will create it externally
+        kakoLiveId: "", 
         hasCompletedOnboarding: true, 
         updatedAt: serverTimestamp(),
       });
@@ -76,7 +74,6 @@ export default function KakoCreationChoicePage() {
         description: "Crie sua conta no app Kako Live. Depois, você pode adicionar seu ID no seu perfil para acesso completo.",
         duration: 9000,
       });
-      // For now, redirect to profile. Ideally, this might link to Kako Live or provide instructions.
       router.push("/profile"); 
     } catch (error) {
       console.error("Erro ao finalizar onboarding (will create Kako account):", error);
@@ -151,7 +148,7 @@ export default function KakoCreationChoicePage() {
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <Progress value={100} className="h-1.5 w-full" aria-label="Progresso do onboarding 100%" />
       </CardFooter>
     </Card>
   );

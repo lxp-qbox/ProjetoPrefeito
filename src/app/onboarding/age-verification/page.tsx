@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarIcon as LucideCalendarIcon, CheckCircle, AlertTriangle, UserCircle2, Users, Globe, ArrowLeft } from "lucide-react";
+import { CalendarIcon as LucideCalendarIcon, CheckCircle, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,10 +38,8 @@ import { format, subYears, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import Link from "next/link";
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+import { Progress } from "@/components/ui/progress"; // Import Progress
 
 export default function AgeVerificationPage() {
   const [selectedCountry, setSelectedCountry] = useState<string | undefined>("Brasil");
@@ -135,7 +133,6 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback for other roles or if role isn't defined yet, though it should be by this stage.
         router.push("/profile"); 
       }
     } catch (error) {
@@ -286,7 +283,7 @@ export default function AgeVerificationPage() {
         </Button>
       </CardFooter>
        <CardFooter className="p-4 border-t">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
+        <Progress value={75} className="h-1.5 w-full" aria-label="Progresso do onboarding 75%" />
       </CardFooter>
     </Card>
   );
