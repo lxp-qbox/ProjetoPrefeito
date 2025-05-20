@@ -106,7 +106,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   )}
                   <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
-                       const isActive = pathname === item.link || (item.link === "/admin" && pathname.startsWith("/admin/hosts")) || (item.link === "/admin/hosts" && pathname === "/admin");
+                       // Active logic:
+                       // Dashboard (/admin) is active if current path is /admin OR /admin/hosts
+                       // Other items are active if their link exactly matches the current path
+                       const isActive = (item.link === "/admin" && (pathname === "/admin" || pathname.startsWith("/admin/hosts"))) ||
+                                        (item.link !== "/admin" && pathname === item.link);
+
                        const isLogout = item.link === "#logout";
                        
                        const buttonAction = isLogout ? handleLogout : () => {
