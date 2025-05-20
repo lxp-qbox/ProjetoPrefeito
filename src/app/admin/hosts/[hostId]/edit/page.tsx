@@ -40,11 +40,13 @@ const editHostSchema = z.object({
   kakoLiveId: z.string().optional(),
   phoneNumber: z.string().optional(),
   hostStatus: z.enum(["approved", "pending_review", "banned"]),
-  adminLevel: z.enum(["master", "admin", "suporte", ""]).nullable().optional(),
+  adminLevel: z.enum(["master", "admin", "suporte"]).nullable().optional(),
   bio: z.string().max(160, "Bio não pode exceder 160 caracteres.").optional(),
 });
 
 type EditHostFormValues = z.infer<typeof editHostSchema>;
+
+const NONE_ADMIN_LEVEL_VALUE = "__none__";
 
 export default function EditHostPage() {
   const router = useRouter();
@@ -107,11 +109,11 @@ export default function EditHostPage() {
       const hostDocRef = doc(db, "users", hostId);
       const updateData: Partial<UserProfile> = {
         profileName: data.profileName,
-        displayName: data.profileName,
+        displayName: data.profileName, // Keep displayName in sync with profileName for hosts
         kakoLiveId: data.kakoLiveId,
-        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""),
+        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""), // Store only digits and +
         hostStatus: data.hostStatus,
-        adminLevel: data.adminLevel === "" ? null : data.adminLevel,
+        adminLevel: data.adminLevel, // Zod already ensures this is 'master', 'admin', 'suporte', or null
         bio: data.bio,
         updatedAt: serverTimestamp(),
       };
@@ -225,14 +227,14 @@ export default function EditHostPage() {
                   name="adminLevel"
                   render={({ field }) => (
                     <Select
-                        onValueChange={(value) => field.onChange(value === "" ? null : value as UserProfile['adminLevel'])}
-                        value={field.value === null ? "" : field.value || ""}
+                        onValueChange={(value) => field.onChange(value === NONE_ADMIN_LEVEL_VALUE ? null : value as UserProfile['adminLevel'])}
+                        value={field.value === null ? NONE_ADMIN_LEVEL_VALUE : field.value || NONE_ADMIN_LEVEL_VALUE}
                     >
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Selecione um nível" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value={NONE_ADMIN_LEVEL_VALUE}>Nenhum</SelectItem>
                         <SelectItem value="master">Master</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="suporte">Suporte</SelectItem>
@@ -265,3 +267,4 @@ export default function EditHostPage() {
     </div>
   );
 }
+
