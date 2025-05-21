@@ -113,10 +113,9 @@ export interface KakoProfile { // For storing profiles fetched from Kako Live AP
   gender?: number; // 1 for male, 2 for female as per Kako API example
   area?: string;
   school?: string;
-  showId?: string; // Another ID used by Kako
-  isLiving?: boolean; // If they are currently live
+  showId?: string; // From Kako JSON, maps to their string ID
+  isLiving?: boolean; // If they are currently live (optional, might not be in all data sources)
   lastFetchedAt?: any; // Firestore Timestamp for when this profile was last fetched/updated
-  // You can add other fields here as you discover them from Kako Live's API
 }
 
 

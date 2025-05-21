@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { KakoProfile } from "@/types"; // Assuming KakoProfile is defined in types
+import type { KakoProfile } from "@/types"; 
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 
@@ -53,7 +53,18 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
+// Updated placeholder data to match the new JSON structure
 const placeholderKakoProfiles: KakoProfile[] = [
+  {
+    id: "b2f7260f233746e19ebac80d31d82908", // userId
+    nickname: "Janyᵃᵍⁿᵉˣᵘˢ✨️",
+    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/b2f7260f233746e19ebac80d31d82908/20250509/1746802335031.jpg/200x200", // avatar
+    level: 24,
+    numId: 1000360701,
+    gender: 2,
+    showId: "10956360",
+    isLiving: true, // Assuming still relevant for potential "online" status simulation
+  },
   {
     id: "0322d2dd57e74a028a9e72c2fae1fd9a",
     nickname: "PRESIDENTE",
@@ -61,9 +72,8 @@ const placeholderKakoProfiles: KakoProfile[] = [
     level: 39,
     numId: 1008850234,
     isLiving: true,
-    signature: "✨The Presidential Agency...",
     gender: 1,
-    area: "Luxembourg",
+    showId: "10763129",
   },
   {
     id: "c2e7c033b41243b5b09f42aa50edf4a1",
@@ -73,6 +83,7 @@ const placeholderKakoProfiles: KakoProfile[] = [
     numId: 1001007128,
     isLiving: false,
     gender: 2,
+    showId: "10433584",
   },
   {
     id: "d4e4ed8946bc40f483ca2da95164a90b",
@@ -82,16 +93,8 @@ const placeholderKakoProfiles: KakoProfile[] = [
     numId: 1005155088,
     isLiving: true,
     gender: 2,
+    showId: "10800907",
   },
-  {
-    id: "f985aa79adac416ba73e25fffd858051",
-    nickname: "AdilsonRicato",
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/f985aa79adac416ba73e25fffd858051/20250430/1745983433450.jpg/200x200",
-    level: 29,
-    numId: 1002826396,
-    isLiving: false,
-    gender: 1,
-  }
 ];
 
 
@@ -104,7 +107,6 @@ export default function AdminKakoLiveDataListPageContent() {
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
-    // Simulate fetching data
     setIsLoading(true);
     setTimeout(() => {
       setKakoProfiles(placeholderKakoProfiles);
@@ -131,7 +133,8 @@ export default function AdminKakoLiveDataListPageContent() {
   const filteredProfiles = kakoProfiles.filter(profile =>
     profile.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (profile.numId && profile.numId.toString().includes(searchTerm))
+    (profile.numId && profile.numId.toString().includes(searchTerm)) ||
+    (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const onlineProfilesCount = kakoProfiles.filter(p => p.isLiving).length;
@@ -150,7 +153,7 @@ export default function AdminKakoLiveDataListPageContent() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live</h1>
-            <p className="text-sm text-muted-foreground">Visualize dados de perfis diretamente do Kako Live (simulado).</p>
+            <p className="text-sm text-muted-foreground">Visualize dados de perfis (simulado).</p>
           </div>
           <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -164,9 +167,9 @@ export default function AdminKakoLiveDataListPageContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4"> {/* Changed to 1 column for stat cards */}
           <StatCard title="Total de Perfis Carregados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
-          <StatCard title="Perfis Online (Simulado)" count={onlineProfilesCount} icon={Wifi} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
+          {/* Removed Online Profiles Stat Card to simplify as isLiving might not always be primary focus */}
         </div>
 
         <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -177,7 +180,7 @@ export default function AdminKakoLiveDataListPageContent() {
                   <TableHead className="w-[60px] px-4"></TableHead> {/* Avatar */}
                   <TableHead className="min-w-[150px]">NICKNAME</TableHead>
                   <TableHead>NÍVEL</TableHead>
-                  <TableHead>ID KAKO LIVE</TableHead>
+                  <TableHead>USER ID (FUID)</TableHead>
                   <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
                 </TableRow>
               </TableHeader>
@@ -281,3 +284,4 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
