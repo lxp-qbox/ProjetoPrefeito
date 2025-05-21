@@ -36,43 +36,45 @@ export interface ReceivedGift {
 }
 
 export interface Host { // This type is for the public-facing host list (/hosts page)
-  id: string; // Kako Live userId (fuid), will be document ID in Firestore 'hosts' collection
+  id: string; // UserProfile.uid, NOT Kako Live userId
   rankPosition: number; 
-  name: string; // Kako nickname
-  avatarUrl: string; // Kako avatar
+  name: string; // UserProfile.profileName
+  avatarUrl: string; // UserProfile.photoURL
   dataAiHint?: string;
   avgViewers: number;
   timeStreamed: number; // in hours
   allTimePeakViewers: number;
   hoursWatched: string; 
-  rank: number; // Kako user.level
+  rank: number; // UserProfile.level or derived rank
   followersGained: number;
   totalFollowers: string; 
   totalViews: string; 
-  kakoLiveFuid?: string; // Same as id (Kako userId)
-  kakoLiveRoomId?: string; 
-  bio?: string; // Kako signature
-  streamTitle?: string; // Current stream title
+  kakoLiveFuid?: string; // UserProfile.kakoLiveId (FUID)
+  kakoLiveRoomId?: string; // UserProfile.kakoLiveRoomId
+  kakoShowId?: string; // UserProfile.kakoShowId
+  bio?: string; // UserProfile.bio
+  streamTitle?: string; // Maybe stored in a separate 'streams' collection or fetched live
   likes?: number; 
-  giftsReceived?: ReceivedGift[];
-  createdAt?: any; // Firestore Timestamp
-  lastSeen?: any; // Firestore Timestamp
-  source?: 'kakoLive' | 'manual'; // How the profile was created/sourced
-  totalDonationsValue?: number; // Placeholder for donations
+  giftsReceived?: ReceivedGift[]; // This might be dynamic per stream session
+  createdAt?: any; // Firestore Timestamp from UserProfile
+  lastSeen?: any; // Firestore Timestamp from UserProfile
+  source?: 'kakoLive' | 'manual'; 
+  totalDonationsValue?: number; 
 }
 
-export interface UserProfile {
+export interface UserProfile { // Stored in 'accounts' collection, document ID is Firebase Auth UID
   uid: string; // Firebase Auth UID
   email?: string | null;
   role?: 'player' | 'host'; // Base role
   adminLevel?: 'master' | 'admin' | 'suporte' | null; // Hierarchical admin level
-  kakoLiveId?: string;       // User's own Kako Live ID (FUID), if they link it
+  kakoLiveId?: string;       // User's Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...")
+  kakoShowId?: string;       // User's Kako Live Show ID (user-facing, searchable ID, e.g., "10763129")
   kakoLiveRoomId?: string;   // User's Kako Live Room ID, if applicable (especially for hosts)
   profileName?: string;      // Preferred display name in this app (can be from Kako, or set by user)
   displayName?: string | null; // From Firebase Auth, should ideally be synced with profileName
   photoURL?: string | null;    // From Firebase Auth, for avatar (can be from Kako, or uploaded)
   profileHeader?: string;    // URL for a profile header image
-  bio?: string;              // User's bio for this platform (max 100 chars)
+  bio?: string;              // User's bio for this platform (max 160 chars)
   isVerified?: boolean;      // If the user is verified on this platform
   level?: number;            // User's level on this platform
   followerCount?: number;    // Followers on this platform
@@ -103,17 +105,17 @@ export interface UserProfile {
   updatedAt?: any;           // Firestore Timestamp
 }
 
-export interface KakoProfile { // For storing profiles fetched from Kako Live API
-  id: string; // Kako Live userId (maps to `userId` from Kako API, usually the FUID)
+export interface KakoProfile { // For storing profiles fetched/scraped from Kako Live API, stored in 'kakoProfiles' collection
+  id: string; // Kako Live userId (FUID, maps to `userId` from Kako API) - THIS IS THE DOCUMENT ID
   numId?: number; // Kako's numerical ID (maps to `numId` from Kako API)
   nickname: string;
-  avatarUrl: string;
+  avatarUrl: string; // Mapped from Kako's `avatar` field
   level?: number;
   signature?: string; // Bio from Kako
   gender?: number; // 1 for male, 2 for female as per Kako API example
   area?: string;
   school?: string;
-  showId?: string; // From Kako JSON, maps to their string ID
+  showId?: string; // From Kako JSON, maps to their string ID - THIS IS WHAT USERS TYPE
   isLiving?: boolean; // If they are currently live (optional, might not be in all data sources)
   lastFetchedAt?: any; // Firestore Timestamp for when this profile was last fetched/updated
 }
@@ -198,7 +200,7 @@ export interface Trend {
   id: string;
   category: string;
   topic: string;
-  posts?: string; // Made optional to match data
+  posts?: string; 
 }
 
 export interface SuggestedUser {
@@ -221,4 +223,3 @@ export interface BanEntry {
   bannedAt: any; // Firestore Timestamp
   expiresAt?: any | null; // Firestore Timestamp, optional
 }
-

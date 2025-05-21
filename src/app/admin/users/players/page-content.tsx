@@ -57,9 +57,10 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
 interface AdminPlayer {
   id: string; // User UID
   avatarUrl?: string | null;
-  appUserId: string; // User UID
+  appUserId: string; // User UID (same as id)
   name: string;
   email?: string;
+  kakoShowId?: string; // Added kakoShowId
   status: 'Ativo' | 'Banido';
 }
 
@@ -85,8 +86,8 @@ export default function AdminPlayersPageContent() {
   const fetchPlayers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "==", "player"));
+      const accountsRef = collection(db, "accounts"); // Changed 'users' to 'accounts'
+      const q = query(accountsRef, where("role", "==", "player"));
       const querySnapshot = await getDocs(q);
       const fetchedPlayers: AdminPlayer[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -97,6 +98,7 @@ export default function AdminPlayersPageContent() {
           name: userData.profileName || userData.displayName || "N/A",
           avatarUrl: userData.photoURL,
           email: userData.email || "N/A",
+          kakoShowId: userData.kakoShowId, // Added kakoShowId
           status: userData.isBanned ? 'Banido' : 'Ativo',
         });
       });
@@ -120,14 +122,14 @@ export default function AdminPlayersPageContent() {
   const handleBanPlayer = async (playerId: string) => {
     console.log("Solicitado banir player:", playerId);
      try {
-        const userDocRef = doc(db, "users", playerId);
+        const userDocRef = doc(db, "accounts", playerId); // Changed 'users' to 'accounts'
         await updateDoc(userDocRef, {
             isBanned: true,
             bannedAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
         toast({ title: "Player Banido", description: "O status do player foi atualizado para banido."});
-        fetchPlayers(); // Refresh list
+        fetchPlayers(); 
     } catch (error) {
         console.error("Erro ao banir player:", error);
         toast({ title: "Erro ao Banir", description: "Não foi possível banir o player.", variant: "destructive"});
@@ -142,7 +144,7 @@ export default function AdminPlayersPageContent() {
   const handleConfirmDeleteAccount = async () => {
     if (!playerToDelete) return;
     try {
-      await deleteDoc(doc(db, "users", playerToDelete.id));
+      await deleteDoc(doc(db, "accounts", playerToDelete.id)); // Changed 'users' to 'accounts'
       setPlayers(prevPlayers => prevPlayers.filter(p => p.id !== playerToDelete.id));
       toast({
         title: "Conta Excluída (Firestore)",
@@ -167,7 +169,8 @@ export default function AdminPlayersPageContent() {
   const filteredPlayers = players.filter(player =>
     player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     player.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    player.appUserId.toLowerCase().includes(searchTerm.toLowerCase())
+    player.appUserId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    player.kakoShowId?.toLowerCase().includes(searchTerm.toLowerCase()) // Search by kakoShowId
   );
 
   const activePlayersCount = players.filter(p => p.status === 'Ativo').length;
@@ -193,7 +196,7 @@ export default function AdminPlayersPageContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 type="search" 
-                placeholder="Buscar players (Nome, ID, Email...)" 
+                placeholder="Buscar players (Nome, ID, Show ID...)" 
                 className="pl-10 w-full h-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -238,7 +241,10 @@ export default function AdminPlayersPageContent() {
                             </Avatar>
                             <div>
                               <span className="group-hover:text-primary group-hover:underline">{player.name}</span>
-                              <div className="text-xs text-muted-foreground">{player.appUserId}</div>
+                              <div className="text-xs text-muted-foreground">
+                                App ID: {player.appUserId} <br />
+                                Show ID: {player.kakoShowId || "N/A"}
+                              </div>
                             </div>
                           </Link>
                         </TableCell>
@@ -345,6 +351,3 @@ export default function AdminPlayersPageContent() {
     </>
   );
 }
-
-
-    

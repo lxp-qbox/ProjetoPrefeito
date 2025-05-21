@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserCog, Edit, ChevronDown, ShieldCheck, Award, UserCheck as UserCheckIcon } from "lucide-react"; // Changed User to UserCheckIcon to avoid name collision
+import { Search, UserCog, Edit, ChevronDown, ShieldCheck, Award, UserCheck as UserCheckIcon } from "lucide-react"; 
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -49,17 +49,18 @@ interface AdminAccount {
   avatarUrl?: string | null;
   name?: string;
   email?: string;
+  kakoShowId?: string; // Added kakoShowId
   adminLevel: 'master' | 'admin' | 'suporte';
 }
 
 const getAdminLevelBadgeVariant = (adminLevel: AdminAccount['adminLevel']) => {
   switch (adminLevel) {
     case 'master':
-      return 'destructive'; // Or a gold/purple color
+      return 'destructive'; 
     case 'admin':
-      return 'default'; // Blue
+      return 'default'; 
     case 'suporte':
-      return 'secondary'; // Gray or a lighter blue/green
+      return 'secondary'; 
     default:
       return 'outline';
   }
@@ -74,18 +75,19 @@ export default function AdminAdminsPageContent() {
   const fetchAdminAccounts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("adminLevel", "in", ["master", "admin", "suporte"]));
+      const accountsRef = collection(db, "accounts"); // Changed 'users' to 'accounts'
+      const q = query(accountsRef, where("adminLevel", "in", ["master", "admin", "suporte"]));
       const querySnapshot = await getDocs(q);
       const fetchedAdmins: AdminAccount[] = [];
       querySnapshot.forEach((docSnap) => {
         const userData = docSnap.data() as UserProfile;
-        if (userData.adminLevel) { // Ensure adminLevel is not null
+        if (userData.adminLevel) { 
             fetchedAdmins.push({
             id: docSnap.id,
             name: userData.profileName || userData.displayName || "N/A",
             avatarUrl: userData.photoURL,
             email: userData.email || "N/A",
+            kakoShowId: userData.kakoShowId, // Added kakoShowId
             adminLevel: userData.adminLevel,
           });
         }
@@ -109,7 +111,8 @@ export default function AdminAdminsPageContent() {
 
   const filteredAdminAccounts = adminAccounts.filter(admin =>
     admin.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    admin.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    admin.kakoShowId?.toLowerCase().includes(searchTerm.toLowerCase()) // Search by kakoShowId
   );
 
   const masterCount = adminAccounts.filter(a => a.adminLevel === 'master').length;
@@ -135,7 +138,7 @@ export default function AdminAdminsPageContent() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Buscar admins (Nome, Email...)"
+              placeholder="Buscar admins (Nome, Email, Show ID...)"
               className="pl-10 w-full h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -178,7 +181,10 @@ export default function AdminAdminsPageContent() {
                         </Avatar>
                         <div>
                           <span className="group-hover:text-primary">{admin.name}</span>
-                          <div className="text-xs text-muted-foreground">{admin.email}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Email: {admin.email} <br />
+                            Show ID: {admin.kakoShowId || "N/A"}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -234,5 +240,3 @@ export default function AdminAdminsPageContent() {
     </div>
   );
 }
-
-    

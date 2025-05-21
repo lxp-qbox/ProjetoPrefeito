@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocRef = doc(db, "accounts", firebaseUser.uid); // Changed 'users' to 'accounts'
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
@@ -31,13 +31,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firestoreData.profileName || firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            ...firestoreData, // This will include role, adminLevel, etc.
-            role: firestoreData.role || 'player', // Ensure role has a default
-            adminLevel: firestoreData.adminLevel || null, // Ensure adminLevel has a default
+            photoURL: firestoreData.photoURL || firebaseUser.photoURL,
+            ...firestoreData, 
+            role: firestoreData.role || 'player', 
+            adminLevel: firestoreData.adminLevel || null,
+            kakoShowId: firestoreData.kakoShowId || "",
+            kakoLiveId: firestoreData.kakoLiveId || "",
           });
         } else {
-          // Create a new profile if one doesn't exist (e.g., first Google sign-in)
           const derivedProfileName = firebaseUser.displayName || 
                                    (firebaseUser.email ? firebaseUser.email.split('@')[0].charAt(0).toUpperCase() + firebaseUser.email.split('@')[0].slice(1) : "Usuário");
           const newProfile: UserProfile = {
@@ -46,19 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             displayName: firebaseUser.displayName,
             profileName: derivedProfileName,
             photoURL: firebaseUser.photoURL,
-            role: 'player', // Default role
-            adminLevel: null, // Default adminLevel
-            isVerified: firebaseUser.emailVerified,
-            kakoLiveId: '',
+            role: 'player', 
+            adminLevel: null, 
+            kakoLiveId: "",
+            kakoShowId: "", // Initialize kakoShowId
             bio: '',
             level: 1,
+            isVerified: firebaseUser.emailVerified,
             followerCount: 0,
             followingCount: 0,
             photos: [],
             socialLinks: {},
             themePreference: 'system',
-            accentColor: '#4285F4',
-            hasCompletedOnboarding: false, // Start onboarding
+            accentColor: '#4285F4', 
+            hasCompletedOnboarding: false, 
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           };
@@ -67,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCurrentUser(newProfile);
           } catch (error) {
             console.error("Error creating Firestore document for new user:", error);
-            // Fallback to a basic profile if Firestore write fails
             setCurrentUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -99,4 +100,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-

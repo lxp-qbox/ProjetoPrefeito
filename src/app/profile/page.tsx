@@ -4,54 +4,32 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PostCard from "@/components/feed/post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LogOut, Mail, UserCircle2, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2, CalendarDays as LucideCalendarIcon
+  LogOut, UserCircle2, Save, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, Home as HomeIcon, Clock, Users, Package, Database as DatabaseIcon, ThumbsUp, UserPlus, Image as ImageIconProp, Settings as SettingsIcon, Check, Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText as FileTextIcon, Headphones, LayoutDashboard, Star, Share2, CalendarDays as LucideCalendarIcon, BadgeCheck
 } from "lucide-react";
 import Link from "next/link";
+import Image from 'next/image';
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import type { UserProfile } from "@/types";
+import type { UserProfile, FeedPost } from "@/types";
 import { countries } from "@/lib/countries";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO, subYears, isValid, parse, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Image from "next/image";
-
-interface ProfileMenuItem {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  link?: string;
-  currentValue?: string;
-  action?: () => void;
-}
-
-interface ProfileMenuGroup {
-  groupTitle?: string;
-  items: ProfileMenuItem[];
-}
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -69,39 +47,75 @@ const formatPhoneNumberForDisplay = (value: string): string => {
 };
 
 
+interface ProfileMenuItem {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  link?: string;
+  currentValue?: string;
+  action?: () => void;
+}
+
+interface ProfileMenuGroup {
+  groupTitle?: string;
+  items: ProfileMenuItem[];
+}
+
+
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
+  const [editableProfileName, setEditableProfileName] = useState<string>("");
+  const [editableBio, setEditableBio] = useState<string>("");
+  const [editableKakoShowId, setEditableKakoShowId] = useState<string>("");
   const [editableCountry, setEditableCountry] = useState<string | undefined>(undefined);
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [editableBirthDate, setEditableBirthDate] = useState<Date | undefined>(undefined);
   const [editablePhoneNumber, setEditablePhoneNumber] = useState<string>("");
+  
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  
+  const placeholderPosts: FeedPost[] = [ 
+    {
+      id: "post1",
+      user: { name: currentUser?.profileName || "Usuário", handle: `@${currentUser?.email?.split('@')[0] || 'usuario'}`, avatarUrl: currentUser?.photoURL || "https://placehold.co/48x48.png" },
+      content: "Primeiro post no meu perfil!",
+      timestamp: "2h",
+      stats: { replies: 10, retweets: 5, likes: 20 },
+    },
+  ];
+
 
   const profileMenuGroups: ProfileMenuGroup[] = useMemo(() => [
     {
+      groupTitle: "GERAL",
       items: [
         { id: "visaoGeral", title: "Visão Geral", icon: HomeIcon },
         { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard },
-        { id: "seguranca", title: "Segurança", icon: Lock },
-        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
-        { id: "notificacoes", title: "Notificações", icon: Bell },
       ],
+    },
+    {
+        groupTitle: "CONTA",
+        items: [
+            { id: "seguranca", title: "Segurança", icon: Lock },
+            { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
+            { id: "notificacoes", title: "Notificações", icon: Bell },
+        ]
     },
     {
       groupTitle: "SOBRE",
       items: [
-        { id: "user-agreement", title: "Contrato do usuário", icon: FileText },
-        { id: "privacy-policy", title: "Política de privacidade", icon: FileText },
+        { id: "user-agreement", title: "Contrato do usuário", icon: FileTextIcon },
+        { id: "privacy-policy", title: "Política de privacidade", icon: FileTextIcon },
       ],
     },
     {
       items: [
-        { id: "support", title: "Suporte", icon: Headphones, link: "/support" },
-        { id: "logout", title: "Sair", icon: LogOut, action: () => handleLogout() },
+        { id: "suporte", title: "Suporte", icon: Headphones, link: "/support" },
+        { id: "sair", title: "Sair", icon: LogOut, action: () => handleLogout() },
       ],
     },
   ], []);
@@ -110,6 +124,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (currentUser) {
+      setEditableProfileName(currentUser.profileName || currentUser.displayName || "");
+      setEditableBio(currentUser.bio || "");
+      setEditableKakoShowId(currentUser.kakoShowId || ""); 
       setEditableCountry(currentUser.country || "");
       setEditableGender(currentUser.gender || 'preferNotToSay');
       setEditablePhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
@@ -117,24 +134,25 @@ export default function ProfilePage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
-              parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
-            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
-              parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
+             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { 
+                parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
+            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { 
+                parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
-            if (!parsedDate || !isValid(parsedDate)) {
-              const isoDate = parseISO(currentUser.birthDate);
-              if (isValid(isoDate)) parsedDate = isoDate;
+             if (!parsedDate || !isValid(parsedDate)) { 
+                const isoDate = parseISO(currentUser.birthDate);
+                if (isValid(isoDate)) parsedDate = isoDate;
             }
-          } else if ((currentUser.birthDate as any)?.toDate) {
+          } else if ((currentUser.birthDate as any)?.toDate) { 
             parsedDate = (currentUser.birthDate as any).toDate();
           } else if (currentUser.birthDate instanceof Date) {
             parsedDate = currentUser.birthDate;
           }
-
+          
           if (parsedDate && isValid(parsedDate)) {
             setEditableBirthDate(parsedDate);
           } else {
+            console.warn("Failed to parse birthDate from currentUser:", currentUser.birthDate);
             setEditableBirthDate(undefined);
           }
         } catch (error) {
@@ -164,16 +182,22 @@ export default function ProfilePage() {
     }
     setIsSaving(true);
     const dataToUpdate: Partial<UserProfile> = {
+      profileName: editableProfileName.trim() || currentUser.displayName,
+      displayName: editableProfileName.trim() || currentUser.displayName, 
+      bio: editableBio.trim(),
+      kakoShowId: editableKakoShowId.trim(), 
+      country: editableCountry,
+      gender: editableGender,
+      phoneNumber: editablePhoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''), 
       updatedAt: serverTimestamp(),
     };
 
-    if (editableCountry) dataToUpdate.country = editableCountry;
-    if (editableGender) dataToUpdate.gender = editableGender;
-    if (editableBirthDate) dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
-    if (editablePhoneNumber.trim()) dataToUpdate.phoneNumber = editablePhoneNumber.trim().replace(/(?!^\+)[^\d]/g, '');
+    if (editableBirthDate && isValid(editableBirthDate)) {
+      dataToUpdate.birthDate = format(editableBirthDate, "yyyy-MM-dd");
+    }
 
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
       await updateDoc(userDocRef, dataToUpdate);
       toast({ title: "Perfil Atualizado", description: "Suas informações foram salvas." });
     } catch (error) {
@@ -198,7 +222,7 @@ export default function ProfilePage() {
   };
 
   const getInitials = (name?: string | null): string => {
-    if (!name) return "KI"; // Fallback to KI as per image
+    if (!name) return "KI"; 
     const parts = name.split(" ");
     if (parts.length > 1 && parts[0] && parts[1]) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -206,25 +230,102 @@ export default function ProfilePage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const userHandle = currentUser?.email?.split('@')[0] || "kirrombolp";
-  const userShortBio = currentUser?.bio || "UX/UI Designer, 4+ years of experience";
-  const userLocation = currentUser?.country || "Luxemburgo";
-  const joinedDateFormatted = currentUser?.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "há cerca de 2 horas";
+  const userHandle = currentUser?.email?.split('@')[0] || "usuario";
+  const userShortBio = currentUser?.bio || "Adicione uma bio...";
+  const userLocation = currentUser?.country || "Não informado";
+  const joinedDateFormatted = currentUser?.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "Data de entrada não disponível";
+  const profileName = currentUser?.profileName || currentUser?.displayName || "Usuário";
 
 
   const renderContent = () => {
+    if (!currentUser) return <LoadingSpinner />;
+
     switch (activeTab) {
       case 'visaoGeral':
         return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Sobre Mim</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <p>{currentUser?.bio || "Adicione uma bio para que as pessoas saibam mais sobre você."}</p>
-              </CardContent>
-            </Card>
+          <div className="w-full">
+             {/* Banner */}
+            <div className="h-40 bg-gradient-to-r from-primary/30 to-accent/30 relative">
+               <Image src="https://placehold.co/1200x400.png" alt="Banner do perfil" layout="fill" objectFit="cover" data-ai-hint="abstract banner" />
+               <div className="absolute top-4 right-4 flex space-x-2">
+                <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm text-foreground hover:bg-white/90 h-8 w-8 rounded-full">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Profile Info Section */}
+            <div className="bg-card px-6 pb-6">
+              <div className="flex flex-col items-center -mt-16 sm:-mt-20 relative z-10">
+                <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-card shadow-lg">
+                  <AvatarImage src={currentUser.photoURL || undefined} alt={profileName} data-ai-hint="user profile" />
+                  <AvatarFallback>{getInitials(profileName)}</AvatarFallback>
+                </Avatar>
+                
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-muted-foreground">@{userHandle}</p>
+                  <div className="flex items-center justify-center mt-1">
+                      <h1 className="text-2xl font-bold text-foreground">{profileName}</h1>
+                      {currentUser.isVerified && (
+                           <BadgeCheck className="h-5 w-5 text-pink-500 ml-1.5" />
+                      )}
+                  </div>
+                  <p className="mt-1 text-sm text-foreground/90 max-w-md mx-auto">{userShortBio}</p>
+                </div>
+
+                <div className="mt-3 text-xs text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                  <div className="flex items-center">
+                    <MapPin className="h-3.5 w-3.5 mr-1" /> {userLocation}
+                  </div>
+                  <div className="flex items-center">
+                    <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
+                  </div>
+                   {currentUser.kakoShowId && (
+                    <div className="flex items-center">
+                        <Fingerprint className="h-3.5 w-3.5 mr-1" /> Show ID: {currentUser.kakoShowId}
+                    </div>
+                   )}
+                </div>
+                
+                <div className="mt-4 flex items-center text-sm text-muted-foreground space-x-4">
+                    <div><span className="font-semibold text-foreground">{currentUser.followingCount || 0}</span> Seguindo</div>
+                    <div><span className="font-semibold text-foreground">{currentUser.followerCount || 0}</span> Seguidores</div>
+                </div>
+
+                <div className="mt-6 flex space-x-2">
+                  <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6 text-sm h-9">
+                    Inscrever-se
+                  </Button>
+                  <Button variant="outline" className="rounded-full px-6 text-sm h-9" onClick={() => setActiveTab('informacoesPessoais')}>
+                    Editar perfil
+                  </Button>
+                </div>
+              </div>
+            </div>
+             <Tabs defaultValue="posts" className="w-full mt-0">
+              <TabsList className="grid w-full grid-cols-3 sticky top-0 z-30 bg-card border-b">
+                <TabsTrigger value="posts">Posts</TabsTrigger>
+                <TabsTrigger value="respostas">Respostas</TabsTrigger>
+                <TabsTrigger value="midia">Mídia</TabsTrigger>
+              </TabsList>
+              <TabsContent value="posts" className="mt-0">
+                 <div className="space-y-0 border-x border-border">
+                    {placeholderPosts.map(post => (
+                        <PostCard key={post.id} post={{
+                            ...post,
+                            user: {
+                                name: profileName,
+                                handle: `@${userHandle}`,
+                                avatarUrl: currentUser.photoURL || "https://placehold.co/48x48.png",
+                            }
+                        }} />
+                    ))}
+                    <div className="p-6 text-center text-muted-foreground">Fim dos posts.</div>
+                </div>
+              </TabsContent>
+              <TabsContent value="respostas" className="p-6 text-center text-muted-foreground">Conteúdo de Respostas em desenvolvimento.</TabsContent>
+              <TabsContent value="midia" className="p-6 text-center text-muted-foreground">Conteúdo de Mídia em desenvolvimento.</TabsContent>
+            </Tabs>
           </div>
         );
       case 'informacoesPessoais':
@@ -235,8 +336,16 @@ export default function ProfilePage() {
               <CardDescription>Atualize seus dados pessoais. Clique em salvar após as alterações.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+               <div className="space-y-1">
+                  <Label htmlFor="profileName-profile">Nome de Perfil</Label>
+                  <Input id="profileName-profile" value={editableProfileName} onChange={(e) => setEditableProfileName(e.target.value)} />
+              </div>
+               <div className="space-y-1">
+                  <Label htmlFor="kakoShowId-profile">ID de Exibição Kako (Show ID)</Label>
+                  <Input id="kakoShowId-profile" value={editableKakoShowId} onChange={(e) => setEditableKakoShowId(e.target.value)} placeholder="Seu ID público no Kako Live" />
+              </div>
               <div className="space-y-1">
-                <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
+                <Label htmlFor="phone-number-profile">Celular (WhatsApp)</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -250,7 +359,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="pt-2 space-y-1">
-                <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
+                <Label htmlFor="gender-select-profile">Sexo</Label>
                 <Select
                   value={editableGender}
                   onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
@@ -267,7 +376,7 @@ export default function ProfilePage() {
                 </Select>
               </div>
               <div className="pt-2 space-y-1">
-                <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">Data de Nascimento</Label>
+                <Label htmlFor="birthdate-picker-profile">Data de Nascimento</Label>
                 <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -299,14 +408,14 @@ export default function ProfilePage() {
                       captionLayout="dropdown-buttons"
                       fromYear={minCalendarDate.getFullYear()}
                       toYear={maxCalendarDate.getFullYear()}
-                      defaultMonth={subYears(new Date(), 18)}
+                      defaultMonth={editableBirthDate || subYears(new Date(), 18)}
                       disabled={(date) => date > maxCalendarDate || date < minCalendarDate}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="pt-2 space-y-1">
-                <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
+                <Label htmlFor="country-select-profile">País</Label>
                 <Select
                   value={editableCountry}
                   onValueChange={(value) => setEditableCountry(value)}
@@ -324,6 +433,10 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
               </div>
+               <div className="pt-2 space-y-1">
+                <Label htmlFor="bio-profile">Bio (Sobre Mim)</Label>
+                <Textarea id="bio-profile" value={editableBio} onChange={(e) => setEditableBio(e.target.value)} rows={4} maxLength={160} placeholder="Conte um pouco sobre você..." />
+              </div>
               <Button onClick={handleSaveProfile} className="w-full mt-6" disabled={isSaving}>
                 {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                 Salvar Alterações
@@ -332,14 +445,14 @@ export default function ProfilePage() {
           </Card>
         );
       default:
-        const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
+        const activeMenuItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
         return (
-          <Card>
+          <Card className="m-6"> {/* Added margin for placeholder cards */}
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">{activeItem?.title || "Seção"}</CardTitle>
+              <CardTitle className="text-lg font-semibold">{activeMenuItem?.title || "Seção"}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
+              <p className="text-muted-foreground">Conteúdo para {activeMenuItem?.title || "esta seção"} em desenvolvimento.</p>
             </CardContent>
           </Card>
         );
@@ -348,14 +461,13 @@ export default function ProfilePage() {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-full"> {/* Main container for profile page */}
+      <div className="flex flex-col h-full">
         <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
-          {/* Left Navigation Menu */}
           <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-2 space-y-4">
             {profileMenuGroups.map((group, groupIndex) => (
-              <div key={group.groupTitle || `group-${groupIndex}`}>
+              <div key={group.groupTitle || `group-${groupIndex}`} className={cn(groupIndex > 0 && "pt-4")}>
                 {group.groupTitle && (
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2 pt-4">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
                     {group.groupTitle}
                   </h2>
                 )}
@@ -367,9 +479,9 @@ export default function ProfilePage() {
                         key={item.id}
                         variant="ghost"
                         className={cn(
-                          "w-full text-left h-auto text-sm font-medium rounded-md transition-colors",
+                          "w-full text-left h-auto text-sm font-normal rounded-md transition-colors",
                           isActive
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                             : "text-card-foreground hover:bg-card/80 bg-card shadow-sm hover:text-card-foreground",
                           "justify-between py-3 px-3"
                         )}
@@ -390,83 +502,11 @@ export default function ProfilePage() {
               </div>
             ))}
           </nav>
-
-          {/* Right Content Area */}
-          <main className="flex-1 h-full overflow-y-auto flex flex-col">
-            {/* New Profile Header */}
-            <div className="bg-card border-b"> {/* Container for banner and info below it */}
-              {/* Banner Image */}
-              <div className="h-40 bg-primary/10 relative">
-                 <Image 
-                    src="https://placehold.co/1200x400.png" 
-                    alt="Banner do Perfil" 
-                    layout="fill" 
-                    objectFit="cover" 
-                    className="opacity-75"
-                    data-ai-hint="abstract banner"
-                 />
-                <div className="absolute inset-0 bg-black/10"></div> {/* Subtle overlay */}
-                <div className="absolute top-4 right-4">
-                  <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Profile Info Below Banner */}
-              <div className="px-6">
-                <div className="flex flex-col items-center -mt-16 sm:-mt-20 relative z-10"> {/* Adjusted -mt for avatar overlap */}
-                  <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-card shadow-lg">
-                    <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "KI"} data-ai-hint="user profile" />
-                    <AvatarFallback>{getInitials(currentUser?.displayName)}</AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">@{userHandle}</p>
-                    <div className="flex items-center justify-center mt-1">
-                        <h1 className="text-2xl font-bold text-foreground">{currentUser?.profileName || currentUser?.displayName || "Kirrombolp"}</h1>
-                        {/* Placeholder for pink verified badge - using primary for now */}
-                        {currentUser?.isVerified && 
-                            <Badge className="ml-2 bg-pink-500 hover:bg-pink-600 text-white text-xs px-1.5 py-0.5">
-                                <Check className="h-3 w-3 mr-0.5" /> Verificado
-                            </Badge>
-                        }
-                    </div>
-                    <p className="text-base text-muted-foreground mt-1">{userShortBio}</p>
-                  </div>
-
-                  <div className="mt-3 text-xs text-muted-foreground flex items-center justify-center space-x-3">
-                    <div className="flex items-center">
-                      <MapPin className="h-3.5 w-3.5 mr-1" /> {userLocation}
-                    </div>
-                    <span className="text-muted-foreground/50">|</span>
-                    <div className="flex items-center">
-                      <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 flex space-x-2">
-                    <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6 text-sm h-9">
-                      Inscrever-se
-                    </Button>
-                    <Button variant="outline" className="rounded-full px-6 text-sm h-9" onClick={() => setActiveTab('informacoesPessoais')}>
-                      Editar perfil
-                    </Button>
-                  </div>
-                </div>
-                <div className="h-6"></div> {/* Spacer to push content below further down */}
-              </div>
-            </div>
-            
-            {/* Tab Specific Content */}
-            <div className="flex-1 p-6">
-              {renderContent()}
-            </div>
+          <main className="flex-1 h-full overflow-y-auto bg-background"> {/* Changed from p-6 to bg-background */}
+            {renderContent()}
           </main>
         </div>
       </div>
     </ProtectedPage>
   );
 }
-
-    

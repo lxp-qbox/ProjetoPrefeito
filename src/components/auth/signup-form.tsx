@@ -67,26 +67,29 @@ export default function SignupForm() {
         displayName: derivedProfileName,
       });
 
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(db, "accounts", user.uid); // Changed 'users' to 'accounts'
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
         profileName: derivedProfileName,
         displayName: derivedProfileName,
+        photoURL: user.photoURL,
         kakoLiveId: "", 
-        role: 'player', // Default role, can be changed in onboarding
-        adminLevel: null, // New field
+        kakoShowId: "", // Added kakoShowId
+        role: 'player', 
+        adminLevel: null,
         isVerified: false, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
         followingCount: 0,
         level: 1,
+        bio: "",
         photos: [],
         socialLinks: {},
         themePreference: 'system',
         accentColor: '#4285F4', 
-        hasCompletedOnboarding: false, // Start onboarding
+        hasCompletedOnboarding: false, 
       };
       await setDoc(userDocRef, newUserProfile);
 
@@ -192,4 +195,3 @@ export default function SignupForm() {
     </Form>
   );
 }
-

@@ -10,95 +10,92 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Fingerprint, Search, CheckCircle, UserCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
+import { db, doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { UserProfile } from "@/types";
+import type { UserProfile, KakoProfile } from "@/types";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoIdInputPage() {
-  const [kakoId, setKakoId] = useState("");
+  const [userInputShowId, setUserInputShowId] = useState(""); // Stores the Show ID entered by the user
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
-  const [profileFound, setProfileFound] = useState(false);
+  
+  const [foundKakoProfile, setFoundKakoProfile] = useState<KakoProfile | null>(null);
+  const [profileSearchAttempted, setProfileSearchAttempted] = useState(false);
 
   const router = useRouter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
   const handleSearchProfile = async () => {
-    if (!kakoId.trim()) {
+    if (!userInputShowId.trim()) {
       toast({
         title: "Atenção",
-        description: "Por favor, insira seu ID do Kako Live.",
+        description: "Por favor, insira seu ID de Exibição do Kako Live.",
         variant: "destructive",
       });
       return;
     }
     setIsSearching(true);
-    setProfileImageUrl(null); 
-    setProfileName(null);     
-    setProfileFound(false);
+    setFoundKakoProfile(null);
+    setProfileSearchAttempted(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const profilesRef = collection(db, "kakoProfiles");
+      // Query Firestore for a KakoProfile where the 'showId' field matches userInputShowId
+      const q = query(profilesRef, where("showId", "==", userInputShowId.trim()));
+      const querySnapshot = await getDocs(q);
 
-    if (kakoId.trim() === "0322d2dd57e74a028a9e72c2fae1fd9a") {
-      setProfileImageUrl("https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200");
-      setProfileName("PRESIDENTE");
-      setProfileFound(true);
-      toast({
-        title: "Perfil Encontrado!",
-        description: `ID ${kakoId} verificado para PRESIDENTE.`,
-      });
-    } else if (kakoId.trim() === "123456") {
-        setProfileImageUrl("https://placehold.co/96x96.png?text=JG"); 
-        setProfileName("João Gamer");
-        setProfileFound(true);
+      if (!querySnapshot.empty) {
+        const profileDoc = querySnapshot.docs[0];
+        const profileData = profileDoc.data() as Omit<KakoProfile, 'id'>; // Firestore data won't have 'id' field itself
+        setFoundKakoProfile({ ...profileData, id: profileDoc.id }); // profileDoc.id is the FUID
         toast({
-            title: "Perfil Encontrado!",
-            description: `ID ${kakoId} verificado para João Gamer.`,
+          title: "Perfil Encontrado!",
+          description: `ID de Exibição ${userInputShowId} verificado para ${profileData.nickname}.`,
         });
-    } else if (kakoId.trim() === "10933200") { 
-        setProfileImageUrl("https://placehold.co/96x96.png?text=M");
-        setProfileName("Usuário Master (ID Especial)");
-        setProfileFound(true);
+      } else {
         toast({
-            title: "Perfil Especial Encontrado!",
-            description: `ID ${kakoId} verificado.`,
+          title: "Perfil Não Encontrado",
+          description: `Não foi possível encontrar um perfil com o ID de Exibição ${userInputShowId}. Por favor, verifique o ID e tente novamente.`,
+          variant: "destructive",
         });
-    } else {
-      setProfileFound(false);
-      setProfileName(null);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar perfil Kako no Firestore:", error);
       toast({
-        title: "Perfil Não Encontrado",
-        description: `Não foi possível encontrar um perfil com o ID ${kakoId}. Por favor, verifique o ID e tente novamente.`,
+        title: "Erro na Busca",
+        description: "Ocorreu um erro ao tentar buscar o perfil. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsSearching(false);
     }
-    setIsSearching(false);
   };
 
   const handleContinue = async () => {
     if (!currentUser) {
-      toast({
-        title: "Erro",
-        description: "Você precisa estar logado.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
       router.push("/login");
       return;
     }
-    if (!kakoId.trim()) {
+    if (!userInputShowId.trim()) {
       toast({
         title: "Atenção",
-        description: "Por favor, insira seu ID do Kako Live.",
+        description: "Por favor, insira e busque seu ID de Exibição do Kako Live.",
+        variant: "destructive",
+      });
+      return;
+    }
+     if (!profileSearchAttempted && !foundKakoProfile) { // Ensure search was attempted or a profile already loaded
+      toast({
+        title: "Atenção",
+        description: "Por favor, clique em 'Buscar Perfil' primeiro para verificar seu ID.",
         variant: "destructive",
       });
       return;
@@ -106,33 +103,24 @@ export default function KakoIdInputPage() {
 
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      const trimmedKakoId = kakoId.trim();
+      const userDocRef = doc(db, "accounts", currentUser.uid); // Use 'accounts' collection
       
-      let adminLevelToSet: UserProfile['adminLevel'] = null;
-      // IDs for other admin levels would be checked here
-      // const ADMIN_KAKO_ID = "YOUR_ADMIN_ID_HERE"; 
-      // const SUPORTE_KAKO_ID = "YOUR_SUPORTE_ID_HERE";
-
-      if (trimmedKakoId === "10933200") {
+      let adminLevelToSet: UserProfile['adminLevel'] = currentUser.adminLevel || null;
+      if (userInputShowId.trim() === "10933200") { // Assuming 10933200 is a Show ID for master
         adminLevelToSet = 'master';
-      } 
-      // else if (trimmedKakoId === ADMIN_KAKO_ID) {
-      //   adminLevelToSet = 'admin';
-      // } else if (trimmedKakoId === SUPORTE_KAKO_ID) {
-      //   adminLevelToSet = 'suporte';
-      // }
+      }
+      // Add other checks for 'admin' or 'suporte' based on Show ID if needed
 
       const dataToUpdate: Partial<UserProfile> = {
-        kakoLiveId: trimmedKakoId,
-        profileName: profileFound && profileName ? profileName : currentUser.profileName, // Update profileName if found
-        photoURL: profileFound && profileImageUrl ? profileImageUrl : currentUser.photoURL, // Update photoURL if found
-        adminLevel: adminLevelToSet, // Set adminLevel based on Kako ID
+        kakoShowId: userInputShowId.trim(), // Store the entered Show ID
+        kakoLiveId: foundKakoProfile ? foundKakoProfile.id : "", // Store FUID if profile was found
+        profileName: foundKakoProfile ? foundKakoProfile.nickname : (currentUser.profileName || currentUser.displayName),
+        photoURL: foundKakoProfile ? foundKakoProfile.avatarUrl : currentUser.photoURL,
+        adminLevel: adminLevelToSet, 
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       };
-      // Note: We are NOT changing currentUser.role here. It's set in a previous step.
-
+      
       await updateDoc(userDocRef, dataToUpdate);
       
       toast({
@@ -155,7 +143,6 @@ export default function KakoIdInputPage() {
   const determineBackLink = () => {
     if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
     if (currentUser.role === 'host') return "/onboarding/age-verification";
-    // Default for player or if role somehow not set yet by this stage
     return "/onboarding/kako-account-check"; 
   }
 
@@ -174,12 +161,12 @@ export default function KakoIdInputPage() {
         </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
+        <CardTitle className="text-2xl font-bold">Seu ID de Exibição Kako</CardTitle>
         <CardDescription>
-          Insira seu ID do aplicativo Kako Live<br />para continuar.
+          Insira seu ID de Exibição (Show ID) do app Kako Live<br />para continuar.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -187,10 +174,10 @@ export default function KakoIdInputPage() {
         <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
           <div className="flex flex-col items-center space-y-3 mb-6">
             <Avatar className="h-24 w-24 border-2 border-primary/30">
-              {profileImageUrl && <AvatarImage src={profileImageUrl} alt={profileName || "Avatar do perfil"} data-ai-hint="user avatar" />}
+              {foundKakoProfile?.avatarUrl && <AvatarImage src={foundKakoProfile.avatarUrl} alt={foundKakoProfile.nickname} data-ai-hint="user avatar" />}
               <AvatarFallback>
-                {profileFound && profileName ? (
-                  profileName.substring(0, 2).toUpperCase()
+                {foundKakoProfile?.nickname ? (
+                  foundKakoProfile.nickname.substring(0, 2).toUpperCase()
                 ) : (
                   <UserCircle2 className="h-12 w-12 text-muted-foreground" />
                 )}
@@ -199,8 +186,8 @@ export default function KakoIdInputPage() {
             <div className="h-6 mt-2 text-center">
               {isSearching ? (
                 <p className="text-sm text-muted-foreground">Buscando...</p>
-              ) : profileFound && profileName ? (
-                <p className="text-sm font-semibold text-primary">{profileName}</p>
+              ) : foundKakoProfile?.nickname ? (
+                <p className="text-sm font-semibold text-primary">{foundKakoProfile.nickname}</p>
               ) : (
                  <p className="text-sm font-semibold text-muted-foreground">Anônimo</p>
               )}
@@ -208,43 +195,40 @@ export default function KakoIdInputPage() {
           </div>
 
           <div>
-            <Label htmlFor="kakoId" className="text-sm font-medium mb-2 block text-left">
-              ID do Kako Live
+            <Label htmlFor="kakoIdInput" className="text-sm font-medium mb-2 block text-left">
+              ID de Exibição Kako (Show ID)
             </Label>
             <div className="flex space-x-2">
               <Input
-                id="kakoId"
-                placeholder="Ex: 12345678"
-                value={kakoId}
+                id="kakoIdInput"
+                placeholder="Ex: 10763129"
+                value={userInputShowId}
                 onChange={(e) => {
-                    setKakoId(e.target.value);
-                    if(profileFound) { 
-                        setProfileFound(false);
-                        setProfileImageUrl(null);
-                        setProfileName(null);
-                    }
+                    setUserInputShowId(e.target.value);
+                    setFoundKakoProfile(null); 
+                    setProfileSearchAttempted(false);
                 }}
                 className="flex-grow h-12"
               />
               <Button
                 variant="outline"
                 onClick={handleSearchProfile}
-                disabled={isSearching || !kakoId.trim()}
+                disabled={isSearching || !userInputShowId.trim()}
                 className="shrink-0 h-12"
               >
                 {isSearching ? <LoadingSpinner size="sm" /> : <Search className="h-4 w-4" />}
-                <span className="sr-only sm:not-sr-only sm:ml-2">Buscar</span>
+                <span className="sr-only sm:not-sr-only sm:ml-2">Buscar Perfil</span>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Você pode encontrar seu ID no seu perfil do aplicativo Kako Live.
+              Você pode encontrar seu ID de Exibição no seu perfil do aplicativo Kako Live.
             </p>
           </div>
         </div>
         <Button
           onClick={handleContinue}
           className="w-full mt-auto"
-          disabled={isLoading || isSearching || !kakoId.trim()}
+          disabled={isLoading || isSearching || !userInputShowId.trim() || !profileSearchAttempted}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -260,4 +244,3 @@ export default function KakoIdInputPage() {
     </>
   );
 }
-
