@@ -8,13 +8,13 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
-import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard } from 'lucide-react';
+import { Home, Users, TicketIcon as GameIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard } from 'lucide-react'; // Renamed TicketIcon to GameIcon for clarity
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { UserProfile } from "@/types";
 import { db, doc, getDoc } from "@/lib/firebase";
-import { initialModuleStatuses, type SiteModule, type UserRole as AdminUserRole } from '@/app/admin/maintenance/offline/page';
+import { initialModuleStatuses, type SiteModule, type UserRole as AdminUserRole, type MinimumAccessLevel } from '@/app/admin/maintenance/offline/page';
 
 const roleHierarchy: Record<AdminUserRole, number> = {
   player: 0,
@@ -33,7 +33,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const [maintenanceRules, setMaintenanceRules] = useState<SiteModule[]>(initialModuleStatuses);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
   const [isReadyForContent, setIsReadyForContent] = useState(false);
-
 
   useEffect(() => {
     const fetchMaintenanceSettings = async () => {
@@ -60,12 +59,15 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
           }).filter(Boolean) as SiteModule[];
 
           setMaintenanceRules(rehydratedRules.length > 0 ? rehydratedRules : initialModuleStatuses);
+          console.log("Maintenance rules fetched from Firestore:", rehydratedRules.length > 0 ? rehydratedRules : initialModuleStatuses);
         } else {
           setMaintenanceRules(initialModuleStatuses);
+          console.log("No maintenance rules found in Firestore, using initial defaults:", initialModuleStatuses);
         }
       } catch (error) {
         console.error("Erro ao buscar configurações de manutenção:", error);
         setMaintenanceRules(initialModuleStatuses);
+         console.log("Error fetching maintenance rules, using initial defaults:", initialModuleStatuses);
       } finally {
         setIsLoadingRules(false);
       }
@@ -80,28 +82,38 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }, [pathname]);
 
+  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
+  const isOnboardingPage = pathname.startsWith('/onboarding');
+  const isAuthPage = standaloneAuthPaths.includes(pathname);
+  const isMaintenancePage = pathname === '/maintenance';
+
   useEffect(() => {
     if (authLoading || isLoadingRules) {
-      setIsReadyForContent(false);
+      setIsReadyForContent(false); // Content not ready if auth or rules are still loading
       return;
     }
 
-    const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
-    const isOnboardingPage = pathname.startsWith('/onboarding');
-    const isAuthPage = standaloneAuthPaths.includes(pathname);
-    const isMaintenancePage = pathname === '/maintenance';
+    if (isAuthPage || isOnboardingPage) {
+      if (currentUser && pathname !== '/profile' && !isOnboardingPage) { // Redirect logged-in users away from auth pages unless it's /profile or onboarding
+        // (The complex redirection from auth pages is handled within those pages themselves based on onboarding status)
+      }
+      setIsReadyForContent(true); // Auth/Onboarding pages handle their own readiness/content
+      return;
+    }
     
-    if (isAuthPage || isOnboardingPage || isMaintenancePage) {
-      setIsReadyForContent(true); // Standalone pages handle their own loading/content display
-      return;
+    if (isMaintenancePage) {
+        setIsReadyForContent(true); // Maintenance page itself can always be rendered if user lands on it
+        return;
     }
 
+    // --- User Authentication Check ---
     if (!currentUser) {
       router.replace("/login");
       setIsReadyForContent(false);
       return;
     }
-    
+
+    // --- Maintenance Mode Check ---
     let currentModuleId = '';
     if (pathname === '/' || pathname === '') currentModuleId = 'home';
     else if (pathname.startsWith('/hosts')) currentModuleId = 'hosts';
@@ -109,45 +121,52 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     else if (pathname.startsWith('/admin')) currentModuleId = 'adminPanel';
     else if (pathname === '/profile') currentModuleId = 'profile';
     else if (pathname === '/settings') currentModuleId = 'settings';
-    else if (pathname === '/messages') currentModuleId = 'messages';
+    // Add other path to module ID mappings here
 
     const moduleRule = maintenanceRules.find(rule => rule.id === currentModuleId);
+
+    console.log("Maintenance Check:", { 
+      pathname, 
+      currentModuleId, 
+      moduleRule: moduleRule ? { id: moduleRule.id, globallyOffline: moduleRule.globallyOffline, minAccess: moduleRule.minimumAccessLevelWhenOffline } : null, 
+      currentUserRole: currentUser?.role, 
+      currentUserAdminLevel: currentUser?.adminLevel 
+    });
+
 
     if (moduleRule && moduleRule.globallyOffline) {
       let userHasAccess = false;
       const userBaseRole = currentUser.role || 'player';
       const userAdminRole = currentUser.adminLevel;
+      
       const userBaseLevel = roleHierarchy[userBaseRole as AdminUserRole] ?? roleHierarchy.player;
       const userAdminLevelVal = userAdminRole ? roleHierarchy[userAdminRole as AdminUserRole] : -1; 
       const effectiveUserLevel = Math.max(userBaseLevel, userAdminLevelVal);
 
-      switch (moduleRule.minimumAccessLevelWhenOffline) {
-        case 'nobody': userHasAccess = false; break;
-        case 'master': userHasAccess = effectiveUserLevel >= roleHierarchy.master; break;
-        case 'admin': userHasAccess = effectiveUserLevel >= roleHierarchy.admin; break;
-        case 'suporte': userHasAccess = effectiveUserLevel >= roleHierarchy.suporte; break;
-        case 'host': userHasAccess = effectiveUserLevel >= roleHierarchy.host; break;
-        case 'player': userHasAccess = effectiveUserLevel === roleHierarchy.player; break; 
-        default: userHasAccess = true; 
+      if (moduleRule.minimumAccessLevelWhenOffline === 'nobody') {
+        userHasAccess = false;
+      } else if (moduleRule.minimumAccessLevelWhenOffline === 'player') { 
+        userHasAccess = effectiveUserLevel === roleHierarchy.player;
+      } else { 
+        userHasAccess = effectiveUserLevel >= roleHierarchy[moduleRule.minimumAccessLevelWhenOffline as Exclude<MinimumAccessLevel, 'nobody' | 'player'>];
       }
       
-      if (!userHasAccess && pathname !== '/maintenance') {
+      if (!userHasAccess) {
+        console.log(`Access DENIED for module ${currentModuleId}. User level: ${effectiveUserLevel}, Required: ${moduleRule.minimumAccessLevelWhenOffline}. Redirecting to /maintenance.`);
         router.replace('/maintenance');
         setIsReadyForContent(false);
         return;
+      } else {
+        console.log(`Access GRANTED for module ${currentModuleId}. User level: ${effectiveUserLevel}, Required: ${moduleRule.minimumAccessLevelWhenOffline}.`);
       }
     }
     
     setIsReadyForContent(true);
 
-  }, [authLoading, isLoadingRules, currentUser, pathname, router, maintenanceRules]);
+  }, [authLoading, isLoadingRules, currentUser, pathname, router, maintenanceRules, isAuthPage, isOnboardingPage, isMaintenancePage]);
 
-  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
-  const isOnboardingPage = pathname.startsWith('/onboarding');
-  const isAuthPage = standaloneAuthPaths.includes(pathname);
-  const isMaintenancePage = pathname === '/maintenance';
 
-  if ((authLoading || isLoadingRules) && !(isAuthPage || isOnboardingPage || isMaintenancePage)) {
+  if ((authLoading || isLoadingRules) && !isAuthPage && !isOnboardingPage && !isMaintenancePage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -163,11 +182,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       </>
     );
   }
-
-  // For maintenance page, show its content without the full app layout if it's meant to be isolated
-  // or within the main layout if that's preferred (current setting via standaloneAuthPaths not including /maintenance)
+  
   if (isMaintenancePage) {
-     // Fallback if auth context not ready, though maintenance page itself is simple
      if (authLoading || isLoadingRules) {
         return (
             <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
@@ -175,13 +191,9 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
             </div>
         );
      }
-     // If /maintenance is not standalone, wrap it with SidebarProvider to show sidebar
-     // This assumes /maintenance itself doesn't need to be fully "protected"
-     // If it IS standalone, the earlier condition (isAuthPage || isOnboardingPage || isMaintenancePage) would just render children.
-     // Based on current logic, /maintenance IS NOT standalone by default anymore
   }
 
-  // For regular app pages (including /maintenance if not handled as standalone)
+
   if (!isReadyForContent && !isAuthPage && !isOnboardingPage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
@@ -203,7 +215,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Início">
                 <Link href="/">
                   <Home className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Início</span>
+                  <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Início</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -211,15 +223,15 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Hosts">
                 <Link href="/hosts">
                   <Users className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Hosts</span>
+                  <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Hosts</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Jogos">
                 <Link href="/bingo">
-                  <TicketIcon className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Jogos</span>
+                  <GameIcon className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
+                  <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Jogos</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -227,7 +239,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Mensagem">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Mensagem</span>
+                  <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Mensagem</span>
                    {hasUnreadMessages && (
                     <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-500 ring-1 ring-sidebar pointer-events-none group-data-[collapsible=icon]:top-3 group-data-[collapsible=icon]:right-3 group-data-[collapsible=icon]:h-2.5 group-data-[collapsible=icon]:w-2.5" />
                   )}
@@ -244,7 +256,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                     <SidebarMenuButton asChild tooltip="Painel Admin">
                       <Link href="/admin">
                         <LayoutDashboard className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                        <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Painel</span>
+                        <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Painel</span>
                       </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -253,7 +265,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Perfil">
                      <Link href="/profile">
                        <UserCircle2 className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Perfil</span>
+                       <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Perfil</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -261,7 +273,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Config">
                      <Link href="/settings">
                        <Settings className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Config</span>
+                       <span className="transition-all ease-out duration-500 delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]">Config</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -282,3 +294,5 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     </SidebarProvider>
   );
 }
+
+    
