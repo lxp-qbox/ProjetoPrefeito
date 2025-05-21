@@ -121,8 +121,27 @@ export default function AdminBingoAdminPage() {
         contentDescription = "Esta seção permitirá visualizar e controlar uma tela de sorteio em tempo real."
         break;
       default:
-        // Fallback to Partidas if activeTab is somehow invalid
-        return renderBingoAdminContent(); // This could cause a loop if default isn't handled carefully
+        // Fallback to Partidas content if activeTab is somehow invalid
+        // This prevents infinite recursion.
+        return (
+            <div className="space-y-6 p-6 bg-background h-full">
+              <h1 className="text-2xl font-semibold text-foreground">Administração de Bingo (Padrão)</h1>
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TicketIcon className="mr-2 h-6 w-6 text-primary" />
+                    Gerenciamento de Partidas e Configurações de Bingo
+                  </CardTitle>
+                  <CardDescription>
+                    Visualização padrão. Selecione uma opção no menu.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>Selecione uma opção específica no menu para ver mais detalhes.</p>
+                </CardContent>
+              </Card>
+            </div>
+          );
     }
 
     // Generic placeholder for other sections
