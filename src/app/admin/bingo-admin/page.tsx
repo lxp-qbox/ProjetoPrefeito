@@ -11,11 +11,11 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
-  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, // For original bingo admin card
+  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance } from '@/types'; // Import new types
+import type { GeneratedBingoCard, CardUsageInstance } from '@/types';
 
 interface BingoAdminMenuItem {
   id: string;
@@ -72,11 +72,12 @@ export default function AdminBingoAdminPage() {
     {
       groupTitle: "GESTÃO DE BINGO",
       items: [
-        { id: "bingoPartidas", title: "Partidas", icon: ListChecks, link: "#partidas" },
-        { id: "bingoCartelas", title: "Cartelas Geradas", icon: LayoutGrid, link: "#cartelas" },
-        { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#ganhadores" },
-        { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bolas" },
-        { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#sorteio" },
+        { id: "bingoPartidas", title: "Partidas", icon: ListChecks, link: "#bingoPartidas" },
+        { id: "bingoCartelas75", title: "Cartelas Bingo 75", icon: LayoutGrid, link: "#bingoCartelas75" },
+        { id: "bingoCartelas90", title: "Cartelas Bingo 90", icon: LayoutGrid, link: "#bingoCartelas90" },
+        { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#bingoGanhadores" },
+        { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bingoBolasSorteadas" },
+        { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#bingoTelaSorteio" },
       ],
     },
   ];
@@ -90,9 +91,11 @@ export default function AdminBingoAdminPage() {
     if (validTab) {
       setActiveTab(hash);
     } else {
-      setActiveTab('bingoPartidas'); 
-      if (pathname === '/admin/bingo-admin' && window.location.hash !== '#bingoPartidas' && window.location.hash !== '') {
-         router.replace('/admin/bingo-admin#bingoPartidas', { scroll: false });
+      // Fallback to the first item in the menu if hash is invalid or not present
+      const firstItemId = bingoSpecificMenuGroups[0]?.items[0]?.id || 'bingoPartidas';
+      setActiveTab(firstItemId); 
+      if (pathname === '/admin/bingo-admin' && window.location.hash !== `#${firstItemId}` && window.location.hash !== '') {
+         router.replace(`/admin/bingo-admin#${firstItemId}`, { scroll: false });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,17 +145,45 @@ export default function AdminBingoAdminPage() {
             </Card>
           </div>
         );
-      case 'bingoCartelas':
+      case 'bingoCartelas75':
         return (
           <div className="space-y-6 p-6 bg-background h-full">
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <LayoutGrid className="mr-2 h-6 w-6 text-primary" />
-                  Cartelas de Bingo Geradas
+                  Cartelas de Bingo 75 Bolas
                 </CardTitle>
                 <CardDescription>
-                  Visualize informações sobre as cartelas de bingo geradas no sistema.
+                  Gerencie e visualize cartelas específicas para jogos de bingo de 75 bolas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Conteúdo para gerenciamento de cartelas de 75 bolas em desenvolvimento...</p>
+                 <p className="mt-4 text-sm text-muted-foreground">
+                    Funcionalidades planejadas:
+                    <ul className="list-disc list-inside ml-4 mt-2">
+                    <li>Visualizar cartelas de 75 bolas existentes.</li>
+                    <li>Gerar novas cartelas de 75 bolas.</li>
+                    <li>Importar/Exportar cartelas.</li>
+                    <li>Verificar padrões de cartelas.</li>
+                    </ul>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      case 'bingoCartelas90':
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <LayoutGrid className="mr-2 h-6 w-6 text-primary" />
+                  Cartelas de Bingo 90 Bolas Geradas
+                </CardTitle>
+                <CardDescription>
+                  Visualize informações sobre as cartelas de bingo de 90 bolas geradas no sistema.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -209,9 +240,11 @@ export default function AdminBingoAdminPage() {
         );
       case 'bingoGanhadores':
         contentTitle = "Registro de Ganhadores";
+        contentDescription = "Gerencie e visualize o histórico de ganhadores dos jogos de bingo.";
         break;
       case 'bingoBolasSorteadas':
         contentTitle = "Histórico de Bolas Sorteadas";
+        contentDescription = "Acesse o registro de todas as bolas sorteadas em cada partida.";
         break;
       case 'bingoTelaSorteio':
         contentTitle = "Interface da Tela de Sorteio";
@@ -306,3 +339,6 @@ export default function AdminBingoAdminPage() {
     </div>
   );
 }
+
+
+    
