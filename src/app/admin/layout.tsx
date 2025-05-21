@@ -4,7 +4,7 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion, ServerOff } from "lucide-react";
+import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion, ServerOff, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
 import AdminBansPage from "@/app/admin/actions/bans/page";
 import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content";
 import AdminMaintenanceOfflinePage from "@/app/admin/maintenance/offline/page";
+import AdminKakoLiveLinkTesterPage from "@/app/admin/kako-live/link-tester/page";
 
 
 interface AdminMenuItem {
@@ -57,6 +58,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
     groupTitle: "Kako Live",
     items: [
         { title: "Lista de dados", icon: Database, link: "/admin/kako-live/data-list" },
+        { title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
     ]
   },
   {
@@ -113,13 +115,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       setContentToRender(<AdminBansPage />);
     } else if (pathname === "/admin/kako-live/data-list") {
         setContentToRender(<AdminKakoLiveDataListPageContent />);
-    } else if (pathname === "/admin/maintenance/offline") {
+    } else if (pathname === "/admin/kako-live/link-tester") {
+        setContentToRender(<AdminKakoLiveLinkTesterPage />);
+    }
+     else if (pathname === "/admin/maintenance/offline") {
         setContentToRender(<AdminMaintenanceOfflinePage />);
     }
     else if (pathname.startsWith("/admin/hosts/") && pathname.endsWith("/edit")) {
       setContentToRender(children);
     }
     else {
+      // For any other /admin/* route not explicitly handled,
+      // render its specific page content via `children`.
+      // This is important if you add more pages without updating this conditional logic.
       setContentToRender(children);
     }
   }, [pathname, children]);
@@ -145,7 +153,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedPage>
       <TooltipProvider delayDuration={0}>
-        <div className="flex flex-col h-full">
+        <div className={cn(
+            "flex flex-col h-full",
+            (pathname === "/admin/messages" || pathname.startsWith("/admin")) ? "p-0" : "px-4 py-8" 
+          )}>
           <div className={cn("flex-grow flex flex-col md:flex-row gap-0 overflow-hidden h-full")}>
             <nav className={cn(
               "flex flex-col flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto transition-all duration-300 ease-in-out",
@@ -166,7 +177,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = pathname === item.link || (item.link === "/admin/hosts" && pathname === "/admin") || (item.link !== "/admin" && pathname.startsWith(item.link) && item.link !== "/admin/hosts");
+                        const isActive = pathname === item.link ||
+                                         (item.link === "/admin/hosts" && pathname === "/admin") ||
+                                         (item.link !== "/admin" && item.link !== "/admin/hosts" && pathname.startsWith(item.link));
                         const isLogout = item.link === "#logout";
 
                         const buttonAction = isLogout ? handleLogout : () => {
@@ -185,7 +198,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                     : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
                                   isCollapsed
                                     ? "flex items-center justify-center p-3 h-14"
-                                    : "justify-between py-3 px-2.5"
+                                    : "justify-between py-3 px-3" 
                                 )}
                                 asChild={!isLogout}
                                 onClick={isLogout ? buttonAction : undefined}
@@ -248,5 +261,3 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
-
-    
