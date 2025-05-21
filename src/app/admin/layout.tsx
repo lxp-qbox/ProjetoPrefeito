@@ -29,11 +29,11 @@ import {
   MailQuestion,
   ServerOff,
   RefreshCw,
-  ListFilter, // Added ListFilter
-  BarChart3,  // Added BarChart3
-  PlusCircle, // Added PlusCircle
-  ListChecks, // Added ListChecks
-  Settings as SettingsIconLucide // Added SettingsIconLucide
+  ListFilter, 
+  BarChart3,  
+  PlusCircle, 
+  ListChecks, 
+  Settings as SettingsIconLucide
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -42,17 +42,18 @@ import type { ReactNode } from 'react';
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Page content components are no longer imported here
-// They will be rendered as children by Next.js App Router
+// Page content components are imported here for conditional rendering
+import AdminHostsPageContent from "./hosts/page-content";
+// Removed direct import for AdminBingoAdminPage as it's handled by {children} now
 
 interface AdminMenuItem {
   id: string;
   title: string;
   icon: React.ElementType;
   link?: string;
-  currentValue?: string; // For items like "Idioma"
-  action?: () => void; // For items like "Sair"
-  separatorAbove?: boolean; // To add a separator before this item
+  currentValue?: string; 
+  action?: () => void; 
+  separatorAbove?: boolean; 
 }
 
 interface AdminMenuGroup {
@@ -66,7 +67,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  // contentToRender state and its useEffect are removed
+  const [activeTab, setActiveTab] = useState<string>(pathname);
+
+  useEffect(() => {
+    setActiveTab(pathname);
+  }, [pathname]);
+
 
   const adminMenuGroups: AdminMenuGroup[] = [
     {
@@ -94,7 +100,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
       ]
     },
-    { // New Bingo Admin Group
+    { 
       groupTitle: "BINGO", 
       items: [
         { id: "bingoAdminMain", title: "Administração Bingo", icon: TicketIcon, link: "/admin/bingo-admin"},
@@ -135,6 +141,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       item.action();
     } else if (item.link) {
       router.push(item.link);
+      setActiveTab(item.link);
     }
   };
 
@@ -152,6 +159,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <Link href="/">Voltar para Início</Link>
           </Button>
         </div>
+      </ProtectedPage>
+    );
+  }
+  
+  // If the path is specifically /admin/bingo-admin, render only its children.
+  // This allows /admin/bingo-admin/page.tsx to define its own full-page layout.
+  if (pathname === '/admin/bingo-admin') {
+    return (
+      <ProtectedPage>
+         <TooltipProvider delayDuration={0}>
+            {children}
+         </TooltipProvider>
       </ProtectedPage>
     );
   }
@@ -180,11 +199,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = (pathname === item.link) ||
-                                         (item.link === "/admin" && pathname === "/admin/hosts") || 
-                                         (item.id === "dashboard" && (pathname === "/admin" || pathname === "/admin/hosts")) ||
-                                         (item.id === "bingoAdminMain" && pathname === "/admin/bingo-admin") ||
-                                         (item.link && item.link !== "/admin" && item.link !== "/admin/hosts" && pathname.startsWith(item.link) && item.link.length > "/admin".length); 
+                        const isActive = activeTab === item.link || (item.id === "dashboard" && (pathname === "/admin" || pathname === "/admin/hosts")); 
                         
                         return (
                           <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
@@ -207,12 +222,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                         <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
                                         {!isCollapsed && item.title}
                                     </div>
-                                    {!isCollapsed && !item.action && (
+                                    {!isCollapsed && !item.action && item.id !== 'logout' ? (
                                       <div className="flex items-center ml-auto">
                                         {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                       </div>
-                                    )}
+                                    ) : null }
                                 </div>
                               </Button>
                             </TooltipTrigger>
@@ -241,8 +256,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </div>
             </nav>
 
-            <main className="flex-grow overflow-y-auto">
-              {/* Content is now rendered directly by Next.js App Router */}
+            <main className="flex-grow h-full overflow-y-auto">
               {children}
             </main>
           </div>
@@ -251,5 +265,3 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
-
-    
