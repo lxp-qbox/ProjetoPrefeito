@@ -2,28 +2,27 @@
 export interface Game {
   id: string;
   title: string;
-  startTime: Date; // For upcoming: start time. For ended: can be original start time or actual end time.
-  status: 'Upcoming' | 'Live' | 'Ended' | 'Aberta'; // Added 'Aberta' status
+  startTime: Date; 
+  status: 'Upcoming' | 'Live' | 'Ended' | 'Aberta'; 
   hostedBy?: string;
-  description?: string; // General game description
+  description?: string; 
   prize?: string;
   
-  // Fields for Bingo Page
   participants?: number;
-  winners?: string; // e.g., "João Silva" or "2 pessoas"
-  additionalInfo?: string; // e.g., "24 participantes!" for the "Next Game" card
-  startTimeDisplay?: string; // e.g., "20:00" for display
-  endTimeDisplay?: string; // e.g., "16:30" for display for finished games
+  winners?: string; 
+  additionalInfo?: string; 
+  startTimeDisplay?: string; 
+  endTimeDisplay?: string; 
 
-  // Fields for Game Play Page
   generatedCards?: number;
   countdownSeconds?: number;
+  // registeredCardIds?: string[]; // Optional: To link game to specific cards in generatedBingoCards
 }
 
 export interface SupportTicket {
   subject: string;
   message: string;
-  userId?: string; // Optional: associate ticket with user
+  userId?: string; 
   createdAt: Date;
 }
 
@@ -35,60 +34,63 @@ export interface ReceivedGift {
   dataAiHint?: string;
 }
 
-export interface Host { // This type is for the public-facing host list (/hosts page)
-  id: string; // UserProfile.uid, NOT Kako Live userId
+export interface Host { 
+  id: string; 
   rankPosition: number; 
-  name: string; // UserProfile.profileName
-  avatarUrl: string; // UserProfile.photoURL
+  name: string; 
+  avatarUrl: string; 
   dataAiHint?: string;
   avgViewers: number;
-  timeStreamed: number; // in hours
+  timeStreamed: number; 
   allTimePeakViewers: number;
   hoursWatched: string; 
-  rank: number; // UserProfile.level or derived rank
+  rank: number; 
   followersGained: number;
   totalFollowers: string; 
   totalViews: string; 
-  kakoLiveFuid?: string; // UserProfile.kakoLiveId (FUID)
-  kakoLiveRoomId?: string; // UserProfile.kakoLiveRoomId
-  kakoShowId?: string; // UserProfile.kakoShowId
-  bio?: string; // UserProfile.bio
-  streamTitle?: string; // Maybe stored in a separate 'streams' collection or fetched live
+  kakoLiveFuid?: string; 
+  kakoLiveRoomId?: string; 
+  bio?: string; 
+  streamTitle?: string; 
   likes?: number; 
-  giftsReceived?: ReceivedGift[]; // This might be dynamic per stream session
-  createdAt?: any; // Firestore Timestamp from UserProfile
-  lastSeen?: any; // Firestore Timestamp from UserProfile
+  giftsReceived?: ReceivedGift[]; 
+  createdAt?: any; 
+  lastSeen?: any; 
   source?: 'kakoLive' | 'manual'; 
   totalDonationsValue?: number; 
 }
 
-export interface UserProfile { // Stored in 'accounts' collection, document ID is Firebase Auth UID
-  uid: string; // Firebase Auth UID
+export interface UserProfile { 
+  uid: string; 
   email?: string | null;
-  role?: 'player' | 'host'; // Base role
-  adminLevel?: 'master' | 'admin' | 'suporte' | null; // Hierarchical admin level
-  kakoLiveId?: string;       // User's Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...")
-  kakoShowId?: string;       // User's Kako Live Show ID (user-facing, searchable ID, e.g., "10763129")
-  kakoLiveRoomId?: string;   // User's Kako Live Room ID, if applicable (especially for hosts)
-  profileName?: string;      // Preferred display name in this app (can be from Kako, or set by user)
-  displayName?: string | null; // From Firebase Auth, should ideally be synced with profileName
-  photoURL?: string | null;    // From Firebase Auth, for avatar (can be from Kako, or uploaded)
-  profileHeader?: string;    // URL for a profile header image
-  bio?: string;              // User's bio for this platform (max 160 chars)
-  isVerified?: boolean;      // If the user is verified on this platform
-  level?: number;            // User's level on this platform
-  followerCount?: number;    // Followers on this platform
-  followingCount?: number;   // Following on this platform
-  photos?: string[];         // URLs for additional profile photos on this platform
+  role?: 'player' | 'host'; 
+  adminLevel?: 'master' | 'admin' | 'suporte' | null; 
+  
+  showId?: string;          // User's Kako Live Show ID (e.g., "10763129") - Primary link to KakoProfile
+  kakoLiveId?: string;      // User's Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Stored after linking
+  kakoLiveRoomId?: string;  // User's Kako Live Room ID for hosts
+
+  profileName?: string;      
+  displayName?: string | null; 
+  photoURL?: string | null;    
+  level?: number;            // This will be dynamically populated from linked KakoProfile
+  
+  profileHeader?: string;    
+  bio?: string;              
+  isVerified?: boolean;      
+  followerCount?: number;    
+  followingCount?: number;   
+  followingIds?: string[]; // Array of user IDs the current user is following
+  photos?: string[];         
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay';
-  birthDate?: string;        // YYYY-MM-DD
+  birthDate?: string;        
   country?: string;
   phoneNumber?: string;
-  hostStatus?: 'approved' | 'pending_review' | 'banned'; // Status for hosts
-  isBanned?: boolean; // General ban status for any user
+  hostStatus?: 'approved' | 'pending_review' | 'banned'; 
+  isBanned?: boolean; 
   banReason?: string;
-  bannedBy?: string; // UID of admin who banned
-  bannedAt?: any; // Firestore Timestamp
+  bannedBy?: string; 
+  bannedAt?: any; 
   civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay';
   socialLinks?: {
     twitter?: string;
@@ -98,30 +100,31 @@ export interface UserProfile { // Stored in 'accounts' collection, document ID i
     twitch?: string;
   };
   themePreference?: 'light' | 'dark' | 'system';
-  accentColor?: string;      // hex
+  accentColor?: string;      
   hasCompletedOnboarding?: boolean;
-  agreedToTermsAt?: any; // Firestore Timestamp
-  createdAt?: any;           // Firestore Timestamp
-  updatedAt?: any;           // Firestore Timestamp
+  agreedToTermsAt?: any; 
+  createdAt?: any;           
+  updatedAt?: any;           
 }
 
-export interface KakoProfile { // For storing profiles fetched/scraped from Kako Live API, stored in 'kakoProfiles' collection
-  id: string; // Kako Live userId (FUID, maps to `userId` from Kako API) - THIS IS THE DOCUMENT ID
-  numId?: number; // Kako's numerical ID (maps to `numId` from Kako API)
+export interface KakoProfile { 
+  id: string; // Kako Live userId (FUID) - THIS IS THE DOCUMENT ID in 'kakoProfiles'
+  numId?: number; 
   nickname: string;
-  avatarUrl: string; // Mapped from Kako's `avatar` field
+  avatarUrl: string; 
   level?: number;
-  signature?: string; // Bio from Kako
-  gender?: number; // 1 for male, 2 for female as per Kako API example
+  signature?: string; 
+  gender?: number; 
   area?: string;
   school?: string;
-  showId?: string; // From Kako JSON, maps to their string ID - THIS IS WHAT USERS TYPE
-  isLiving?: boolean; // If they are currently live (optional, might not be in all data sources)
-  lastFetchedAt?: any; // Firestore Timestamp for when this profile was last fetched/updated
+  showId?: string; // From Kako JSON, maps to their string ID 
+  isLiving?: boolean; 
+  roomId?: string; // Optional, if available from the profile source
+  lastFetchedAt?: any; 
 }
 
 
-export interface ChatMessage { // For Host Stream Chat
+export interface ChatMessage { 
   id: string;
   user: string;
   avatar?: string;
@@ -135,10 +138,9 @@ export interface ChatMessage { // For Host Stream Chat
   userLevel?: number; 
 }
 
-// For P2P Messages Page - Types for UI
 export interface ConversationPreview {
   id: string;
-  userId: string; // ID of the other user in the conversation
+  userId: string; 
   userName: string;
   userAvatar: string;
   lastMessage: string;
@@ -148,46 +150,47 @@ export interface ConversationPreview {
   isPinned?: boolean;
 }
 
-export interface AppMessage {
+export interface AppMessage { // For P2P Messages
   id: string;
   conversationId: string;
-  senderId: string; // UID of the sender
+  senderId: string; 
   senderName: string;
   senderAvatar: string;
   text: string;
-  timestamp: any; // Firestore Timestamp or string for placeholder
-  isCurrentUser?: boolean; // Determined at render time
+  timestamp: any; 
+  isCurrentUser?: boolean; 
   status?: 'sent' | 'delivered' | 'read';
 }
 
-// Types for Firestore data structure (P2P Messages)
 export interface FirestoreConversation {
-  id?: string; // Document ID, usually auto-generated
-  participants: string[]; // Array of User UIDs
-  participantNames: { [uid: string]: string }; // For quick display in conversation list
-  participantAvatars: { [uid: string]: string | null }; // For quick display
+  id?: string; 
+  participants: string[]; 
+  participantNames: { [uid: string]: string }; 
+  participantAvatars: { [uid: string]: string | null }; 
   lastMessageText?: string;
-  lastMessageTimestamp?: any; // Firestore Server Timestamp
-  lastMessageSenderId?: string; // UID of the sender of the last message
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
+  lastMessageTimestamp?: any; 
+  lastMessageSenderId?: string; 
+  createdAt: any; 
+  updatedAt: any; 
 }
 
-// Feed Types
-export interface UserSummary {
-  name: string;
-  handle: string;
-  avatarUrl: string;
-  dataAiHint?: string; // For user avatar image search
+export interface FirestoreMessage { // For P2P Messages
+  id?: string; // Message document ID
+  senderId: string; 
+  text: string;     
+  timestamp: any;   
+  imageUrl?: string; 
 }
 
 export interface FeedPost {
-  id: string;
-  user: UserSummary;
+  id: string; 
+  userId?: string; // UID of the author from 'accounts' collection
+  user: UserSummary; 
+  postTitle?: string;
   content: string;
-  timestamp: string;
+  timestamp: any; 
   imageUrl?: string;
-  imageAiHint?: string; // For post image search
+  imageAiHint?: string;
   stats: {
     replies: number;
     retweets: number;
@@ -195,31 +198,64 @@ export interface FeedPost {
   };
 }
     
-// For Twitter-like right sidebar
+export interface UserSummary {
+  name: string;
+  handle: string; // For user's role/title or @username
+  avatarUrl: string;
+  dataAiHint?: string; 
+}
+
 export interface Trend {
   id: string;
-  category: string;
+  category?: string;
   topic: string;
   posts?: string; 
+  icon?: React.ElementType;
 }
 
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string;
+  handle: string; // For user's description/role
   avatarUrl: string;
   dataAiHint?: string;
 }
 
-// For Admin Panel Bans
 export interface BanEntry {
-  id: string; // Document ID (same as user ID)
+  id: string; 
   userId: string;
   userName?: string;
   userAvatar?: string | null;
   reason: string;
-  bannedByUid: string; // UID of admin who issued ban
-  bannedByName?: string; // Name of admin
-  bannedAt: any; // Firestore Timestamp
-  expiresAt?: any | null; // Firestore Timestamp, optional
+  bannedByUid: string; 
+  bannedByName?: string; 
+  bannedAt: any; 
+  expiresAt?: any | null; 
+}
+
+export interface SiteModule {
+  id: string;
+  name: string;
+  icon: React.ElementType;
+  globallyOffline: boolean;
+  isHiddenFromMenu: boolean;
+  minimumAccessLevelWhenOffline: MinimumAccessLevel;
+}
+export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
+export type MinimumAccessLevel = UserRole | 'nobody';
+
+// New types for Generated Bingo Cards
+export interface CardUsageInstance {
+  userId: string; // UID of the player who used the card
+  gameId: string; // ID of the game/match it was used in
+  timestamp: any;   // Firestore Timestamp of when it was used
+  isWinner?: boolean; // Optional: if you track wins per card usage
+}
+
+export interface GeneratedBingoCard {
+  id: string; // Unique ID for the card document (e.g., hash or UUID)
+  cardNumbers: (number | null)[][]; // The 3x9 array of numbers
+  createdAt: any; // Firestore Timestamp
+  generatedByIpAddress?: string; // IP address of the generator (handle privacy)
+  usageHistory: CardUsageInstance[]; // Array of usage instances
 }

@@ -4,21 +4,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, // For original bingo admin card
-  LayoutGrid, Trophy, Dice5, PlaySquare // For new bingo menu
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import type { GeneratedBingoCard, CardUsageInstance } from '@/types'; // Import new types
 
 interface BingoAdminMenuItem {
   id: string;
   title: string;
   icon: React.ElementType;
-  link?: string; // Will be used for hash navigation within this page
+  link?: string; 
   action?: () => void;
 }
 
@@ -27,6 +30,38 @@ interface BingoAdminMenuGroup {
   items: BingoAdminMenuItem[];
   isBottomSection?: boolean;
 }
+
+// Sample data for GeneratedBingoCard
+const placeholderGeneratedCards: GeneratedBingoCard[] = [
+  {
+    id: 'card-uuid-001',
+    cardNumbers: [
+      [5, null, 30, null, 49, null, 61, null, 81],
+      [8, 17, null, 32, null, 53, null, 89, null],
+      [null, 19, 22, null, 42, null, 55, null, 84]
+    ],
+    createdAt: new Date(),
+    generatedByIpAddress: '192.168.1.101',
+    usageHistory: [
+      { userId: 'player123', gameId: 'game789', timestamp: new Date(), isWinner: false },
+      { userId: 'player456', gameId: 'game789', timestamp: new Date(), isWinner: true },
+    ]
+  },
+  {
+    id: 'card-uuid-002',
+    cardNumbers: [
+      [1, 20, null, 33, null, 50, 65, null, 88],
+      [null, 15, 25, 35, 45, null, 68, null, 82],
+      [7, null, 28, null, 48, 58, null, 77, null]
+    ],
+    createdAt: new Date(Date.now() - 86400000), // Yesterday
+    generatedByIpAddress: '203.0.113.45',
+    usageHistory: [
+      { userId: 'player789', gameId: 'gameABC', timestamp: new Date(), isWinner: false },
+    ]
+  }
+];
+
 
 export default function AdminBingoAdminPage() {
   const router = useRouter();
@@ -38,30 +73,30 @@ export default function AdminBingoAdminPage() {
       groupTitle: "GESTÃO DE BINGO",
       items: [
         { id: "bingoPartidas", title: "Partidas", icon: ListChecks, link: "#partidas" },
-        { id: "bingoCartelas", title: "Cartelas", icon: LayoutGrid, link: "#cartelas" },
+        { id: "bingoCartelas", title: "Cartelas Geradas", icon: LayoutGrid, link: "#cartelas" },
         { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#ganhadores" },
         { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bolas" },
         { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#sorteio" },
       ],
     },
-    // Removed general admin links, as they are in the main app sidebar
   ];
 
   const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
+  const [generatedCards, setGeneratedCards] = useState<GeneratedBingoCard[]>(placeholderGeneratedCards);
 
   useEffect(() => {
-    const hash = window.location.hash.substring(1); // Get id from #
+    const hash = window.location.hash.substring(1); 
     const validTab = bingoSpecificMenuGroups.flatMap(g => g.items).find(item => item.id === hash);
     if (validTab) {
       setActiveTab(hash);
     } else {
-      setActiveTab('bingoPartidas'); // Default tab
+      setActiveTab('bingoPartidas'); 
       if (pathname === '/admin/bingo-admin' && window.location.hash !== '#bingoPartidas' && window.location.hash !== '') {
          router.replace('/admin/bingo-admin#bingoPartidas', { scroll: false });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); // Only run on pathname change, hash changes handled by handleMenuClick
+  }, [pathname]); 
 
   const handleMenuClick = (item: BingoAdminMenuItem) => {
     if (item.action) {
@@ -71,7 +106,7 @@ export default function AdminBingoAdminPage() {
       setActiveTab(newTabId);
       router.push(`/admin/bingo-admin#${newTabId}`, { scroll: false });
     } else if (item.link) {
-        router.push(item.link); // For any external links if added later
+        router.push(item.link); 
     }
   };
 
@@ -108,8 +143,70 @@ export default function AdminBingoAdminPage() {
           </div>
         );
       case 'bingoCartelas':
-        contentTitle = "Gerenciamento de Cartelas de Bingo";
-        break;
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <LayoutGrid className="mr-2 h-6 w-6 text-primary" />
+                  Cartelas de Bingo Geradas
+                </CardTitle>
+                <CardDescription>
+                  Visualize informações sobre as cartelas de bingo geradas no sistema.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 p-3 border border-amber-500 bg-amber-50 rounded-md">
+                    <div className="flex items-center">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 mr-2" />
+                        <p className="text-sm text-amber-700">
+                        <strong>Nota:</strong> O rastreamento de IP tem implicações de privacidade. Certifique-se de estar em conformidade com as leis aplicáveis (ex: GDPR) e de informar os usuários em sua política de privacidade.
+                        </p>
+                    </div>
+                </div>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID da Cartela</TableHead>
+                        <TableHead>Data de Criação</TableHead>
+                        <TableHead>IP de Geração</TableHead>
+                        <TableHead className="text-center">Usos</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {generatedCards.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center h-24">
+                            Nenhuma cartela gerada encontrada.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        generatedCards.map((card) => (
+                          <TableRow key={card.id}>
+                            <TableCell className="font-mono text-xs">{card.id}</TableCell>
+                            <TableCell>{card.createdAt instanceof Date ? card.createdAt.toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
+                            <TableCell>{card.generatedByIpAddress || 'N/A'}</TableCell>
+                            <TableCell className="text-center">{card.usageHistory.length}</TableCell>
+                            <TableCell>
+                              <Button variant="outline" size="sm" className="h-7 text-xs">
+                                <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                 <p className="mt-4 text-xs text-muted-foreground">
+                  Esta tabela mostrará as cartelas conforme são registradas no sistema pelo backend. A funcionalidade de registro real e listagem do banco de dados está em desenvolvimento.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case 'bingoGanhadores':
         contentTitle = "Registro de Ganhadores";
         break;
@@ -121,8 +218,6 @@ export default function AdminBingoAdminPage() {
         contentDescription = "Esta seção permitirá visualizar e controlar uma tela de sorteio em tempo real."
         break;
       default:
-        // Fallback to Partidas content if activeTab is somehow invalid
-        // This prevents infinite recursion.
         return (
             <div className="space-y-6 p-6 bg-background h-full">
               <h1 className="text-2xl font-semibold text-foreground">Administração de Bingo (Padrão)</h1>
@@ -150,8 +245,6 @@ export default function AdminBingoAdminPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center">
-              {/* Dynamically choose an icon or use a generic one */}
-              {activeTab === 'bingoCartelas' && <LayoutGrid className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoGanhadores' && <Trophy className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoBolasSorteadas' && <Dice5 className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoTelaSorteio' && <PlaySquare className="mr-2 h-6 w-6 text-primary" />}
