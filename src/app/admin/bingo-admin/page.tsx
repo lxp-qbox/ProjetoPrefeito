@@ -7,15 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
-  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3,
+  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance } from '@/types';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
 
 interface BingoAdminMenuItem {
   id: string;
@@ -37,25 +43,25 @@ const placeholderGeneratedCards: GeneratedBingoCard[] = [
     id: 'card-uuid-001',
     cardNumbers: [
       [5, null, 30, null, 49, null, 61, null, 81],
-      [8, 17, null, 32, null, 53, null, 89, null],
+      [8, 17, null, 32, null, 53, null, 70, 89],
       [null, 19, 22, null, 42, null, 55, null, 84]
     ],
     creatorId: 'user-creator-123',
     createdAt: new Date(),
     usageHistory: [
       { userId: 'player123', gameId: 'game789', timestamp: new Date(), isWinner: false },
-      { userId: 'player456', gameId: 'game789', timestamp: new Date(), isWinner: true },
+      { userId: 'player456', gameId: 'gameXYZ', timestamp: new Date(Date.now() - 3600000), isWinner: true },
     ],
     timesAwarded: 1,
     awardsHistory: [
-      { gameId: 'game789', userId: 'player456', timestamp: new Date() }
+      { gameId: 'gameXYZ', userId: 'player456', timestamp: new Date(Date.now() - 3600000) }
     ]
   },
   {
     id: 'card-uuid-002',
     cardNumbers: [
       [1, 20, null, 33, null, 50, 65, null, 88],
-      [null, 15, 25, 35, 45, null, 68, null, 82],
+      [null, 15, 25, 35, 45, null, 68, 72, 82],
       [7, null, 28, null, 48, 58, null, 77, null]
     ],
     creatorId: 'system-generator',
@@ -100,6 +106,8 @@ export default function AdminBingoAdminPage() {
 
   const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
   const [generatedCards, setGeneratedCards] = useState<GeneratedBingoCard[]>(placeholderGeneratedCards);
+  const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   useEffect(() => {
     const hash = window.location.hash.substring(1); 
@@ -126,6 +134,11 @@ export default function AdminBingoAdminPage() {
     } else if (item.link) {
         router.push(item.link); 
     }
+  };
+
+  const handleViewCardDetails = (card: GeneratedBingoCard) => {
+    setSelectedCardForDetails(card);
+    setIsDetailModalOpen(true);
   };
 
   const renderBingoAdminContent = () => {
@@ -232,7 +245,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs">
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -307,6 +320,7 @@ export default function AdminBingoAdminPage() {
   };
 
   return (
+    <>
     <div className="flex flex-col md:flex-row h-full gap-0 overflow-hidden">
       <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
         {bingoSpecificMenuGroups.map((group, groupIndex) => (
@@ -348,7 +362,125 @@ export default function AdminBingoAdminPage() {
         {renderBingoAdminContent()}
       </main>
     </div>
+    {selectedCardForDetails && (
+        <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+          <DialogContent className="sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Detalhes da Cartela: <span className="font-mono text-primary">{selectedCardForDetails.id}</span></DialogTitle>
+              <DialogDescription>
+                Informações completas da cartela de bingo selecionada.
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[calc(80vh-100px)] pr-4"> {/* Adjusted max-h for scroll area */}
+              <div className="space-y-6 py-4">
+                
+                {/* Visual Card Grid */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Visualização da Cartela</h3>
+                  <div className="grid grid-cols-9 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md mx-auto">
+                    {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
+                      row.map((cell, colIndex) => (
+                        <div
+                          key={`detail-card-${rowIndex}-${colIndex}`}
+                          className={cn(
+                            "flex items-center justify-center h-12 text-base font-medium aspect-square",
+                            cell === null ? 'bg-primary/10' : 'bg-card text-primary'
+                          )}
+                        >
+                          {cell !== null ? cell : ""}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Basic Information */}
+                <Card>
+                  <CardHeader><CardTitle className="text-md">Informações Básicas</CardTitle></CardHeader>
+                  <CardContent className="text-sm space-y-2">
+                    <p><strong>ID do Criador:</strong> {selectedCardForDetails.creatorId}</p>
+                    <p><strong>Data de Criação:</strong> {selectedCardForDetails.createdAt instanceof Date ? format(selectedCardForDetails.createdAt, "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : 'N/A'}</p>
+                    <p><strong>Total de Vezes Premiada:</strong> {selectedCardForDetails.timesAwarded}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Usage History */}
+                <Card>
+                  <CardHeader><CardTitle className="text-md">Histórico de Uso ({selectedCardForDetails.usageHistory.length})</CardTitle></CardHeader>
+                  <CardContent>
+                    {selectedCardForDetails.usageHistory.length > 0 ? (
+                      <div className="rounded-md border overflow-x-auto max-h-60">
+                        <Table className="text-xs">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID do Jogo</TableHead>
+                              <TableHead>ID do Usuário</TableHead>
+                              <TableHead>Data/Hora</TableHead>
+                              <TableHead>Foi Ganhador?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedCardForDetails.usageHistory.map((usage, index) => (
+                              <TableRow key={`usage-${index}`}>
+                                <TableCell>{usage.gameId}</TableCell>
+                                <TableCell>{usage.userId}</TableCell>
+                                <TableCell>{usage.timestamp instanceof Date ? format(usage.timestamp, "dd/MM/yyyy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
+                                <TableCell>{usage.isWinner ? "Sim" : "Não"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhum histórico de uso registrado.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Awards History */}
+                <Card>
+                  <CardHeader><CardTitle className="text-md">Histórico de Prêmios ({selectedCardForDetails.awardsHistory.length})</CardTitle></CardHeader>
+                  <CardContent>
+                    {selectedCardForDetails.awardsHistory.length > 0 ? (
+                      <div className="rounded-md border overflow-x-auto max-h-60">
+                        <Table className="text-xs">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID do Jogo</TableHead>
+                              <TableHead>ID do Ganhador</TableHead>
+                              <TableHead>Data/Hora do Prêmio</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedCardForDetails.awardsHistory.map((award, index) => (
+                              <TableRow key={`award-${index}`}>
+                                <TableCell>{award.gameId}</TableCell>
+                                <TableCell>{award.userId}</TableCell>
+                                <TableCell>{award.timestamp instanceof Date ? format(award.timestamp, "dd/MM/yyyy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhum prêmio registrado para esta cartela.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+              </div>
+            </ScrollArea>
+            <DialogFooter className="pt-4 border-t">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Fechar
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
-
     
