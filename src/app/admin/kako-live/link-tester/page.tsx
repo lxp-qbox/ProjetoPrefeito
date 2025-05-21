@@ -7,14 +7,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
+
+interface ProcessedMessage {
+  id: string;
+  timestamp: string;
+  originalData: string;
+  parsedData?: Record<string, any>;
+  isJson: boolean;
+}
+
+const generateUniqueId = () => {
+  return String(Date.now()) + '-' + Math.random().toString(36).substr(2, 9);
+};
 
 export default function AdminKakoLiveLinkTesterPage() {
   const [wsUrl, setWsUrl] = useState<string>("wss://h5-ws.kako.live/ws/v1?roomId=");
   const socketRef = useRef<WebSocket | null>(null);
-  const [rawMessages, setRawMessages] = useState<string[]>([]);
+  const [processedMessages, setProcessedMessages] = useState<ProcessedMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -41,7 +54,7 @@ export default function AdminKakoLiveLinkTesterPage() {
 
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
-    setRawMessages([]);
+    setProcessedMessages([]);
     setErrorDetails(null);
 
     try {
@@ -51,29 +64,61 @@ export default function AdminKakoLiveLinkTesterPage() {
       newSocket.onopen = () => {
         setIsConnecting(false);
         setConnectionStatus(`Conectado a: ${wsUrl}`);
-        setRawMessages(prev => [...prev, `[SISTEMA] Conexão estabelecida com ${wsUrl}`]);
+        setProcessedMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          originalData: `[SISTEMA] Conexão estabelecida com ${wsUrl}`,
+          isJson: false,
+        }]);
         toast({ title: "Conectado!", description: `Conexão WebSocket com ${wsUrl} estabelecida.` });
       };
 
       newSocket.onmessage = async (event) => {
-        let messageData = "";
+        let messageContentString = "";
         if (event.data instanceof Blob) {
           try {
-            messageData = await event.data.text();
+            messageContentString = await event.data.text();
           } catch (e) {
             console.error("Erro ao ler Blob:", e);
-            messageData = "[Erro ao ler Blob do WebSocket]";
+            messageContentString = "[Erro ao ler Blob do WebSocket]";
           }
         } else if (typeof event.data === 'string') {
-          messageData = event.data;
+          messageContentString = event.data;
         } else {
           try {
-            messageData = JSON.stringify(event.data);
+            messageContentString = JSON.stringify(event.data);
           } catch {
-            messageData = "[Tipo de mensagem desconhecido do WebSocket]";
+            messageContentString = "[Tipo de mensagem desconhecido do WebSocket]";
           }
         }
-        setRawMessages(prev => [...prev, messageData]);
+
+        let parsedJson: Record<string, any> | undefined;
+        let isJsonMessage = false;
+        try {
+          // Attempt to clean potential non-JSON prefix
+          const firstBrace = messageContentString.indexOf('{');
+          const lastBrace = messageContentString.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
+            parsedJson = JSON.parse(jsonStr);
+            isJsonMessage = true;
+          } else {
+             // Check if the whole string is valid JSON
+             parsedJson = JSON.parse(messageContentString);
+             isJsonMessage = true;
+          }
+        } catch (e) {
+          // Not a JSON message or malformed
+          isJsonMessage = false;
+        }
+
+        setProcessedMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          originalData: messageContentString,
+          parsedData: parsedJson,
+          isJson: isJsonMessage,
+        }]);
       };
 
       newSocket.onerror = (errorEvent) => {
@@ -81,10 +126,15 @@ export default function AdminKakoLiveLinkTesterPage() {
         const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type}`;
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
-        setRawMessages(prev => [...prev, `[ERRO] ${errorMsg}`]);
+        setProcessedMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          originalData: `[ERRO] ${errorMsg}`,
+          isJson: false,
+        }]);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
         if (socketRef.current) {
-            socketRef.current.close(); // Ensure it's closed on error
+            socketRef.current.close(); 
             socketRef.current = null;
         }
       };
@@ -96,9 +146,14 @@ export default function AdminKakoLiveLinkTesterPage() {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
         setConnectionStatus("Desconectado");
-        setRawMessages(prev => [...prev, `[SISTEMA] ${closeMsg}`]);
+        setProcessedMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          originalData: `[SISTEMA] ${closeMsg}`,
+          isJson: false,
+        }]);
         toast({ title: "Desconectado", description: closeMsg });
-        socketRef.current = null; // Clear the ref on close
+        socketRef.current = null; 
       };
 
     } catch (error) {
@@ -106,7 +161,12 @@ export default function AdminKakoLiveLinkTesterPage() {
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
       setConnectionStatus("Erro ao Iniciar Conexão");
       setErrorDetails(errMsg);
-      setRawMessages(prev => [...prev, `[ERRO CRÍTICO] ${errMsg}`]);
+      setProcessedMessages(prev => [...prev, {
+          id: generateUniqueId(),
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          originalData: `[ERRO CRÍTICO] ${errMsg}`,
+          isJson: false,
+        }]);
       toast({ title: "Falha ao Conectar", description: errMsg, variant: "destructive" });
       if (socketRef.current) {
         socketRef.current.close();
@@ -118,7 +178,6 @@ export default function AdminKakoLiveLinkTesterPage() {
   const handleDisconnect = () => {
     if (socketRef.current) {
       socketRef.current.close();
-      // onclose handler will update state
     } else {
       setConnectionStatus("Desconectado");
       toast({ title: "Já Desconectado", description: "Nenhuma conexão ativa para desconectar." });
@@ -126,7 +185,6 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   useEffect(() => {
-    // Cleanup on component unmount
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
@@ -145,7 +203,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             Testar Conexão WebSocket
           </CardTitle>
           <CardDescription>
-            Insira uma URL WebSocket (ws:// ou wss://) para conectar e visualizar as mensagens brutas recebidas.
+            Insira uma URL WebSocket (ws:// ou wss://) para conectar e visualizar as mensagens recebidas. Mensagens JSON serão formatadas em tabela.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 flex-grow flex flex-col">
@@ -186,14 +244,55 @@ export default function AdminKakoLiveLinkTesterPage() {
           </div>
 
           <div className="mt-4 flex-grow flex flex-col min-h-0">
-            <Label htmlFor="rawMessagesArea">Mensagens Recebidas (Dados Brutos):</Label>
+            <Label htmlFor="rawMessagesArea">Mensagens Recebidas:</Label>
             <ScrollArea id="rawMessagesArea" className="flex-grow h-72 rounded-md border bg-muted/30 p-1 mt-1">
-              <div className="p-3 space-y-2">
-                {rawMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aguardando mensagens...</p>}
-                {rawMessages.map((msg, index) => (
-                  <pre key={index} className="text-xs p-2 border bg-background rounded-md shadow-sm whitespace-pre-wrap break-all">
-                    {msg}
-                  </pre>
+              <div className="p-3 space-y-3">
+                {processedMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aguardando mensagens...</p>}
+                {processedMessages.map((msg) => (
+                  <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
+                    <p className="text-xs text-muted-foreground mb-1">Recebido às: {msg.timestamp}</p>
+                    {msg.isJson && msg.parsedData ? (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1 flex items-center">
+                          <TableIcon className="w-4 h-4 mr-2 text-primary" />
+                          Dados JSON Formatados:
+                        </h4>
+                        <div className="max-h-60 overflow-y-auto text-xs border rounded-md">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[30%]">Chave</TableHead>
+                                <TableHead>Valor</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {Object.entries(msg.parsedData).map(([key, value]) => (
+                                <TableRow key={key}>
+                                  <TableCell className="font-medium break-all py-1 px-2">{key}</TableCell>
+                                  <TableCell className="break-all py-1 px-2">
+                                    {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                         <details className="mt-2 text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-primary">Ver dados brutos</summary>
+                            <pre className="mt-1 p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                              {msg.originalData}
+                            </pre>
+                          </details>
+                      </div>
+                    ) : (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Dados Brutos (Não JSON):</h4>
+                        <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                          {msg.originalData}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </ScrollArea>
@@ -201,10 +300,12 @@ export default function AdminKakoLiveLinkTesterPage() {
         </CardContent>
         <CardFooter>
             <p className="text-xs text-muted-foreground">
-                Esta ferramenta é para fins de depuração e visualização de dados brutos de WebSockets.
+                Esta ferramenta é para fins de depuração e visualização de dados de WebSockets.
             </p>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    
