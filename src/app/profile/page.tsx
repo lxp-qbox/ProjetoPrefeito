@@ -9,11 +9,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LogOut, Mail, UserCircle2, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck, ChevronRight, Bell, CalendarDays as LucideCalendarIcon, Fingerprint,
-  LayoutDashboard, Star, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones // Added icons from admin menu
+  LogOut, Mail, UserCircle2, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Edit3
 } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation"; // Added usePathname
+import { useRouter, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { UserProfile } from "@/types";
@@ -55,14 +54,13 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
-// Define interfaces for menu structure, similar to admin layout
 interface ProfileMenuItem {
-  id?: string; // Added id for easier state management
+  id: string;
   title: string;
   icon: React.ElementType;
   link?: string;
   currentValue?: string;
-  subItems?: ProfileMenuItem[]; // For potential future nesting, not used by current admin menu directly
+  action?: () => void;
 }
 
 interface ProfileMenuGroup {
@@ -71,52 +69,11 @@ interface ProfileMenuGroup {
   isBottomSection?: boolean;
 }
 
-// Cloned and adapted adminMenuGroups for profile page context
-const profileMenuGroups: ProfileMenuGroup[] = [
-  {
-    groupTitle: "GERAL",
-    items: [
-      { id: "profileDashboard", title: "Visão Geral", icon: LayoutDashboard, link: "#inicio" }, // Link to overview within profile
-      { id: "profileLanguage", title: "Idioma", icon: Globe, link: "#language", currentValue: "Português(Brasil)" },
-      { id: "profileNotifications", title: "Configurações de notificação", icon: Bell, link: "#notifications" },
-    ],
-  },
-  {
-    groupTitle: "MINHA CONTA", // Changed from "GESTÃO DE USUÁRIOS"
-    items: [
-      { id: "profileInfo", title: "Informações Pessoais", icon: UserCircle2, link: "#informacoesPessoais" },
-      { id: "profileSecurity", title: "Segurança da Conta", icon: Lock, link: "#seguranca" },
-      { id: "profileAppearance", title: "Aparência", icon: SettingsIcon, link: "/settings" }, // Links to actual settings page
-    ],
-  },
-  {
-    groupTitle: "SOBRE",
-    items: [
-      { id: "profileUserAgreement", title: "Contrato do usuário", icon: FileText, link: "#user-agreement" },
-      { id: "profilePrivacyPolicy", title: "Política de privacidade", icon: FileText, link: "#privacy-policy" },
-      { id: "profileHostAgreement", title: "Contrato de Host", icon: FileText, link: "#host-agreement" },
-      { id: "profileAboutKako", title: "Sobre Kako Live", icon: Info, link: "#about-kako" },
-    ],
-  },
-  {
-    items: [
-      { id: "profileSupport", title: "Entre em contato conosco", icon: Headphones, link: "/support" }, // Links to actual support page
-    ],
-    isBottomSection: true,
-  },
-  {
-    items: [
-      { id: "logout", title: "Sair", icon: LogOut, link: "#logout" },
-    ],
-  },
-];
-
-
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname(); // To determine active link based on hash
+  const pathname = usePathname();
 
   const [editableCountry, setEditableCountry] = useState<string | undefined>(undefined);
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
@@ -125,19 +82,58 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<string>('profileDashboard'); // Default tab
+  const [activeTab, setActiveTab] = useState<string>('profileDashboard');
+
+  const profileMenuGroups: ProfileMenuGroup[] = [
+    {
+      groupTitle: "GERAL",
+      items: [
+        { id: "profileDashboard", title: "Visão Geral", icon: LayoutDashboard, link: "/profile#profileDashboard" },
+        { id: "profileLanguage", title: "Idioma", icon: Globe, link: "/profile#language", currentValue: "Português(Brasil)" },
+        { id: "profileNotifications", title: "Configurações de notificação", icon: Bell, link: "/profile#notifications" },
+      ],
+    },
+    {
+      groupTitle: "MINHA CONTA",
+      items: [
+        { id: "profileInfo", title: "Informações Pessoais", icon: UserCircle2, link: "/profile#informacoesPessoais" },
+        { id: "profileSecurity", title: "Segurança da Conta", icon: Lock, link: "/profile#seguranca" },
+        { id: "profileAppearance", title: "Aparência", icon: SettingsIcon, link: "/settings" },
+      ],
+    },
+    {
+      groupTitle: "SOBRE",
+      items: [
+        { id: "profileUserAgreement", title: "Contrato do usuário", icon: FileText, link: "/profile#user-agreement" },
+        { id: "profilePrivacyPolicy", title: "Política de privacidade", icon: FileText, link: "/profile#privacy-policy" },
+        { id: "profileHostAgreement", title: "Contrato de Host", icon: FileText, link: "/profile#host-agreement" },
+        { id: "profileAboutKako", title: "Sobre Kako Live", icon: Info, link: "/profile#about-kako" },
+      ],
+    },
+    {
+      items: [
+        { id: "profileSupport", title: "Entre em contato conosco", icon: Headphones, link: "/support" },
+      ],
+      isBottomSection: true,
+    },
+    {
+      items: [
+        { id: "logout", title: "Sair", icon: LogOut, action: () => handleLogout() },
+      ],
+    },
+  ];
+
 
   useEffect(() => {
-    // Set active tab based on URL hash if present
-    if (window.location.hash) {
-      const hash = window.location.hash.substring(1);
-      const allItems = profileMenuGroups.flatMap(group => group.items);
-      if (allItems.some(item => item.link === `#${hash}` || item.id === hash)) {
-        setActiveTab(hash);
-      }
+    const hash = window.location.hash.substring(1);
+    const allItems = profileMenuGroups.flatMap(group => group.items);
+    const matchingItem = allItems.find(item => item.id === hash || (item.link && item.link.endsWith(`#${hash}`)));
+    if (matchingItem) {
+      setActiveTab(matchingItem.id);
+    } else if (allItems.length > 0) {
+      setActiveTab(allItems[0].id); // Default to first item if no hash or hash doesn't match
     }
   }, []);
-
 
   useEffect(() => {
     if (currentUser) {
@@ -148,18 +144,18 @@ export default function ProfilePage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
+            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
               parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
             } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
               parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
-             if (!parsedDate || !isValid(parsedDate)) {
-                const isoDate = parseISO(currentUser.birthDate);
-                if(isValid(isoDate)) parsedDate = isoDate;
+            if (!parsedDate || !isValid(parsedDate)) {
+              const isoDate = parseISO(currentUser.birthDate);
+              if (isValid(isoDate)) parsedDate = isoDate;
             }
-          } else if ((currentUser.birthDate as any)?.toDate) { 
+          } else if ((currentUser.birthDate as any)?.toDate) {
             parsedDate = (currentUser.birthDate as any).toDate();
-          } else if (currentUser.birthDate instanceof Date) { 
+          } else if (currentUser.birthDate instanceof Date) {
             parsedDate = currentUser.birthDate;
           }
 
@@ -218,18 +214,22 @@ export default function ProfilePage() {
   const maxCalendarDate = new Date();
   const minCalendarDate = subYears(new Date(), 100);
 
-  const handleMenuClick = (itemId: string, itemLink?: string) => {
-    if (itemId === 'logout') {
-      handleLogout();
-    } else if (itemLink && itemLink.startsWith('/')) {
-      router.push(itemLink);
-    } else if (itemLink && itemLink.startsWith('#')) {
-      setActiveTab(itemLink.substring(1));
-      // Optionally update URL hash for better navigation history, but keep it client-side
-      window.location.hash = itemLink;
+  const handleMenuClick = (item: ProfileMenuItem) => {
+    if (item.action) {
+      item.action();
+    } else if (item.link) {
+      if (item.link.startsWith('/')) {
+        router.push(item.link);
+      } else if (item.link.startsWith('#')) {
+        setActiveTab(item.link.substring(1));
+        window.location.hash = item.link;
+      } else {
+        setActiveTab(item.id);
+        window.location.hash = item.id;
+      }
     } else {
-      setActiveTab(itemId);
-      window.location.hash = itemId;
+      setActiveTab(item.id);
+      window.location.hash = item.id;
     }
   };
   
@@ -248,8 +248,7 @@ export default function ProfilePage() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'profileDashboard': // Mapped from 'inicio'
-      case 'inicio':
+      case 'profileDashboard':
         return (
           <div className="space-y-6 p-6">
              <Card className="shadow-md">
@@ -285,8 +284,8 @@ export default function ProfilePage() {
             </Card>
           </div>
         );
-      case 'profileInfo': // Mapped from 'informacoesPessoais'
       case 'informacoesPessoais':
+      case 'profileInfo':
         return (
           <div className="p-6">
             <Card className="shadow-md">
@@ -309,7 +308,7 @@ export default function ProfilePage() {
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="pt-2 space-y-1">
                   <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
                   <Select
                     value={editableGender}
@@ -326,7 +325,7 @@ export default function ProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
+                <div className="pt-2 space-y-1">
                   <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">Data de Nascimento</Label>
                   <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
@@ -365,7 +364,7 @@ export default function ProfilePage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-1">
+                <div className="pt-2 space-y-1">
                   <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
                   <Select
                     value={editableCountry}
@@ -385,7 +384,7 @@ export default function ProfilePage() {
                   </Select>
                 </div>
                 {currentUser?.email && (
-                  <div className="space-y-1">
+                  <div className="pt-2 space-y-1">
                     <Label htmlFor="email-profile" className="text-sm font-medium">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -394,7 +393,7 @@ export default function ProfilePage() {
                   </div>
                 )}
                 {currentUser?.kakoLiveId && (
-                  <div className="space-y-1">
+                  <div className="pt-2 space-y-1">
                     <Label htmlFor="kako-id-profile" className="text-sm font-medium">Passaporte (ID Kako Live)</Label>
                     <div className="relative">
                       <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -402,7 +401,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
-                 <div className="space-y-1">
+                 <div className="pt-2 space-y-1">
                     <Label className="text-xs text-muted-foreground">Função</Label>
                     <div className="flex items-center text-sm">
                         <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -410,7 +409,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
                 {currentUser?.adminLevel && (
-                  <div className="space-y-1">
+                  <div className="pt-2 space-y-1">
                     <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
                     <div className="flex items-center text-sm">
                       <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -420,7 +419,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
-                <Button onClick={handleSaveProfile} className="w-full mt-4" disabled={isSaving}>
+                <Button onClick={handleSaveProfile} className="w-full mt-6" disabled={isSaving}>
                   {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                   Salvar Alterações
                 </Button>
@@ -450,54 +449,104 @@ export default function ProfilePage() {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-full">
-        {/* Profile Menu and Content Area */}
-        <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
-          {/* Profile Menu Sidebar */}
-          <nav className="md:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
-            {profileMenuGroups.map((group, groupIndex) => {
-              const isFirstGroup = groupIndex === 0;
-              return (
-                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t", !isFirstGroup && !group.isBottomSection && "mt-4")}>
-                  {group.groupTitle && (
-                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                      {group.groupTitle}
-                    </h2>
-                  )}
-                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
-                    {group.items.map((item) => {
-                      const isActive = activeTab === (item.link ? item.link.substring(1) : item.id);
-                      return (
-                        <Button
-                          key={item.id || item.title}
-                          variant="ghost"
-                          className={cn(
-                            "w-full text-left h-auto text-sm font-normal rounded-md transition-colors",
-                            isActive
-                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
-                            "justify-between py-3 px-3"
-                          )}
-                          onClick={() => handleMenuClick(item.id || item.title, item.link)}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
-                            <span>{item.title}</span>
-                          </div>
-                          <div className="flex items-center ml-auto">
-                            {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                            {item.link !== "#logout" && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                          </div>
-                        </Button>
-                      );
-                    })}
+      <div className="flex flex-col h-full"> {/* Outermost container */}
+        
+        {/* Top Profile Header */}
+        <div className="bg-card border-b">
+          <div className="relative">
+            <div className="h-32 md:h-40 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative">
+              <div className="absolute top-4 right-4 flex space-x-2">
+                <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="px-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-12 sm:-mt-14 relative z-10">
+                <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-card shadow-lg">
+                  <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
+                  <AvatarFallback>{getInitials(currentUser?.displayName)}</AvatarFallback>
+                </Avatar>
+                <div className="sm:ml-6 mt-3 sm:mt-0 text-center sm:text-left flex-grow">
+                  <div className="flex items-center justify-center sm:justify-start">
+                    <h1 className="text-2xl font-bold text-foreground">{currentUser?.profileName || currentUser?.displayName || "Usuário"}</h1>
+                    <BadgeCheck className="ml-2 h-5 w-5 text-pink-500" /> {/* Placeholder color */}
                   </div>
+                  <p className="text-sm text-muted-foreground">@{userHandle}</p>
                 </div>
-              );
-            })}
+                <div className="mt-4 sm:mt-0 flex space-x-2">
+                  <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6">Subscribe</Button>
+                  <Button variant="outline" className="rounded-full px-6">Editar Perfil</Button>
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-muted-foreground text-center sm:text-left">
+                <p className="leading-relaxed">{currentUser?.bio || "UX/UI Designer, 4+ anos de experiência."}</p>
+                <div className="flex items-center justify-center sm:justify-start space-x-4 mt-2">
+                    <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1" /> Yerevan, Armenia
+                    </div>
+                    <div className="flex items-center">
+                        <LucideCalendarIcon className="h-4 w-4 mr-1" /> Joined {joinedDateFormatted}
+                    </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 border-t border-border">
+                {/* Could be used for tabs like Posts, About, Friends, Photos etc. */}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area: Menu + Dynamic Content */}
+        <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
+          <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto">
+            <div className="p-2 space-y-4"> {/* Reduced padding here */}
+              {profileMenuGroups.map((group, groupIndex) => {
+                const isFirstGroup = groupIndex === 0;
+                return (
+                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t", !isFirstGroup && !group.isBottomSection && "mt-4")}>
+                    {group.groupTitle && (
+                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                        {group.groupTitle}
+                      </h2>
+                    )}
+                    <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                      {group.items.map((item) => {
+                        const isActive = activeTab === item.id || (item.link && item.link.endsWith(activeTab) && item.link.startsWith('#'));
+                        return (
+                          <Button
+                            key={item.id}
+                            variant="ghost"
+                            className={cn(
+                              "w-full text-left h-auto text-sm font-medium rounded-md transition-colors",
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-card-foreground hover:bg-card/80 bg-card shadow-sm",
+                              "justify-between py-3 px-3"
+                            )}
+                            onClick={() => handleMenuClick(item)}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                              <span>{item.title}</span>
+                            </div>
+                            <div className="flex items-center ml-auto">
+                              {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                              {item.link !== "#logout" && (!item.action || item.action.toString() !== handleLogout.toString()) && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </nav>
 
-          {/* Profile Content Area */}
           <main className="flex-1 h-full overflow-y-auto">
             {renderContent()}
           </main>
@@ -506,5 +555,3 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
-
-    
