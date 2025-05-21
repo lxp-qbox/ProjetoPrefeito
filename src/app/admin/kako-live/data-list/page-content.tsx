@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Wifi, Edit, ChevronDown, Eye, RefreshCw, UserCircle2, Trash2 } from "lucide-react";
+import { Search, Users, Wifi, Edit, ChevronDown, Eye, RefreshCw, UserCircle2, Trash2, PlugZap, XCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,7 +29,6 @@ import {
 import type { KakoProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, getDocs, writeBatch, doc as firestoreDoc } from "@/lib/firebase";
 
 interface StatCardProps {
   title: string;
@@ -54,112 +53,164 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
+const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; // Hardcoded for example
+
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Used for connect/disconnect
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-  const [profileToDelete, setProfileToDelete] = useState<KakoProfile | null>(null);
-  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
-  const [isConfirmClearDialogOpen, setIsConfirmClearDialogOpen] = useState(false);
+  const [profileToRemove, setProfileToRemove] = useState<KakoProfile | null>(null);
+  const [isConfirmRemoveDialogOpen, setIsConfirmRemoveDialogOpen] = useState(false);
+  const [isConfirmClearListDialogOpen, setIsConfirmClearListDialogOpen] = useState(false);
 
-  const fetchKakoProfiles = useCallback(async () => {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  const connectWebSocket = useCallback(() => {
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+      toast({ title: "Conexão Existente", description: "Já conectado ou conectando ao WebSocket.", variant: "default" });
+      return;
+    }
     setIsLoading(true);
+    setConnectionStatus(`Conectando a ${WS_URL}...`);
+    setErrorDetails(null);
+
     try {
-      const profilesCollectionRef = collection(db, "kakoProfiles");
-      const querySnapshot = await getDocs(profilesCollectionRef);
-      const fetchedProfiles: KakoProfile[] = [];
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        // Ensure all required fields from KakoProfile type are present
-        fetchedProfiles.push({
-          id: docSnap.id, // This assumes docSnap.id is the Kako userId/fuid
-          nickname: data.nickname || "N/A",
-          avatarUrl: data.avatar || data.avatarUrl || "", // Prioritize data.avatar
-          numId: data.numId,
-          level: data.level,
-          gender: data.gender,
-          showId: data.showId,
-          signature: data.signature,
-          area: data.area,
-          school: data.school,
-          isLiving: data.isLiving,
-          lastFetchedAt: data.lastFetchedAt,
-        });
-      });
-      setKakoProfiles(fetchedProfiles);
+      const newSocket = new WebSocket(WS_URL);
+      socketRef.current = newSocket;
+
+      newSocket.onopen = () => {
+        setIsLoading(false);
+        setConnectionStatus(`Conectado a ${WS_URL}`);
+        toast({ title: "WebSocket Conectado!", description: `Conexão com ${WS_URL} estabelecida.` });
+      };
+
+      newSocket.onmessage = async (event) => {
+        let messageContentString = "";
+        try {
+          if (event.data instanceof Blob) {
+            messageContentString = await event.data.text();
+          } else if (typeof event.data === 'string') {
+            messageContentString = event.data;
+          } else {
+            messageContentString = JSON.stringify(event.data);
+          }
+
+          const firstBrace = messageContentString.indexOf('{');
+          const lastBrace = messageContentString.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
+            const parsedJson = JSON.parse(jsonStr);
+
+            if (parsedJson.user && parsedJson.user.userId) {
+              const userData = parsedJson.user;
+              const newProfile: KakoProfile = {
+                id: userData.userId,
+                nickname: userData.nickname || "N/A",
+                avatarUrl: userData.avatar || userData.avatarUrl || "",
+                level: userData.level,
+                numId: userData.numId,
+                showId: userData.showId,
+                gender: userData.gender,
+                lastFetchedAt: new Date(), // Indicate when this user was "seen"
+              };
+
+              setKakoProfiles(prevProfiles => {
+                const existingProfileIndex = prevProfiles.findIndex(p => p.id === newProfile.id);
+                if (existingProfileIndex > -1) {
+                  const updatedProfiles = [...prevProfiles];
+                  updatedProfiles[existingProfileIndex] = {
+                    ...updatedProfiles[existingProfileIndex],
+                    ...newProfile, // Update with latest info
+                  };
+                  return updatedProfiles;
+                } else {
+                  return [...prevProfiles, newProfile];
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao processar mensagem WebSocket:", e, "Dados brutos:", messageContentString);
+        }
+      };
+
+      newSocket.onerror = (errorEvent) => {
+        setIsLoading(false);
+        const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
+        setConnectionStatus("Erro na Conexão");
+        setErrorDetails(errorMsg);
+        toast({ title: "Erro de Conexão WebSocket", description: errorMsg, variant: "destructive" });
+      };
+
+      newSocket.onclose = (closeEvent) => {
+        setIsLoading(false);
+        let closeMsg = `Desconectado de ${newSocket.url}.`;
+        if (closeEvent.code || closeEvent.reason) {
+          closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
+        }
+        setConnectionStatus("Desconectado");
+        if (socketRef.current === newSocket) { // Only show toast if this is the active socket closing
+            toast({ title: "WebSocket Desconectado", description: closeMsg });
+            socketRef.current = null;
+        }
+      };
     } catch (error) {
-      console.error("Erro ao buscar perfis Kako Live:", error);
-      toast({
-        title: "Erro ao Buscar Dados",
-        description: "Não foi possível carregar os perfis do banco de dados.",
-        variant: "destructive",
-      });
-    } finally {
       setIsLoading(false);
+      const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
+      setConnectionStatus("Erro ao Iniciar Conexão");
+      setErrorDetails(errMsg);
+      toast({ title: "Falha ao Conectar WebSocket", description: errMsg, variant: "destructive" });
+    }
+  }, [toast]);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.onopen = null;
+      socketRef.current.onmessage = null;
+      socketRef.current.onerror = null;
+      socketRef.current.onclose = null;
+      socketRef.current.close();
+      socketRef.current = null;
+      setConnectionStatus("Desconectado");
+      toast({ title: "WebSocket Desconectado Manualmente" });
+    } else {
+      toast({ title: "Já Desconectado", description: "Nenhuma conexão WebSocket ativa para desconectar." });
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchKakoProfiles();
-  }, [fetchKakoProfiles]);
+    connectWebSocket(); // Connect on mount
+    return () => {
+      disconnectWebSocket(); // Disconnect on unmount
+    };
+  }, [connectWebSocket, disconnectWebSocket]);
 
-  const handleRequestDeleteProfile = (profile: KakoProfile) => {
-    setProfileToDelete(profile);
-    setIsConfirmDeleteDialogOpen(true);
+  const handleRequestRemoveProfile = (profile: KakoProfile) => {
+    setProfileToRemove(profile);
+    setIsConfirmRemoveDialogOpen(true);
   };
 
-  const handleConfirmDeleteProfile = () => {
-    if (!profileToDelete) return;
-    // This would be where you delete from Firestore if each item was deletable individually
-    // For now, it just removes from local state for placeholder
-    setKakoProfiles(prevProfiles => prevProfiles.filter(p => p.id !== profileToDelete.id));
+  const handleConfirmRemoveProfile = () => {
+    if (!profileToRemove) return;
+    setKakoProfiles(prevProfiles => prevProfiles.filter(p => p.id !== profileToRemove.id));
     toast({
-      title: "Perfil Removido (Localmente)",
-      description: `O perfil de ${profileToDelete.nickname} foi removido da lista. Esta ação não afetou o banco de dados.`,
+      title: "Perfil Removido",
+      description: `O perfil de ${profileToRemove.nickname} foi removido da lista atual.`,
     });
-    setIsConfirmDeleteDialogOpen(false);
-    setProfileToDelete(null);
+    setIsConfirmRemoveDialogOpen(false);
+    setProfileToRemove(null);
   };
 
-  const handleConfirmClearList = async () => {
-    setIsConfirmClearDialogOpen(false);
-    setIsDeleting(true);
-    try {
-      const profilesCollectionRef = collection(db, "kakoProfiles");
-      const querySnapshot = await getDocs(profilesCollectionRef);
-      
-      if (querySnapshot.empty) {
-        toast({
-          title: "Lista Já Vazia",
-          description: "Não há perfis Kako Live no banco de dados para excluir.",
-        });
-        setKakoProfiles([]); // Ensure UI is also empty
-        return;
-      }
-
-      const batch = writeBatch(db);
-      querySnapshot.docs.forEach((doc) => {
-        batch.delete(firestoreDoc(db, "kakoProfiles", doc.id));
-      });
-      await batch.commit();
-
-      setKakoProfiles([]); // Clear local state
-      toast({
-        title: "Lista Zerada com Sucesso!",
-        description: "Todos os perfis Kako Live foram excluídos do banco de dados.",
-      });
-    } catch (error) {
-      console.error("Erro ao zerar lista de perfis Kako Live:", error);
-      toast({
-        title: "Erro ao Zerar Lista",
-        description: "Não foi possível excluir os perfis do banco de dados. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleConfirmClearListLocal = () => {
+    setKakoProfiles([]);
+    toast({
+      title: "Lista Limpa",
+      description: "Todos os perfis foram removidos da visualização atual.",
+    });
+    setIsConfirmClearListDialogOpen(false);
   };
 
   const filteredProfiles = kakoProfiles.filter(profile =>
@@ -169,23 +220,13 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const onlineProfilesCount = kakoProfiles.filter(p => p.isLiving).length; // This remains indicative
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-full p-6">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="space-y-6 h-full flex flex-col p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live</h1>
-            <p className="text-sm text-muted-foreground">Visualize dados de perfis carregados do banco de dados.</p>
+            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis (Tempo Real via Chat)</h1>
+            <p className="text-sm text-muted-foreground">Usuários identificados nas mensagens do chat do RoomID: {WS_URL.split('roomId=')[1]}.</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
@@ -198,15 +239,29 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="destructive" onClick={() => setIsConfirmClearDialogOpen(true)} className="h-10" disabled={isDeleting}>
-                {isDeleting ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
-                Zerar Lista (DB)
+              <Button variant="outline" onClick={() => setIsConfirmClearListDialogOpen(true)} className="h-10">
+                 <Trash2 className="mr-2 h-4 w-4" />
+                Limpar Lista (Local)
               </Button>
           </div>
         </div>
 
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                 <Button onClick={connectWebSocket} disabled={isLoading || (socketRef.current?.readyState === WebSocket.OPEN)}>
+                    <PlugZap className="mr-2 h-4 w-4"/> {socketRef.current?.readyState === WebSocket.OPEN ? 'Conectado' : 'Conectar WebSocket'}
+                 </Button>
+                 <Button onClick={disconnectWebSocket} variant="outline" disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}>
+                    <XCircle className="mr-2 h-4 w-4"/> Desconectar
+                 </Button>
+            </div>
+            <p className="text-xs p-2 bg-muted rounded-md">Status: <span className={connectionStatus.startsWith("Conectado") ? "text-green-600" : connectionStatus.startsWith("Erro") ? "text-destructive" : "text-muted-foreground"}>{connectionStatus}</span></p>
+            {errorDetails && <p className="text-xs text-destructive p-2 bg-destructive/10 rounded-md">Detalhes do Erro: {errorDetails}</p>}
+        </div>
+
+
         <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-          <StatCard title="Total de Perfis Carregados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Perfis Identificados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
         </div>
 
         <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -225,7 +280,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 {filteredProfiles.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Nenhum perfil encontrado.
+                      Nenhum perfil identificado nas mensagens do chat ainda...
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -270,7 +325,7 @@ export default function AdminKakoLiveDataListPageContent() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                                onSelect={() => handleRequestDeleteProfile(profile)}
+                                onSelect={() => handleRequestRemoveProfile(profile)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Remover da Lista (Local)
@@ -297,19 +352,19 @@ export default function AdminKakoLiveDataListPageContent() {
         </div>
       </div>
 
-      {profileToDelete && (
-        <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+      {profileToRemove && (
+        <AlertDialog open={isConfirmRemoveDialogOpen} onOpenChange={setIsConfirmRemoveDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
               <AlertDialogDescription>
-                Você tem certeza que deseja remover o perfil de <span className="font-semibold">{profileToDelete.nickname}</span> da lista? Esta ação é apenas local e não afeta dados externos.
+                Você tem certeza que deseja remover o perfil de <span className="font-semibold">{profileToRemove.nickname}</span> da lista atual? Esta ação é apenas local.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setIsConfirmDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setIsConfirmRemoveDialogOpen(false)}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleConfirmDeleteProfile}
+                onClick={handleConfirmRemoveProfile}
                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               >
                 Remover
@@ -319,23 +374,21 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialog>
       )}
 
-      <AlertDialog open={isConfirmClearDialogOpen} onOpenChange={setIsConfirmClearDialogOpen}>
+      <AlertDialog open={isConfirmClearListDialogOpen} onOpenChange={setIsConfirmClearListDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Zerar Lista do Banco de Dados</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Limpar Lista Local</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja excluir TODOS os perfis Kako Live do banco de dados? Esta ação não pode ser desfeita e afetará os dados permanentemente.
+              Você tem certeza que deseja limpar todos os perfis identificados nesta sessão? Eles serão recarregados se novas mensagens de chat chegarem.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsConfirmClearDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsConfirmClearListDialogOpen(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmClearList}
+              onClick={handleConfirmClearListLocal}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              disabled={isDeleting}
             >
-              {isDeleting ? <LoadingSpinner size="sm" className="mr-2"/> : null}
-              Zerar Banco de Dados
+              Limpar Lista
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
