@@ -36,7 +36,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp } from "@/lib/firebase";
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, addDoc } from "@/lib/firebase";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -83,8 +83,10 @@ type NewGiftFormValues = z.infer<typeof newGiftSchema>;
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
   const [kakoGifts, setKakoGifts] = useState<KakoGift[]>([]);
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
-  const [isLoadingGifts, setIsLoadingGifts] = useState(true);
+  
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false); // No longer fetches from DB on mount
+  const [isLoadingGifts, setIsLoadingGifts] = useState(true); // For gifts list
+
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   
@@ -113,38 +115,41 @@ export default function AdminKakoLiveDataListPageContent() {
     if (type === "error") console.error(message);
     else if (type === "info") console.info(message);
     else console.log(message);
+    // We are not using a visual log on this page anymore, but keeping for potential debug
   }, []);
 
 
   const upsertKakoProfileToFirestore = useCallback(async (profileData: KakoProfile) => {
     if (!profileData.id) {
       console.error("Cannot upsert profile without an ID (FUID)", profileData);
+      addLog(`Erro: Tentativa de salvar perfil Kako sem ID (FUID): ${profileData.nickname || 'Desconhecido'}`, "error");
       return;
     }
     const profileDocRef = doc(db, "kakoProfiles", profileData.id);
     try {
       const docSnap = await getDoc(profileDocRef);
-      const dataToSave: KakoProfile = {
-        id: profileData.id,
+      const dataToSave: Omit<KakoProfile, 'lastFetchedAt'> & { lastFetchedAt: any } = {
+        id: profileData.id, // FUID
         nickname: profileData.nickname || "N/A",
-        avatarUrl: profileData.avatarUrl || "",
+        avatarUrl: profileData.avatarUrl || "", 
         level: profileData.level,
         numId: profileData.numId,
-        showId: profileData.showId,
+        showId: profileData.showId, 
         gender: profileData.gender,
-        lastFetchedAt: serverTimestamp(),
-        isLiving: profileData.isLiving,
         signature: profileData.signature,
         area: profileData.area,
         school: profileData.school,
         roomId: profileData.roomId,
+        isLiving: profileData.isLiving,
+        lastFetchedAt: serverTimestamp(),
       };
 
       if (docSnap.exists()) {
         const existingData = docSnap.data() as KakoProfile;
         let hasChanges = false;
-        const updates: Partial<KakoProfile> = { lastFetchedAt: serverTimestamp() };
+        const updates: Partial<Omit<KakoProfile, 'lastFetchedAt'> & { lastFetchedAt: any }> = { lastFetchedAt: serverTimestamp() };
 
+        // Compare relevant fields and add to updates if changed
         if (dataToSave.nickname !== existingData.nickname) { updates.nickname = dataToSave.nickname; hasChanges = true; }
         if (dataToSave.avatarUrl !== existingData.avatarUrl) { updates.avatarUrl = dataToSave.avatarUrl; hasChanges = true; }
         if (dataToSave.level !== existingData.level) { updates.level = dataToSave.level; hasChanges = true; }
@@ -162,6 +167,7 @@ export default function AdminKakoLiveDataListPageContent() {
           toast({ title: "Perfil Kako Atualizado", description: `Perfil de ${dataToSave.nickname} atualizado no Firestore.` });
         } else {
            await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() });
+           // No toast for just lastFetchedAt update to avoid clutter
         }
       } else {
         await setDoc(profileDocRef, dataToSave);
@@ -170,12 +176,14 @@ export default function AdminKakoLiveDataListPageContent() {
     } catch (error) {
       console.error("Erro ao salvar/atualizar perfil Kako no Firestore:", error);
       toast({ title: "Erro no Firestore", description: `Não foi possível salvar/atualizar ${profileData.nickname}.`, variant: "destructive" });
+      addLog(`Erro no Firestore ao salvar/atualizar perfil Kako ${profileData.nickname}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, "error");
     }
-  }, [toast]);
+  }, [toast, addLog]);
 
 
   const connectWebSocket = useCallback(() => {
       if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+        addLog("Já conectado ou conectando ao WebSocket.", "info");
         return;
       }
       isManuallyDisconnectingRef.current = false;
@@ -186,6 +194,7 @@ export default function AdminKakoLiveDataListPageContent() {
 
       setConnectionStatus(`Conectando a ${wsUrl}...`);
       setErrorDetails(null);
+      addLog(`Tentando conectar a ${wsUrl}...`, "info");
 
       try {
         const newSocket = new WebSocket(wsUrl);
@@ -193,6 +202,7 @@ export default function AdminKakoLiveDataListPageContent() {
 
         newSocket.onopen = () => {
           setConnectionStatus(`Conectado a ${wsUrl}`);
+          addLog(`Conexão com ${wsUrl} estabelecida.`, "success");
         };
 
         newSocket.onmessage = async (event) => {
@@ -215,18 +225,18 @@ export default function AdminKakoLiveDataListPageContent() {
                 if (parsedJson.user && parsedJson.user.userId) {
                     const userData = parsedJson.user;
                     const profileData: KakoProfile = {
-                        id: userData.userId,
+                        id: userData.userId, // FUID
                         nickname: userData.nickname || "N/A",
                         avatarUrl: userData.avatar || userData.avatarUrl || "",
                         level: userData.level,
                         numId: userData.numId,
-                        showId: userData.showId,
+                        showId: userData.showId, 
                         gender: userData.gender,
                         signature: userData.signature,
                         area: userData.area,
                         school: userData.school,
-                        roomId: parsedJson.roomId, // Include roomId from the message context
-                        isLiving: 'isLiving' in userData ? userData.isLiving : (parsedJson.anchor?.isLiving), // Prefer user.isLiving, fallback to anchor.isLiving
+                        roomId: parsedJson.roomId, 
+                        isLiving: 'isLiving' in userData ? userData.isLiving : (parsedJson.anchor?.isLiving), 
                         lastFetchedAt: new Date() 
                     };
                     
@@ -245,6 +255,7 @@ export default function AdminKakoLiveDataListPageContent() {
             }
           } catch (e) {
             console.error("Erro ao processar mensagem WebSocket:", e, "Dados brutos:", messageContentString);
+            addLog(`Erro ao processar mensagem WebSocket: ${e instanceof Error ? e.message : String(e)}`, "error");
           }
         };
 
@@ -252,7 +263,8 @@ export default function AdminKakoLiveDataListPageContent() {
           const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
           setConnectionStatus("Erro na Conexão");
           setErrorDetails(errorMsg);
-          if (socketRef.current === newSocket) {
+          addLog(errorMsg, "error");
+          if (socketRef.current === newSocket) { 
             socketRef.current.onopen = null;
             socketRef.current.onmessage = null;
             socketRef.current.onerror = null;
@@ -270,10 +282,12 @@ export default function AdminKakoLiveDataListPageContent() {
           if (socketRef.current === newSocket) { 
               if (!isManuallyDisconnectingRef.current) {
                   setConnectionStatus("Desconectado - Tentando Reconectar...");
+                  addLog(`${closeMsg} Tentando reconectar em 5 segundos.`, "info");
                   socketRef.current = null; 
                   reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
               } else {
                   setConnectionStatus("Desconectado");
+                  addLog("WebSocket Desconectado Manualmente.", "info");
                   socketRef.current = null; 
               }
           }
@@ -282,17 +296,18 @@ export default function AdminKakoLiveDataListPageContent() {
         const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
         setConnectionStatus("Erro ao Iniciar Conexão");
         setErrorDetails(errMsg);
+        addLog(`Falha ao Conectar WebSocket: ${errMsg}`, "error");
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [wsUrl, upsertKakoProfileToFirestore]);
+    }, [wsUrl, upsertKakoProfileToFirestore, addLog]);
 
-  const disconnectManually = useCallback(() => {
-    isManuallyDisconnectingRef.current = true; 
+  const disconnectWebSocket = useCallback(() => {
+    isManuallyDisconnectingRef.current = true;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
     if (socketRef.current) {
+      addLog("Desconectando WebSocket manualmente...", "info");
       socketRef.current.onopen = null;
       socketRef.current.onmessage = null;
       socketRef.current.onerror = null;
@@ -301,16 +316,15 @@ export default function AdminKakoLiveDataListPageContent() {
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // addLog dependency removed as it's stable
+  }, [addLog]);
 
+  // Auto-connect on mount
   useEffect(() => {
     connectWebSocket(); 
     return () => {
-      disconnectManually();
+      disconnectWebSocket();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectWebSocket, disconnectManually]);
+  }, [connectWebSocket, disconnectWebSocket]); // connectWebSocket and disconnectManually are stable due to useCallback
 
   const fetchKakoGifts = useCallback(async () => {
     setIsLoadingGifts(true);
@@ -445,8 +459,7 @@ export default function AdminKakoLiveDataListPageContent() {
         name: values.name,
         imageUrl: values.imageUrl,
         display: values.display,
-        diamond: values.diamond === undefined ? null : values.diamond, // Store undefined as null
-        // Add other fields as needed, e.g., createdAt
+        diamond: values.diamond === undefined ? null : values.diamond, 
       };
       await setDoc(giftDocRef, newGiftData);
       toast({
@@ -455,7 +468,7 @@ export default function AdminKakoLiveDataListPageContent() {
       });
       setIsAddGiftDialogOpen(false);
       giftForm.reset();
-      fetchKakoGifts(); // Refresh the list
+      fetchKakoGifts(); 
     } catch (error) {
       console.error("Erro ao cadastrar presente:", error);
       toast({
@@ -474,17 +487,36 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.numId && profile.numId.toString().includes(searchTerm)) 
   );
   
-  const displayLoading = isLoadingProfiles && kakoProfiles.length === 0;
+  const displayLoadingProfiles = isLoadingProfiles && kakoProfiles.length === 0;
+
 
   return (
     <>
       <div className="space-y-6 h-full flex flex-col p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live (via Chat)</h1>
-            <p className="text-sm text-muted-foreground">Perfis Kako Live identificados em tempo real via WebSocket e salvos/atualizados no Firestore.</p>
+            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live (Tempo Real via Chat)</h1>
+            <p className="text-sm text-muted-foreground">Perfis Kako Live identificados e salvos/atualizados no Firestore via WebSocket.</p>
+            <div className="text-xs mt-1 flex items-center">
+                <Input 
+                    type="text" 
+                    value={wsUrl} 
+                    onChange={(e) => setWsUrl(e.target.value)} 
+                    placeholder="wss://exemplo.com/socket"
+                    className="h-8 text-xs mr-2 flex-grow min-w-[300px]"
+                    disabled={connectionStatus.startsWith("Conectado")}
+                />
+                <Button 
+                    onClick={connectWebSocket} 
+                    size="sm" 
+                    className="h-8" 
+                    disabled={connectionStatus.startsWith("Conectado") || !wsUrl.trim()}
+                >
+                    {connectionStatus.startsWith("Conectado") ? "Conectado" : "Conectar WS"}
+                </Button>
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Conexão WebSocket: <span className={connectionStatus.startsWith("Conectado") ? "text-green-500" : "text-destructive"}>{connectionStatus}</span>
+              Status da Conexão: <span className={connectionStatus.startsWith("Conectado") ? "text-green-500" : "text-destructive"}>{connectionStatus}</span>
             </p>
             {errorDetails && <p className="text-xs text-destructive">Erro: {errorDetails}</p>}
           </div>
@@ -499,7 +531,7 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={() => { disconnectManually(); setTimeout(connectWebSocket, 100); }} className="h-10">
+              <Button variant="outline" onClick={() => { socketRef.current?.close(); setTimeout(connectWebSocket, 100); }} className="h-10">
                  <RefreshCw className="mr-2 h-4 w-4" />
                 Reconectar WS
               </Button>
@@ -508,7 +540,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 Limpar Tela (Perfis)
               </Button>
               <Button variant="destructive" onClick={() => setIsConfirmClearProfilesDBDialogOpen(true)} className="h-10" disabled={isDeletingProfilesDB}>
-                 {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                 {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
                 Zerar DB (Perfis)
               </Button>
           </div>
@@ -519,6 +551,7 @@ export default function AdminKakoLiveDataListPageContent() {
           <StatCard title="Total de Presentes (DB)" count={kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
         </div>
 
+        {/* Profiles List Card */}
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Lista de Perfis do Kako Live</CardTitle>
@@ -526,7 +559,7 @@ export default function AdminKakoLiveDataListPageContent() {
           </CardHeader>
           <CardContent className="flex-grow p-0">
             <div className="overflow-x-auto h-full">
-              {displayLoading ? (
+              {displayLoadingProfiles ? (
                 <div className="flex justify-center items-center h-full">
                   <LoadingSpinner size="lg" />
                   <p className="ml-2 text-muted-foreground">Carregando perfis...</p>
@@ -539,7 +572,7 @@ export default function AdminKakoLiveDataListPageContent() {
                     <TableHead className="min-w-[200px]">NICKNAME / SHOW ID</TableHead>
                     <TableHead>NÍVEL</TableHead>
                     <TableHead>USER ID (FUID)</TableHead>
-                    <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
+                    <TableHead className="text-right w-[200px]">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -574,10 +607,24 @@ export default function AdminKakoLiveDataListPageContent() {
                         <TableCell className="text-sm text-muted-foreground font-mono">{profile.id}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
-                              <FileJson className="h-3 w-3 mr-1" /> {/* Changed icon */}
-                              Detalhes
+                             <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
+                                <Eye className="mr-1.5 h-3 w-3" /> Detalhes
                             </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                                  Ações <ChevronDown className="ml-1.5 h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => alert('Sincronizar dados do perfil: ' + profile.nickname)}>
+                                  Sincronizar Dados
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => alert('Remover perfil da lista (local): ' + profile.nickname)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Remover da Lista (Local)
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -593,7 +640,7 @@ export default function AdminKakoLiveDataListPageContent() {
           </CardFooter>
         </Card>
 
-        {/* Kako Gifts List */}
+        {/* Gifts List Card */}
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg mt-6">
             <CardHeader className="flex flex-row justify-between items-center">
                 <div>
@@ -709,7 +756,7 @@ export default function AdminKakoLiveDataListPageContent() {
                         <Trash2 className="mr-2 h-4 w-4" /> Limpar Tela
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => setIsConfirmClearGiftsDBDialogOpen(true)} className="h-9" disabled={isDeletingGiftsDB || kakoGifts.length === 0}>
-                        {isDeletingGiftsDB ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />} Zerar DB
+                        {isDeletingGiftsDB ? <LoadingSpinner size="sm" className="mr-2"/> : <DatabaseZap className="mr-2 h-4 w-4" />} Zerar DB
                     </Button>
                 </div>
             </CardHeader>
@@ -772,6 +819,7 @@ export default function AdminKakoLiveDataListPageContent() {
 
       </div>
 
+      {/* Profile Details Dialog */}
       {selectedProfileForDetails && (
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
           <DialogContent className="sm:max-w-md">
@@ -863,6 +911,7 @@ export default function AdminKakoLiveDataListPageContent() {
         </Dialog>
       )}
 
+      {/* Clear Profiles List (Local) Dialog */}
       <AlertDialog open={isConfirmClearProfilesListLocalDialogOpen} onOpenChange={setIsConfirmClearProfilesListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -883,6 +932,7 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Clear Profiles from DB Dialog */}
       <AlertDialog open={isConfirmClearProfilesDBDialogOpen} onOpenChange={setIsConfirmClearProfilesDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -907,6 +957,7 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Clear Gifts List (Local) Dialog */}
        <AlertDialog open={isConfirmClearGiftsListLocalDialogOpen} onOpenChange={setIsConfirmClearGiftsListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -927,6 +978,7 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Clear Gifts from DB Dialog */}
       <AlertDialog open={isConfirmClearGiftsDBDialogOpen} onOpenChange={setIsConfirmClearGiftsDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -953,3 +1005,5 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
+    
