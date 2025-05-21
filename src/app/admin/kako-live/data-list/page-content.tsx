@@ -107,12 +107,12 @@ export default function AdminKakoLiveDataListPageContent() {
             if (parsedJson.user && parsedJson.user.userId) {
               const userData = parsedJson.user;
               const newProfile: KakoProfile = {
-                id: userData.userId,
+                id: userData.userId, // This is the FUID
                 nickname: userData.nickname || "N/A",
                 avatarUrl: userData.avatar || userData.avatarUrl || "",
                 level: userData.level,
                 numId: userData.numId,
-                showId: userData.showId,
+                showId: userData.showId, // Capture showId
                 gender: userData.gender,
                 lastFetchedAt: new Date(), // Indicate when this user was "seen"
               };
@@ -215,9 +215,9 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const filteredProfiles = kakoProfiles.filter(profile =>
     profile.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (profile.numId && profile.numId.toString().includes(searchTerm)) ||
-    (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase()))
+    profile.id.toLowerCase().includes(searchTerm.toLowerCase()) || // FUID search
+    (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase())) || // showId search
+    (profile.numId && profile.numId.toString().includes(searchTerm)) // numId search
   );
 
   return (
@@ -233,7 +233,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Buscar perfis (Nome, ID Kako...)"
+                  placeholder="Buscar perfis (Nome, ID Kako, Show ID...)"
                   className="pl-10 w-full h-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -270,7 +270,7 @@ export default function AdminKakoLiveDataListPageContent() {
               <TableHeader className="bg-muted/50 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="w-[60px] px-4"></TableHead> {/* Avatar */}
-                  <TableHead className="min-w-[150px]">NICKNAME</TableHead>
+                  <TableHead className="min-w-[150px]">NICKNAME / SHOW ID</TableHead>
                   <TableHead>NÍVEL</TableHead>
                   <TableHead>USER ID (FUID)</TableHead>
                   <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
@@ -295,8 +295,11 @@ export default function AdminKakoLiveDataListPageContent() {
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">
-                          {profile.nickname}
-                          {profile.isLiving && <span className="ml-2 h-2 w-2 rounded-full inline-block bg-green-500" title="Online"></span>}
+                          <div>
+                            <span className="text-foreground">{profile.nickname}</span>
+                            {profile.isLiving && <span className="ml-2 h-2 w-2 rounded-full inline-block bg-green-500" title="Online"></span>}
+                            {profile.showId && <div className="text-xs text-muted-foreground">Show ID: {profile.showId}</div>}
+                          </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs">
