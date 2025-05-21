@@ -542,7 +542,14 @@ export default function AdminBingoAdminPage() {
                  {selectedCardForDetails.cardNumbers.length === 5 && selectedCardForDetails.cardNumbers[0].length === 5 && (
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (75 Bolas)</h3>
-                        <div className="grid grid-cols-5 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-xs mx-auto">
+                        <div className="grid grid-cols-5 gap-0 bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-xs mx-auto mb-2">
+                          {['B', 'I', 'N', 'G', 'O'].map(letter => (
+                            <div key={`header-${letter}`} className="flex items-center justify-center h-8 text-sm font-bold text-primary">
+                              {letter}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-5 gap-0 bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-xs mx-auto">
                           {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
                             row.map((cell, colIndex) => (
                               <div
