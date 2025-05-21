@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface ProcessedMessage {
   id: string;
@@ -19,6 +20,7 @@ interface ProcessedMessage {
   originalData: string;
   parsedData?: Record<string, any>;
   isJson: boolean;
+  classification?: string; // Added for classifying messages
 }
 
 const generateUniqueId = () => {
@@ -97,6 +99,8 @@ export default function AdminKakoLiveLinkTesterPage() {
 
         let parsedJson: Record<string, any> | undefined;
         let isJsonMessage = false;
+        let classification: string | undefined = undefined;
+
         try {
           const firstBrace = messageContentString.indexOf('{');
           const lastBrace = messageContentString.lastIndexOf('}');
@@ -108,6 +112,11 @@ export default function AdminKakoLiveLinkTesterPage() {
              parsedJson = JSON.parse(messageContentString);
              isJsonMessage = true;
           }
+
+          if (isJsonMessage && parsedJson && typeof parsedJson === 'object' && 'roomId' in parsedJson) {
+            classification = "Dados da Sala";
+          }
+
         } catch (e) {
           isJsonMessage = false;
         }
@@ -119,6 +128,7 @@ export default function AdminKakoLiveLinkTesterPage() {
           originalData: messageContentString,
           parsedData: parsedJson,
           isJson: isJsonMessage,
+          classification: classification,
         }]);
       };
 
@@ -205,7 +215,7 @@ export default function AdminKakoLiveLinkTesterPage() {
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'sent',
         originalData: `[ENVIADO] ${messageToSend.trim()}`,
-        isJson: false, // Assuming sent messages are plain text for now
+        isJson: false, 
       }]);
       toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
       setMessageToSend("");
@@ -312,10 +322,18 @@ export default function AdminKakoLiveLinkTesterPage() {
                 {processedMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aguardando mensagens...</p>}
                 {processedMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
-                      {msg.timestamp}
-                    </p>
+                    <div className="flex justify-between items-center mb-1">
+                        <p className="text-xs text-muted-foreground">
+                        {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
+                        {msg.timestamp}
+                        </p>
+                        {msg.classification && msg.type === 'received' && (
+                            <Badge variant="secondary" className="text-xs">
+                                <BadgeInfo className="mr-1.5 h-3 w-3" />
+                                {msg.classification}
+                            </Badge>
+                        )}
+                    </div>
                     {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
                         <h4 className="text-sm font-semibold mb-1 flex items-center">
@@ -353,7 +371,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                       <div>
                         <h4 className="text-sm font-semibold mb-1">
                           {msg.type === 'sent' ? 'Dados Brutos Enviados:' : 
-                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON):' : 
+                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON/Erro de Parse):' : 
                            msg.type === 'system' ? 'Mensagem do Sistema:' :
                            'Mensagem de Erro:'}
                         </h4>
@@ -378,5 +396,3 @@ export default function AdminKakoLiveLinkTesterPage() {
   );
 }
 
-
-    
