@@ -7,8 +7,8 @@ import { useAuth } from '@/hooks/use-auth';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
-import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard, ServerOff, FileText } from 'lucide-react';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
+import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const [maintenanceRules, setMaintenanceRules] = useState<SiteModule[]>(initialModuleStatuses);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
   const [isReadyForContent, setIsReadyForContent] = useState(false);
+
 
   useEffect(() => {
     const fetchMaintenanceSettings = async () => {
@@ -72,6 +73,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     fetchMaintenanceSettings();
   }, []);
 
+
   useEffect(() => {
     if (pathname === "/messages") {
       setHasUnreadMessages(false);
@@ -80,29 +82,25 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (authLoading || isLoadingRules) {
-      setIsReadyForContent(false); // Not ready if primary data is loading
+      setIsReadyForContent(false);
       return;
     }
 
-    const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
+    const standaloneAuthPaths = ['/login', '/signup', '/forgot-password', '/maintenance'];
     const isOnboardingPage = pathname.startsWith('/onboarding');
     const isAuthPage = standaloneAuthPaths.includes(pathname);
     
-    // Standalone pages (auth, onboarding, maintenance) can "render" their structure immediately
-    // as they handle their own internal logic if user is already auth'd etc.
-    if (isAuthPage || isOnboardingPage || pathname === '/maintenance') {
+    if (isAuthPage || isOnboardingPage) {
       setIsReadyForContent(true);
       return;
     }
 
-    // For all other (protected) pages
     if (!currentUser) {
       router.replace("/login");
-      setIsReadyForContent(false); // Redirecting, so not ready for current content
+      setIsReadyForContent(false);
       return;
     }
     
-    // Maintenance checks for authenticated users on protected pages
     let currentModuleId = '';
     if (pathname === '/' || pathname === '') currentModuleId = 'home';
     else if (pathname.startsWith('/hosts')) currentModuleId = 'hosts';
@@ -119,7 +117,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       const userBaseRole = currentUser.role || 'player';
       const userAdminRole = currentUser.adminLevel;
       const userBaseLevel = roleHierarchy[userBaseRole as AdminUserRole] ?? roleHierarchy.player;
-      const userAdminLevelVal = userAdminRole ? roleHierarchy[userAdminRole as AdminUserRole] : -1;
+      const userAdminLevelVal = userAdminRole ? roleHierarchy[userAdminRole as AdminUserRole] : -1; // Use -1 or some other low value if no adminLevel
       const effectiveUserLevel = Math.max(userBaseLevel, userAdminLevelVal);
 
       switch (moduleRule.minimumAccessLevelWhenOffline) {
@@ -128,29 +126,28 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         case 'admin': userHasAccess = effectiveUserLevel >= roleHierarchy.admin; break;
         case 'suporte': userHasAccess = effectiveUserLevel >= roleHierarchy.suporte; break;
         case 'host': userHasAccess = effectiveUserLevel >= roleHierarchy.host; break;
-        case 'player': userHasAccess = effectiveUserLevel === roleHierarchy.player; break; // Exact match for 'player'
-        default: userHasAccess = false;
+        case 'player': userHasAccess = effectiveUserLevel === roleHierarchy.player; break;
+        default: userHasAccess = true; // Default to access if rule is malformed for safety
       }
       
-      if (!userHasAccess) {
+      if (!userHasAccess && pathname !== '/maintenance') {
         router.replace('/maintenance');
-        setIsReadyForContent(false); // Redirecting
+        setIsReadyForContent(false);
         return;
       }
     }
     
-    // If all checks passed and no redirection happened
     setIsReadyForContent(true);
 
   }, [authLoading, isLoadingRules, currentUser, pathname, router, maintenanceRules]);
 
-  const isStandalonePage = ['/login', '/signup', '/forgot-password'].includes(pathname) || pathname.startsWith('/onboarding');
+  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
+  const isOnboardingPage = pathname.startsWith('/onboarding');
+  const isAuthPage = standaloneAuthPaths.includes(pathname);
   const isMaintenancePage = pathname === '/maintenance';
 
   if (authLoading || isLoadingRules) {
-    // For auth/onboarding/maintenance pages, allow them to render their structure (which might include own spinners)
-    // For other pages, show a full-screen spinner.
-    if (!isStandalonePage && !isMaintenancePage) {
+    if (!isAuthPage && !isOnboardingPage && !isMaintenancePage) {
       return (
         <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
           <LoadingSpinner size="lg" />
@@ -159,7 +156,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }
   
-  if (isStandalonePage || isMaintenancePage) {
+  if (isAuthPage || isOnboardingPage || isMaintenancePage) {
     return (
       <>
         {children}
@@ -168,9 +165,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  // For protected app pages that require the main layout
   if (!isReadyForContent) {
-    // This spinner covers the case where auth/rules are loaded, but checks are still pending or a redirect is happening
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -190,7 +185,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Início">
                 <Link href="/">
                   <Home className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Início</span>
+                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Início</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -198,7 +193,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Hosts">
                 <Link href="/hosts">
                   <Users className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Hosts</span>
+                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Hosts</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -206,7 +201,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Jogos">
                 <Link href="/bingo">
                   <TicketIcon className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Jogos</span>
+                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Jogos</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -214,7 +209,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
               <SidebarMenuButton asChild tooltip="Mensagem">
                 <Link href="/messages">
                   <MessageSquare className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                  <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Mensagem</span>
+                  <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Mensagem</span>
                    {hasUnreadMessages && (
                     <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-500 ring-1 ring-sidebar pointer-events-none group-data-[collapsible=icon]:top-3 group-data-[collapsible=icon]:right-3 group-data-[collapsible=icon]:h-2.5 group-data-[collapsible=icon]:w-2.5" />
                   )}
@@ -231,7 +226,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                     <SidebarMenuButton asChild tooltip="Painel Admin">
                       <Link href="/admin">
                         <LayoutDashboard className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                        <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Painel</span>
+                        <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Painel</span>
                       </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -240,7 +235,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Perfil">
                      <Link href="/profile">
                        <UserCircle2 className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Perfil</span>
+                       <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Perfil</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -248,7 +243,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                   <SidebarMenuButton asChild tooltip="Config">
                      <Link href="/settings">
                        <Settings className="transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:delay-200" />
-                       <span className="transition-all duration-300 ease-out whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Config</span>
+                       <span className="transition-all ease-out duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[100px] delay-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:delay-0 text-xs">Config</span>
                      </Link>
                   </SidebarMenuButton>
               </SidebarMenuItem>
@@ -259,7 +254,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         <Header />
         <main className={cn(
           "flex-grow",
-          (pathname === "/messages" || pathname.startsWith("/admin")) ? "p-0" : "px-4 py-8",
+          (pathname === "/messages" || pathname.startsWith("/admin") || pathname === "/profile") ? "p-0" : "px-4 py-8",
           pathname === "/" ? "flex flex-col" : "" 
         )}>
           {children}
@@ -269,5 +264,3 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     </SidebarProvider>
   );
 }
-
-    
