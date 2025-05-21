@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance } from '@/types';
@@ -155,6 +155,13 @@ export default function AdminBingoAdminPage() {
         { id: "bingoCartelas90", title: "Cartelas Bingo 90", icon: LayoutGrid, link: "#bingoCartelas90" },
       ],
     },
+    {
+      groupTitle: "PREMIOS",
+      items: [
+        { id: "bingoPremiosKako", title: "Prêmios Kako Live", icon: Gift, link: "#bingoPremiosKako" },
+        { id: "bingoPremiosDinheiro", title: "Prêmios em Dinheiro", icon: DollarSign, link: "#bingoPremiosDinheiro" },
+      ],
+    }
   ];
 
   const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
@@ -388,6 +395,14 @@ export default function AdminBingoAdminPage() {
             </Card>
           </div>
         );
+      case 'bingoPremiosKako':
+        contentTitle = "Gerenciamento de Prêmios - Kako Live";
+        contentDescription = "Configure e visualize prêmios virtuais do Kako Live para os jogos de bingo.";
+        break;
+      case 'bingoPremiosDinheiro':
+        contentTitle = "Gerenciamento de Prêmios - Dinheiro";
+        contentDescription = "Defina e administre prêmios em dinheiro para diferentes tipos de bingo e classificações.";
+        break;
       case 'bingoGanhadores':
         contentTitle = "Registro de Ganhadores";
         contentDescription = "Gerencie e visualize o histórico de ganhadores dos jogos de bingo.";
@@ -431,6 +446,8 @@ export default function AdminBingoAdminPage() {
               {activeTab === 'bingoGanhadores' && <Trophy className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoBolasSorteadas' && <Dice5 className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoTelaSorteio' && <PlaySquare className="mr-2 h-6 w-6 text-primary" />}
+              {activeTab === 'bingoPremiosKako' && <Gift className="mr-2 h-6 w-6 text-primary" />}
+              {activeTab === 'bingoPremiosDinheiro' && <DollarSign className="mr-2 h-6 w-6 text-primary" />}
               {contentTitle}
             </CardTitle>
             <CardDescription>
