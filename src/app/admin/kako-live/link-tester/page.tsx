@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
+interface ParsedUserData {
+  nickname?: string;
+  avatarUrl?: string;
+  level?: number;
+  showId?: string;
+  userId?: string;
+}
 interface ProcessedMessage {
   id: string;
   timestamp: string;
@@ -24,13 +31,7 @@ interface ProcessedMessage {
   parsedData?: Record<string, any>;
   isJson: boolean;
   classification?: string;
-  parsedUserData?: {
-    nickname?: string;
-    avatarUrl?: string;
-    level?: number;
-    showId?: string;
-    userId?: string;
-  };
+  parsedUserData?: ParsedUserData;
 }
 
 const generateUniqueId = () => {
@@ -47,14 +48,14 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [messageToSend, setMessageToSend] = useState<string>("");
   const { toast } = useToast();
 
+  const [showLiveDataFilter, setShowLiveDataFilter] = useState(true);
+  const [showChatMessageFilter, setShowChatMessageFilter] = useState(true);
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
   const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
-  const [showLiveDataFilter, setShowLiveDataFilter] = useState(true);
-  const [showChatMessageFilter, setShowChatMessageFilter] = useState(true);
 
 
-  const handleConnect = () => {
+  const handleConnect = useCallback(() => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
       toast({
         title: "URL Inválida",
@@ -78,8 +79,6 @@ export default function AdminKakoLiveLinkTesterPage() {
 
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
-    // Clear previous messages except system/error ones if needed, or keep them
-    // setProcessedMessages(prev => prev.filter(msg => msg.type === 'system' || msg.type === 'error')); 
     setErrorDetails(null);
 
     try {
@@ -113,7 +112,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             let parsedJson: Record<string, any> | undefined;
             let isJsonMessage = false;
             let classification: string | undefined = undefined;
-            let parsedUserData: ProcessedMessage['parsedUserData'] = undefined;
+            let parsedUserData: ParsedUserData | undefined = undefined;
 
             const firstBrace = messageContentString.indexOf('{');
             const lastBrace = messageContentString.lastIndexOf('}');
@@ -140,7 +139,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
                 classification = "Dados de Jogo";
-              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson) ) { 
                 classification = "Dados Externos";
               }
 
@@ -247,7 +246,7 @@ export default function AdminKakoLiveLinkTesterPage() {
         socketRef.current = null;
       }
     }
-  };
+  }, [wsUrl, toast]);
 
   const handleDisconnect = () => {
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
@@ -274,8 +273,8 @@ export default function AdminKakoLiveLinkTesterPage() {
         id: generateUniqueId(),
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'sent',
-        originalData: `[ENVIADO] ${messageToSend.trim()}`,
-        isJson: false,
+        originalData: `${messageToSend.trim()}`, // Removed [ENVIADO] prefix for cleaner JSON sending
+        isJson: false, // Assume sent as string, server might parse if it's JSON string
       }]);
       toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
       setMessageToSend("");
@@ -388,7 +387,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                 id="messageToSend"
                 value={messageToSend}
                 onChange={(e) => setMessageToSend(e.target.value)}
-                placeholder="Digite sua mensagem aqui..."
+                placeholder="Digite sua mensagem JSON ou texto aqui..."
                 disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
                 onKeyPress={(e) => e.key === 'Enter' && messageToSend.trim() && handleSendMessage()}
               />
@@ -503,6 +502,12 @@ export default function AdminKakoLiveLinkTesterPage() {
                         </CardHeader>
                       </Card>
                     )}
+                    
+                    {msg.type === 'received' && msg.classification === "Mensagem de Chat" && msg.parsedData?.text && (
+                      <div className="mt-2 mb-3 p-3 bg-muted border border-border rounded-md">
+                        <p className="text-sm text-foreground font-medium break-all">{msg.parsedData.text}</p>
+                      </div>
+                    )}
 
                     {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
@@ -537,11 +542,17 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </pre>
                           </details>
                       </div>
-                    ) : msg.type !== 'received' ? ( // For sent, system, error messages
+                    ) : msg.type === 'sent' ? ( // For sent messages
+                        <div>
+                          <h4 className="text-sm font-semibold mb-1">Dados Brutos Enviados:</h4>
+                          <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                            {msg.originalData}
+                          </pre>
+                        </div>
+                    ) : msg.type !== 'received' ? ( // For system, error messages
                       <div>
                         <h4 className="text-sm font-semibold mb-1">
-                          {msg.type === 'sent' ? 'Dados Brutos Enviados:' :
-                           msg.type === 'system' ? 'Mensagem do Sistema:' :
+                          {msg.type === 'system' ? 'Mensagem do Sistema:' :
                            'Mensagem de Erro:'}
                         </h4>
                         <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
@@ -571,3 +582,6 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
+
+
+    
