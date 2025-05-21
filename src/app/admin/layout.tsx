@@ -25,10 +25,15 @@ import {
   XCircle,
   Database,
   Link as LinkIcon,
-  Ticket as TicketIcon, // Renamed to avoid conflict
+  Ticket as TicketIcon,
   MailQuestion,
   ServerOff,
-  RefreshCw // Added for new "Atualizar Dados" page
+  RefreshCw,
+  ListFilter, // Added ListFilter
+  BarChart3,  // Added BarChart3
+  PlusCircle, // Added PlusCircle
+  ListChecks, // Added ListChecks
+  Settings as SettingsIconLucide // Added SettingsIconLucide
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -37,21 +42,17 @@ import type { ReactNode } from 'react';
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Import page content components for conditional rendering
-import AdminHostsPageContent from "@/app/admin/hosts/page-content";
-import AdminPlayersPageContent from "@/app/admin/users/players/page-content";
-import AdminAdminsPageContent from "@/app/admin/users/admin/page-content";
-import AdminBansPage from "@/app/admin/actions/bans/page";
-import AdminKakoLiveDataListPageContent from "@/app/admin/kako-live/data-list/page-content";
-import AdminMaintenanceOfflinePage from "@/app/admin/maintenance/offline/page";
-import AdminKakoLiveLinkTesterPage from "@/app/admin/kako-live/link-tester/page";
-import AdminKakoLiveUpdateDataChatPageContent from "@/app/admin/kako-live/update-data-chat/page-content"; // New import
+// Page content components are no longer imported here
+// They will be rendered as children by Next.js App Router
 
 interface AdminMenuItem {
+  id: string;
   title: string;
   icon: React.ElementType;
-  link: string;
-  currentValue?: string;
+  link?: string;
+  currentValue?: string; // For items like "Idioma"
+  action?: () => void; // For items like "Sair"
+  separatorAbove?: boolean; // To add a separator before this item
 }
 
 interface AdminMenuGroup {
@@ -65,98 +66,77 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [contentToRender, setContentToRender] = useState<ReactNode>(children);
+  // contentToRender state and its useEffect are removed
 
   const adminMenuGroups: AdminMenuGroup[] = [
     {
       groupTitle: "GERAL",
       items: [
-        { title: "Dashboard", icon: LayoutDashboard, link: "/admin" }, // Links to /admin, which shows hosts
-        { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
-        { title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
+        { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
+        { id: "language", title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
+        { id: "notifications", title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
       ],
     },
     {
       groupTitle: "GESTÃO DE USUÁRIOS",
       items: [
-        { title: "Contas de Hosts", icon: Star, link: "/admin/hosts" },
-        { title: "Contas de Players", icon: User, link: "/admin/users/players" },
-        { title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
-        { title: "Banimentos", icon: XCircle, link: "/admin/actions/bans" },
+        { id: "hosts", title: "Contas de Hosts", icon: Star, link: "/admin/hosts" },
+        { id: "players", title: "Contas de Players", icon: User, link: "/admin/users/players" },
+        { id: "adminAccounts", title: "Contas de Admin", icon: UserCog, link: "/admin/users/admin" },
+        { id: "bans", title: "Banimentos", icon: XCircle, link: "/admin/actions/bans" },
       ],
     },
     {
       groupTitle: "KAKO LIVE",
       items: [
-          { title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
-          { title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" }, // New Menu Item
-          { title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
+          { id: "kakoDataList", title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
+          { id: "kakoUpdateDataChat", title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" },
+          { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
+      ]
+    },
+    { // New Bingo Admin Group
+      groupTitle: "BINGO", 
+      items: [
+        { id: "bingoAdminMain", title: "Administração Bingo", icon: TicketIcon, link: "/admin/bingo-admin"},
       ]
     },
     {
       groupTitle: "MANUTENÇÃO",
       items: [
-          { title: "Status Offline", icon: ServerOff, link: "/admin/maintenance/offline" },
+          { id: "maintenanceOffline", title: "Status Offline", icon: ServerOff, link: "/admin/maintenance/offline" },
       ]
     },
     {
       groupTitle: "SOBRE",
       items: [
-        { title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
-        { title: "Política de privacidade", icon: FileText, link: "/admin/privacy-policy" },
-        { title: "Contrato de Host", icon: FileText, link: "/admin/host-agreement" },
-        { title: "Sobre Kako Live", icon: Info, link: "/admin/about-kako" },
+        { id: "userAgreement", title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
+        { id: "privacyPolicy", title: "Política de privacidade", icon: FileText, link: "/admin/privacy-policy" },
+        { id: "hostAgreement", title: "Contrato de Host", icon: FileText, link: "/admin/host-agreement" },
+        { id: "aboutKako", title: "Sobre Kako Live", icon: Info, link: "/admin/about-kako" },
       ],
     },
     {
       items: [
-        { title: "Entre em contato conosco", icon: Headphones, link: "/support" },
+        { id: "support", title: "Entre em contato conosco", icon: Headphones, link: "/support" },
       ],
       isBottomSection: true,
     },
     {
       items: [
-        { title: "Sair", icon: LogOut, link: "#logout" },
+        { id: "logout", title: "Sair", icon: LogOut, action: async () => { await logout(); router.push('/'); } },
       ],
     },
   ];
 
   const toggleAdminSidebar = () => setIsCollapsed(!isCollapsed);
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-  };
-
-  useEffect(() => {
-    // Default content is the children passed (e.g., specific page for a direct URL hit)
-    let newContent = children;
-
-    if (pathname === "/admin" || pathname === "/admin/hosts") {
-      newContent = <AdminHostsPageContent />;
-    } else if (pathname === "/admin/users/players") {
-      newContent = <AdminPlayersPageContent />;
-    } else if (pathname === "/admin/users/admin") {
-      newContent = <AdminAdminsPageContent />;
-    } else if (pathname === "/admin/actions/bans") {
-      newContent = <AdminBansPage />;
-    } else if (pathname === "/admin/kako-live/data-list") {
-        newContent = <AdminKakoLiveDataListPageContent />;
-    } else if (pathname === "/admin/kako-live/link-tester") {
-        newContent = <AdminKakoLiveLinkTesterPage />;
-    } else if (pathname === "/admin/kako-live/update-data-chat") { // New Route
-        newContent = <AdminKakoLiveUpdateDataChatPageContent />;
-    } else if (pathname === "/admin/maintenance/offline") {
-        newContent = <AdminMaintenanceOfflinePage />;
-    } else if (pathname.startsWith("/admin/hosts/") && pathname.endsWith("/edit")) {
-      // For edit pages, children (the actual page component) should render
-      newContent = children;
+  const handleMenuClick = (item: AdminMenuItem) => {
+    if (item.action) {
+      item.action();
+    } else if (item.link) {
+      router.push(item.link);
     }
-    // Add other specific /admin sub-pages here as needed
-    // ...
-
-    setContentToRender(newContent);
-  }, [pathname, children]);
+  };
 
 
   if (!currentUser || !currentUser.adminLevel) {
@@ -187,7 +167,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             )}>
               <div className="p-4 space-y-4 flex-grow">
                 {adminMenuGroups.map((group, groupIndex) => (
-                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-6 pt-6 border-t")}>
+                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
                     {group.groupTitle && !isCollapsed && (
                       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
                         {group.groupTitle}
@@ -201,17 +181,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
                         const isActive = (pathname === item.link) ||
-                                         (item.link === "/admin" && pathname === "/admin/hosts") || // Dashboard active for /admin/hosts too
-                                         (item.link !== "/admin" && item.link !== "/admin/hosts" && pathname.startsWith(item.link) && item.link.length > "/admin".length); // More specific match for sub-pages
+                                         (item.link === "/admin" && pathname === "/admin/hosts") || 
+                                         (item.id === "dashboard" && (pathname === "/admin" || pathname === "/admin/hosts")) ||
+                                         (item.id === "bingoAdminMain" && pathname === "/admin/bingo-admin") ||
+                                         (item.link && item.link !== "/admin" && item.link !== "/admin/hosts" && pathname.startsWith(item.link) && item.link.length > "/admin".length); 
                         
-                        const isLogout = item.link === "#logout";
-
-                        const buttonAction = isLogout ? handleLogout : () => {
-                            if (item.link) router.push(item.link);
-                        };
-
                         return (
-                          <Tooltip key={item.title} disableHoverableContent={!isCollapsed}>
+                          <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
@@ -224,31 +200,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                     ? "flex items-center justify-center p-3 h-14"
                                     : "justify-between py-3 px-3" 
                                 )}
-                                asChild={!isLogout}
-                                onClick={isLogout ? buttonAction : undefined}
+                                onClick={() => handleMenuClick(item)}
                               >
-                                {isLogout ? (
-                                  <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
+                                <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
                                     <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
-                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
-                                      {!isCollapsed && item.title}
+                                        <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
+                                        {!isCollapsed && item.title}
                                     </div>
-                                    {!isCollapsed && <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
-                                  </div>
-                                ) : (
-                                  <Link href={item.link} className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
-                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
-                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
-                                      {!isCollapsed && item.title}
-                                    </div>
-                                    {!isCollapsed && (
+                                    {!isCollapsed && !item.action && (
                                       <div className="flex items-center ml-auto">
                                         {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                       </div>
                                     )}
-                                  </Link>
-                                )}
+                                </div>
                               </Button>
                             </TooltipTrigger>
                             {isCollapsed && (
@@ -277,7 +242,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </nav>
 
             <main className="flex-grow overflow-y-auto">
-              {contentToRender}
+              {/* Content is now rendered directly by Next.js App Router */}
+              {children}
             </main>
           </div>
         </div>
@@ -285,3 +251,5 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </ProtectedPage>
   );
 }
+
+    
