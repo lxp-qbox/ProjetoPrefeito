@@ -133,10 +133,10 @@ export default function AdminKakoLiveDataListPageContent() {
   };
 
   const handleConfirmClearList = () => {
-    setKakoProfiles([]);
+    setKakoProfiles([]); // This should clear the list
     toast({
       title: "Lista Zerada",
-      description: "Todos os perfis foram removidos da lista atual.",
+      description: "Todos os perfis foram removidos da lista atual (nesta visualização).",
     });
     setIsConfirmClearDialogOpen(false);
   };
@@ -184,7 +184,7 @@ export default function AdminKakoLiveDataListPageContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4"> {/* Changed to 1 column for stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
           <StatCard title="Total de Perfis Carregados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
         </div>
 
@@ -320,3 +320,4 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
