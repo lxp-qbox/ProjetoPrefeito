@@ -10,7 +10,7 @@ import {
 import {
   Table,
   TableBody,
-  TableCell, // Added TableCell import
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -36,7 +36,7 @@ export const placeholderHosts: Host[] = [
     totalFollowers: "2.1M",
     totalViews: "15.3M",
     kakoLiveFuid: "1169d2d120e14f34b217dad9cdc91a6b",
-    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", // Example Room ID
+    kakoLiveRoomId: "67b9ed5fa4e716a084a23765", 
     bio: "Jogador profissional e streamer. Amo interagir com vocês!",
     streamTitle: "Gameplay Insana e Risadas!",
     likes: 150000,
@@ -50,7 +50,7 @@ export const placeholderHosts: Host[] = [
     totalDonationsValue: 1200,
   },
   {
-    id: "presidente-001", // Changed from new-test-host-1 for clarity
+    id: "presidente-001", 
     rankPosition: 2,
     name: "PRESIDENTE",
     avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
@@ -69,11 +69,11 @@ export const placeholderHosts: Host[] = [
     streamTitle: "Dominando as Arenas!",
     likes: 276997,
     giftsReceived: [
-      { id: "gift_miau", name: "Miau", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", count: 15, dataAiHint: "cat face" },
-      { id: "gift_amor", name: "Amor", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", count: 200, dataAiHint: "heart symbol" },
-      { id: "gift_rosas", name: "Rosas", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", count: 50, dataAiHint: "roses flower" },
-      { id: "gift_sol", name: "Sol", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", count: 100, dataAiHint: "sun bright" },
-      { id: "gift_sorvete", name: "Sorvete", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", count: 75, dataAiHint: "ice cream" },
+      { id: "40", name: "Miau", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", count: 150, dataAiHint: "cat face" },
+      { id: "1", name: "Amor", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", count: 250, dataAiHint: "heart symbol" },
+      { id: "26", name: "Rosas", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", count: 50, dataAiHint: "roses flower" },
+      { id: "46", name: "Sol", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", count: 100, dataAiHint: "sun bright" },
+      { id: "31", name: "Sorvete", iconUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", count: 75, dataAiHint: "ice cream" },
     ],
     createdAt: new Date(),
     lastSeen: new Date(),
@@ -81,10 +81,10 @@ export const placeholderHosts: Host[] = [
     totalDonationsValue: 5000,
   },
   {
-    id: "streamer-galaxia-02",
+    id: "streamer-estelar-02", // Was: "new-test-host-1", then "new-host-2", changed to match name for consistency
     rankPosition: 3,
-    name: "Comandante Estelar",
-    avatarUrl: "https://placehold.co/40x40.png?text=CE",
+    name: "Streamer Estelar",
+    avatarUrl: "https://placehold.co/40x40.png?text=SE",
     dataAiHint: "space commander",
     avgViewers: 15000,
     timeStreamed: 150.0,
@@ -94,8 +94,8 @@ export const placeholderHosts: Host[] = [
     followersGained: 8000,
     totalFollowers: "950K",
     totalViews: "7.5M",
-    kakoLiveFuid: "7929e0d0a7654b93b114b88ceef8f01f", // From your URL
-    kakoLiveRoomId: "67bb45bba2dac52d3825050f", // From your URL
+    kakoLiveFuid: "38091a3fedba40de9e5ce2d9a72c6ab8", 
+    kakoLiveRoomId: "67d3a3e04f934128296bac6f", // Updated Room ID
     bio: "Explorando o universo dos games, uma live de cada vez. Junte-se à tripulação!",
     streamTitle: "Noite de Aventuras Intergalácticas!",
     likes: 120500,
