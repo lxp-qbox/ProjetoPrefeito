@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2 } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -41,6 +41,7 @@ export default function AdminKakoLiveLinkTesterPage() {
 
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
+  const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -119,10 +120,14 @@ export default function AdminKakoLiveLinkTesterPage() {
           }
 
           if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-            if ('roomId' in parsedJson) {
+            if ('roomId' in parsedJson && !('game' in parsedJson) && !('giftId' in parsedJson && !('roomId' in parsedJson))) { // Prioritize roomId for "Dados da Sala" unless it's clearly a game or specific gift type
               classification = "Dados da Sala";
             } else if ('game' in parsedJson) {
               classification = "Dados de Jogo";
+            } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
+              // If it has giftId AND roomId, it's likely a gift within a room, not "external data".
+              // This rule specifically targets messages that have giftId but are NOT specific to a room context via roomId.
+              classification = "Dados Externos";
             }
           }
 
@@ -262,6 +267,9 @@ export default function AdminKakoLiveLinkTesterPage() {
     if (msg.classification === "Dados de Jogo") {
       return showGameDataFilter;
     }
+    if (msg.classification === "Dados Externos") {
+      return showExternalDataFilter;
+    }
     return true; // Show unclassified received messages by default
   });
 
@@ -336,7 +344,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center space-x-4 border-t pt-4">
+          <div className="mt-4 flex items-center space-x-4 border-t pt-4 flex-wrap gap-y-2">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="showRoomDataFilter"
@@ -353,6 +361,14 @@ export default function AdminKakoLiveLinkTesterPage() {
               />
               <Label htmlFor="showGameDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados de Jogo</Label>
             </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showExternalDataFilter"
+                checked={showExternalDataFilter}
+                onCheckedChange={(checked) => setShowExternalDataFilter(Boolean(checked))}
+              />
+              <Label htmlFor="showExternalDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados Externos</Label>
+            </div>
           </div>
 
           <div className="mt-2 flex-grow flex flex-col min-h-0">
@@ -368,13 +384,15 @@ export default function AdminKakoLiveLinkTesterPage() {
                         {msg.timestamp}
                         </p>
                         {msg.classification && msg.type === 'received' && (
-                            <Badge className={`text-xs ${
-                                msg.classification === "Dados da Sala" ? "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200" :
-                                msg.classification === "Dados de Jogo" ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" :
-                                "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
-                            }`}>
+                            <Badge className={cn(`text-xs`, 
+                                msg.classification === "Dados da Sala" && "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200",
+                                msg.classification === "Dados de Jogo" && "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
+                                msg.classification === "Dados Externos" && "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
+                                !(msg.classification === "Dados da Sala" || msg.classification === "Dados de Jogo" || msg.classification === "Dados Externos") && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
+                            )}>
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />}
                                 {msg.classification}
                             </Badge>
                         )}
