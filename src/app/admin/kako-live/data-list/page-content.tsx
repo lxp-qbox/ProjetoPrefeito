@@ -26,9 +26,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
 import type { KakoProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface StatCardProps {
   title: string;
@@ -63,6 +74,9 @@ export default function AdminKakoLiveDataListPageContent() {
   const [profileToRemove, setProfileToRemove] = useState<KakoProfile | null>(null);
   const [isConfirmRemoveDialogOpen, setIsConfirmRemoveDialogOpen] = useState(false);
   const [isConfirmClearListDialogOpen, setIsConfirmClearListDialogOpen] = useState(false);
+
+  const [selectedProfileForDetails, setSelectedProfileForDetails] = useState<KakoProfile | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
@@ -213,6 +227,11 @@ export default function AdminKakoLiveDataListPageContent() {
     setIsConfirmClearListDialogOpen(false);
   };
 
+  const handleShowDetails = (profile: KakoProfile) => {
+    setSelectedProfileForDetails(profile);
+    setIsDetailModalOpen(true);
+  };
+
   const filteredProfiles = kakoProfiles.filter(profile =>
     profile.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.id.toLowerCase().includes(searchTerm.toLowerCase()) || // FUID search
@@ -309,7 +328,7 @@ export default function AdminKakoLiveDataListPageContent() {
                       <TableCell className="text-sm text-muted-foreground">{profile.id}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => toast({title: "Visualizar Detalhes", description:"Funcionalidade em desenvolvimento."})}>
+                          <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
                             <Eye className="h-3 w-3 mr-1" />
                             Detalhes
                           </Button>
@@ -355,6 +374,68 @@ export default function AdminKakoLiveDataListPageContent() {
         </div>
       </div>
 
+      {selectedProfileForDetails && (
+        <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <Avatar className="h-10 w-10 mr-3 border">
+                    <AvatarImage src={selectedProfileForDetails.avatarUrl} alt={selectedProfileForDetails.nickname} data-ai-hint="user avatar" />
+                    <AvatarFallback>
+                        {selectedProfileForDetails.nickname ? selectedProfileForDetails.nickname.substring(0,2).toUpperCase() : <UserCircle2 />}
+                    </AvatarFallback>
+                </Avatar>
+                Detalhes de: {selectedProfileForDetails.nickname}
+              </DialogTitle>
+              <DialogDescription>
+                Informações detalhadas do perfil identificado no Kako Live.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 text-sm">
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">User ID (FUID):</span>
+                <span className="break-all">{selectedProfileForDetails.id}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Nickname:</span>
+                <span>{selectedProfileForDetails.nickname}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Show ID:</span>
+                <span>{selectedProfileForDetails.showId || "N/A"}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Nível:</span>
+                <span>{selectedProfileForDetails.level || "N/A"}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Num ID:</span>
+                <span>{selectedProfileForDetails.numId || "N/A"}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Gênero:</span>
+                <span>{selectedProfileForDetails.gender === 1 ? "Masculino" : selectedProfileForDetails.gender === 2 ? "Feminino" : "N/A"}</span>
+              </div>
+              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                <span className="font-medium text-muted-foreground">Visto pela Última Vez:</span>
+                <span>{selectedProfileForDetails.lastFetchedAt ? format(new Date(selectedProfileForDetails.lastFetchedAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}</span>
+              </div>
+               <div className="grid grid-cols-[120px_1fr] items-start gap-2">
+                <span className="font-medium text-muted-foreground">Avatar URL:</span>
+                <span className="break-all text-xs">{selectedProfileForDetails.avatarUrl || "N/A"}</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Fechar
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {profileToRemove && (
         <AlertDialog open={isConfirmRemoveDialogOpen} onOpenChange={setIsConfirmRemoveDialogOpen}>
           <AlertDialogContent>
@@ -399,5 +480,3 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
-
-    
