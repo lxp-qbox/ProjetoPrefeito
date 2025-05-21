@@ -93,7 +93,7 @@ export default function AdminKakoLiveDataListPageContent() {
     const profileDocRef = doc(db, "kakoProfiles", profileData.id);
     try {
       const docSnap = await getDoc(profileDocRef);
-      const dataToSave: Partial<KakoProfile> = {
+      const dataToSave: KakoProfile = {
         id: profileData.id,
         nickname: profileData.nickname,
         avatarUrl: profileData.avatarUrl,
@@ -101,7 +101,7 @@ export default function AdminKakoLiveDataListPageContent() {
         numId: profileData.numId,
         showId: profileData.showId,
         gender: profileData.gender,
-        lastFetchedAt: serverTimestamp(),
+        lastFetchedAt: serverTimestamp(), // Add lastFetchedAt here
       };
 
       if (docSnap.exists()) {
@@ -122,6 +122,8 @@ export default function AdminKakoLiveDataListPageContent() {
         } else {
            // Even if no other data changed, we still update lastFetchedAt if it was "seen"
            await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() });
+           // Optionally, you could show a "Profile seen again" toast here, but it might be too noisy.
+           // toast({ title: "Perfil Kako Visto Novamente", description: `Perfil de ${profileData.nickname} visto novamente.`, variant: "default" });
         }
       } else {
         // New profile, save all data, including id and lastFetchedAt
@@ -187,24 +189,21 @@ export default function AdminKakoLiveDataListPageContent() {
                 numId: userData.numId,
                 showId: userData.showId,
                 gender: userData.gender,
-                // lastFetchedAt will be added by upsertKakoProfileToFirestore
               };
 
-              // Upsert to Firestore
               upsertKakoProfileToFirestore(newProfileData);
 
-              // Update local state for UI
               setKakoProfiles(prevProfiles => {
                 const existingProfileIndex = prevProfiles.findIndex(p => p.id === newProfileData.id);
                 const profileWithTimestamp: KakoProfile = {
                     ...newProfileData,
-                    lastFetchedAt: new Date() // For UI, this is the "seen now" time
+                    lastFetchedAt: new Date() 
                 };
                 if (existingProfileIndex > -1) {
                   const updatedProfiles = [...prevProfiles];
                   updatedProfiles[existingProfileIndex] = {
                     ...updatedProfiles[existingProfileIndex],
-                    ...profileWithTimestamp, // Update existing profile with new data
+                    ...profileWithTimestamp, 
                   };
                   return updatedProfiles;
                 } else {
@@ -233,16 +232,16 @@ export default function AdminKakoLiveDataListPageContent() {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
         
-        if (socketRef.current === newSocket) { // Check if this is the current socket
+        if (socketRef.current === newSocket) { 
             if (!isManuallyDisconnectingRef.current) {
                 setConnectionStatus("Desconectado - Tentando Reconectar...");
                 toast({ title: "WebSocket Desconectado", description: `${closeMsg} Tentando reconectar em 5 segundos.` });
-                socketRef.current = null; // Allow connectWebSocket to try again
+                socketRef.current = null; 
                 reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
             } else {
                 setConnectionStatus("Desconectado");
                 toast({ title: "WebSocket Desconectado Manualmente" });
-                socketRef.current = null; // Nullify after manual disconnect
+                socketRef.current = null; 
             }
         }
       };
@@ -254,10 +253,10 @@ export default function AdminKakoLiveDataListPageContent() {
       toast({ title: "Falha ao Conectar WebSocket", description: errMsg, variant: "destructive" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // connectWebSocket should be stable or wrapped in useCallback if it needs to be a dependency
+  }, []); 
 
   const disconnectWebSocket = useCallback(() => {
-    isManuallyDisconnectingRef.current = true; // Signal that this is an intentional disconnect
+    isManuallyDisconnectingRef.current = true; 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -266,19 +265,18 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current.onopen = null;
       socketRef.current.onmessage = null;
       socketRef.current.onerror = null;
-      socketRef.current.onclose = null; // Important to prevent onclose from trying to reconnect
+      socketRef.current.onclose = null; 
       socketRef.current.close();
-      socketRef.current = null; // Explicitly nullify
-      // Status and toast are handled by onclose now
+      socketRef.current = null; 
     } else {
       toast({ title: "Já Desconectado", description: "Nenhuma conexão WebSocket ativa para desconectar." });
     }
   }, [toast]);
 
   useEffect(() => {
-    connectWebSocket(); // Attempt to connect on mount
+    connectWebSocket(); 
     return () => {
-      disconnectWebSocket(); // Disconnect on unmount
+      disconnectWebSocket(); 
     };
   }, [connectWebSocket, disconnectWebSocket]);
 
@@ -351,7 +349,6 @@ export default function AdminKakoLiveDataListPageContent() {
                  <Button onClick={connectWebSocket} disabled={isConnecting || (socketRef.current?.readyState === WebSocket.OPEN)}>
                     <PlugZap className="mr-2 h-4 w-4"/> {socketRef.current?.readyState === WebSocket.OPEN ? 'Conectado' : 'Conectar WebSocket'}
                  </Button>
-                 {/* Desconectar button removed as per logic change */}
             </div>
             <p className="text-xs p-2 bg-muted rounded-md">Status: <span className={connectionStatus.startsWith("Conectado") ? "text-green-600" : connectionStatus.startsWith("Erro") || connectionStatus.includes("Reconectar") ? "text-destructive" : "text-muted-foreground"}>{connectionStatus}</span></p>
             {errorDetails && <p className="text-xs text-destructive p-2 bg-destructive/10 rounded-md">Detalhes do Erro: {errorDetails}</p>}
@@ -419,12 +416,6 @@ export default function AdminKakoLiveDataListPageContent() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {/* Sincronizar Dados can be re-added if an "update from DB" specific function is needed */}
-                              {/* <DropdownMenuItem onSelect={() => toast({title: "Sincronizar Dados", description:"Funcionalidade em desenvolvimento."})}>
-                                 <RefreshCw className="mr-2 h-4 w-4" />
-                                 Sincronizar Dados
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator /> */}
                               <DropdownMenuItem
                                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                 onSelect={() => handleRequestRemoveProfile(profile)}
