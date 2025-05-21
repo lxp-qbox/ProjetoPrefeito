@@ -16,35 +16,36 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { ArrowLeft, Save, Search as SearchIcon } from "lucide-react"; // Added SearchIcon
+import { ArrowLeft, Save, Search as SearchIcon } from "lucide-react";
 import Link from "next/link";
-// Removed countries import as it's not directly used in this simplified version,
-// country is read-only based on initial UserProfile data.
 
-// Simplified KakoProfile type for this component's simulation
 interface SimulatedKakoProfile {
-  id: string; // This would be the fuid or a unique Kako ID
+  id: string; 
   numId?: number;
   nickname: string;
   signature: string;
 }
 
-// Simulated data - in a real app, this would come from an API call
 const simulatedKakoProfiles: SimulatedKakoProfile[] = [
   {
-    id: "0322d2dd57e74a028a9e72c2fae1fd9a", // PRESIDENTE's fuid
+    id: "0322d2dd57e74a028a9e72c2fae1fd9a", 
     numId: 1008850234,
     nickname: "PRESIDENTE",
     signature: "✨The Presidential Agency, é uma organização de alto desempenho que opera sob contrato e rígidas diretrizes internas.",
   },
   {
-    id: "c2e7c033b41243b5b09f42aa50edf4a1", // KAROL's fuid
+    id: "c2e7c033b41243b5b09f42aa50edf4a1", 
     numId: 1001007128,
     nickname: "KAROL❤️WILLIAN🦊FOX",
     signature: "Amor e lealdade sempre!",
   },
   {
-    id: "12345simulado", // A generic simulated ID
+    id: "38091a3fedba40de9e5ce2d9a72c6ab8", // New profile based on your URL's fuid
+    nickname: "Meu Perfil Kako",
+    signature: "Esta é a minha bio do Kako Live!",
+  },
+  {
+    id: "12345simulado", 
     nickname: "Host Simulado",
     signature: "Esta é uma bio simulada para testes.",
   }
@@ -153,7 +154,7 @@ export default function EditHostPage() {
 
     if (foundProfile) {
       form.setValue("profileName", foundProfile.nickname, { shouldValidate: true });
-      form.setValue("kakoLiveId", foundProfile.id, { shouldValidate: true }); // Using the string ID (fuid)
+      form.setValue("kakoLiveId", foundProfile.id, { shouldValidate: true });
       form.setValue("bio", foundProfile.signature, { shouldValidate: true });
       toast({ title: "Dados Encontrados", description: "Campos do formulário preenchidos com dados do Kako Live." });
     } else {
@@ -170,9 +171,9 @@ export default function EditHostPage() {
       const hostDocRef = doc(db, "users", hostId);
       const updateData: Partial<UserProfile> = {
         profileName: data.profileName,
-        displayName: data.profileName,
+        displayName: data.profileName, // Keep displayName in sync with profileName
         kakoLiveId: data.kakoLiveId,
-        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""),
+        phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""), // Save cleaned number
         hostStatus: data.hostStatus,
         adminLevel: data.adminLevel,
         bio: data.bio,
@@ -354,5 +355,4 @@ export default function EditHostPage() {
     </div>
   );
 }
-
     
