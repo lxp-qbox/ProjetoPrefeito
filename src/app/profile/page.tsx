@@ -10,11 +10,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info 
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO, subYears, isValid, parse } from "date-fns";
+import { format, parseISO, subYears, isValid, parse, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -52,16 +52,6 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   return formatted;
 };
-
-const activityFeedItems = [
-  { id: "1", icon: Users, title: "+1150 Seguidores", description: "Você está recebendo mais e mais seguidores, continue assim!", time: "10 hrs atrás", type: "follow" },
-  { id: "2", icon: Package, title: "+3 Novos Produtos foram adicionados!", description: "Parabéns!", time: "2 hrs atrás", type: "product" },
-  { id: "3", icon: Database, title: "Backup do banco de dados concluído!", description: "Baixe o backup mais recente.", time: "1 dia atrás", type: "system" },
-  { id: "4", icon: ThumbsUp, title: "+290 Curtidas na Página", description: "Isso é ótimo, continue assim!", time: "1 dia atrás", type: "like" },
-  { id: "5", icon: UserPlus, title: "+3 Pedidos de Amizade", description: "", time: "2 dias atrás", type: "friend_request", users: [{name: "User1", avatar: "https://placehold.co/32x32.png"}, {name: "User2", avatar: "https://placehold.co/32x32.png"}, {name: "User3", avatar: "https://placehold.co/32x32.png"}] },
-  { id: "6", icon: ImageIcon, title: "+3 Novas fotos", description: "", time: "3 dias atrás", type: "photos", images: ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png", "https://placehold.co/600x400.png"] },
-  { id: "7", icon: SettingsIcon, title: "Sistema atualizado para v2.02", description: "Verifique o changelog completo na página de atividades.", time: "2 semanas atrás", type: "system_update" },
-];
 
 const profileMenuItems = [
   { id: 'inicio', title: 'Início', icon: UserCircle2 },
@@ -95,21 +85,19 @@ export default function ProfilePage() {
         try {
             let parsedDate: Date | null = null;
             if (typeof currentUser.birthDate === 'string') {
-              if (currentUser.birthDate.includes('-')) { // YYYY-MM-DD
+              if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { 
                 parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
-              } else if (currentUser.birthDate.includes('/')) { // DD/MM/YYYY
+              } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { 
                 parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
               }
-              if (!parsedDate || !isValid(parsedDate)) { // Fallback if parsing above failed
+              if (!parsedDate || !isValid(parsedDate)) {
                   const isoDate = parseISO(currentUser.birthDate);
                   if(isValid(isoDate)) parsedDate = isoDate;
               }
             } else if (currentUser.birthDate instanceof Date) {
               parsedDate = currentUser.birthDate;
-            // @ts-ignore Check if it's a Firebase Timestamp
-            } else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') {
-                // @ts-ignore
-                parsedDate = currentUser.birthDate.toDate();
+            } else if (currentUser.birthDate && typeof (currentUser.birthDate as any).toDate === 'function') {
+                parsedDate = (currentUser.birthDate as any).toDate();
             }
             if (parsedDate && isValid(parsedDate)) {
                  setEditableBirthDate(parsedDate);
@@ -175,17 +163,23 @@ export default function ProfilePage() {
   };
 
   const displayName = currentUser?.profileName || currentUser?.displayName || "Usuário";
+  const userHandle = currentUser?.email ? `@${currentUser.email.split('@')[0]}` : "@username";
+  const userShortBio = currentUser?.bio || "UX/UI Designer, 4+ years of experience"; // Placeholder if no bio
+  const userLocation = currentUser?.country || "Yerevan, Armenia"; // Placeholder if no country
+  
+  const joinedDateFormatted = useMemo(() => {
+    if (currentUser?.createdAt && (currentUser.createdAt as any).toDate) {
+      try {
+        return format((currentUser.createdAt as any).toDate(), "MMMM yyyy", { locale: ptBR });
+      } catch (e) {
+        return "Data Indisponível";
+      }
+    }
+    return "Joined April 2023"; // Placeholder
+  }, [currentUser?.createdAt]);
+
   const maxCalendarDate = new Date();
   const minCalendarDate = subYears(new Date(), 100);
-
-  const userJobTitle = "Desempregado";
-  const userWorkplace = "Construindo um negócio solo de $1M";
-  const userUniversity = currentUser?.socialLinks?.school || "Universidade de Ljubljana";
-  const userLivesIn = currentUser?.country || "Não informado";
-  const userFrom = currentUser?.country || "Não informado";
-  const userTimeZone = "Europe/Ljubljana"; // Placeholder
-  const userEmail = currentUser?.email || "Não informado";
-  const userDobFormatted = editableBirthDate ? format(editableBirthDate, "dd/MM/yyyy", { locale: ptBR }) : "Não informada";
 
 
   const renderContent = () => {
@@ -193,7 +187,7 @@ export default function ProfilePage() {
       case 'inicio':
         return (
           <div className="space-y-6">
-            <Card className="shadow-md">
+             <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Sobre Mim</CardTitle>
               </CardHeader>
@@ -203,44 +197,12 @@ export default function ProfilePage() {
             </Card>
             <Card className="shadow-md">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold">Informações Básicas (Visualização)</CardTitle>
+                <CardTitle className="text-lg font-semibold">Informações de Contato (Visualização)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center"><BookOpen className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Estudou em:</span> {userUniversity}</div>
-                <div className="flex items-center"><Briefcase className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Trabalhou em:</span> {userWorkplace}</div>
-                <div className="flex items-center"><HomeIcon className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Mora em:</span> {userLivesIn}</div>
-                <div className="flex items-center"><MapPin className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">De:</span> {userFrom}</div>
-                <div className="flex items-center"><LucideCalendarIcon className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Nascimento:</span> {userDobFormatted}</div>
-                <div className="flex items-center"><Clock className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Fuso horário:</span> {userTimeZone}</div>
+                 <div className="flex items-center"><Mail className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Email:</span> {currentUser?.email || "Não informado"}</div>
+                <div className="flex items-center"><Phone className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Celular:</span> {currentUser?.phoneNumber ? formatPhoneNumberForDisplay(currentUser.phoneNumber) : "Não informado"}</div>
               </CardContent>
-            </Card>
-            <Card className="shadow-md">
-                <CardHeader><CardTitle className="text-lg font-semibold">Atividade Recente</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                {activityFeedItems.slice(0,3).map(item => (
-                    <div key={item.id} className="pb-2 border-b last:border-b-0">
-                    <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 mt-1">
-                        <item.icon className={cn("h-5 w-5", 
-                            item.type === 'follow' && 'text-pink-500', item.type === 'product' && 'text-blue-500',
-                            item.type === 'system' && 'text-green-500', item.type === 'like' && 'text-red-500',
-                            item.type === 'friend_request' && 'text-purple-500', item.type === 'photos' && 'text-teal-500',
-                            item.type === 'system_update' && 'text-indigo-500'
-                        )} />
-                        </div>
-                        <div className="flex-grow">
-                        <div className="flex justify-between items-start">
-                            <div>
-                            <p className="font-semibold text-sm">{item.title}</p>
-                            {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
-                            </div>
-                            <p className="text-xs text-muted-foreground whitespace-nowrap">{item.time}</p>
-                        </div>
-                        </div>
-                    </div>
-                    </div>
-                ))}
-                </CardContent>
             </Card>
           </div>
         );
@@ -272,7 +234,7 @@ export default function ProfilePage() {
                     value={editableGender}
                     onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
                   >
-                    <SelectTrigger id="gender-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <SelectTrigger id="gender-select-profile" className="w-full h-12">
                       <SelectValue placeholder="Selecione seu sexo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -291,7 +253,7 @@ export default function ProfilePage() {
                         id="birthdate-picker-profile"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
+                          "w-full justify-start text-left font-normal h-12",
                           !editableBirthDate && "text-muted-foreground"
                         )}
                       >
@@ -328,7 +290,7 @@ export default function ProfilePage() {
                     value={editableCountry}
                     onValueChange={(value) => setEditableCountry(value)}
                   >
-                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <SelectTrigger id="country-select-profile" className="w-full h-12">
                       <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                       <SelectValue placeholder="Selecione seu país" />
                     </SelectTrigger>
@@ -404,40 +366,49 @@ export default function ProfilePage() {
   return (
     <ProtectedPage>
       <div className="space-y-6">
-        <Card className="shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-start gap-4">
-              <Avatar className="w-20 h-20 md:w-24 md:h-24 border-2 border-primary/30 shadow-md">
-                <AvatarImage src={currentUser?.photoURL || undefined} alt={displayName} data-ai-hint="profile picture" />
-                <AvatarFallback className="text-3xl">{getInitials(displayName)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-grow">
-                <div className="flex flex-col sm:flex-row justify-between items-start">
-                  <h1 className="text-2xl md:text-3xl font-bold">{displayName}</h1>
-                  <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                    <Button variant="ghost" size="icon" className="text-muted-foreground">
-                      <MoreHorizontal className="h-5 w-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground">
-                      <MessageSquare className="h-5 w-5" />
-                    </Button>
-                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                      <Check className="mr-2 h-4 w-4" /> Seguindo
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {userJobTitle}. {userWorkplace}.
-                </p>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
-                  <span className="flex items-center"><BookOpen className="mr-1.5 h-3 w-3" /> {userUniversity}</span>
-                  <span className="flex items-center"><Mail className="mr-1.5 h-3 w-3" /> {userEmail}</span>
-                  <span className="flex items-center"><LucideCalendarIcon className="mr-1.5 h-3 w-3" /> {userDobFormatted}</span>
-                </div>
-              </div>
+        {/* New Profile Header */}
+        <div className="bg-card rounded-lg shadow-lg overflow-hidden">
+          <div className="h-36 sm:h-48 bg-primary/20 relative">
+            {/* Placeholder for banner image pattern */}
+            <div className="absolute inset-0 opacity-30" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'52\' height=\'26\' viewBox=\'0 0 52 26\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.2\'%3E%3Cpath d=\'M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95c-.316-.09-.674-.14-1.06-.14-1.756 0-3.132 1.024-3.458 2.402-.186.785-.284 1.623-.284 2.494 0 1.017.132 2.017.284 2.97.238 1.03.834 1.934 1.616 2.625.25.213.537.398.85.556.412.208.864.366 1.34.472l.787.172.785-.172c.476-.106.928-.264 1.34-.472.313-.158.6-.343.85-.556.782-.69 1.378-1.595 1.616-2.625.152-.953.284-1.953.284-2.97s-.132-1.706-.284-2.492c-.326-1.378-1.702-2.403-3.458-2.403-.386 0-.744.05-1.06.14zM52 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zM52 26c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zM26 26c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}></div>
+            <div className="absolute top-4 right-4 flex space-x-2">
+              <Button variant="ghost" size="icon" className="bg-white/80 hover:bg-white text-foreground rounded-full h-8 w-8 sm:h-9 sm:w-9">
+                <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="bg-white/80 hover:bg-white text-foreground rounded-full h-8 w-8 sm:h-9 sm:w-9">
+                <MoreHorizontal className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="px-4 pb-6 sm:px-6 text-center -mt-12 sm:-mt-14 relative">
+            <Avatar className="h-24 w-24 sm:h-28 sm:w-28 mx-auto ring-4 ring-background shadow-lg">
+              <AvatarImage src={currentUser?.photoURL || undefined} alt={displayName} data-ai-hint="profile picture" />
+              <AvatarFallback className="text-3xl sm:text-4xl">{getInitials(displayName)}</AvatarFallback>
+            </Avatar>
+            <p className="text-sm text-muted-foreground mt-3">{userHandle}</p>
+            <div className="flex items-center justify-center mt-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{displayName}</h1>
+              {currentUser?.isVerified && (
+                 <BadgeCheck className="ml-2 h-6 w-6 text-pink-500 fill-pink-500/20" />
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">{userShortBio}</p>
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
+              <span className="flex items-center"><MapPin className="mr-1 h-3 w-3" />{userLocation}</span>
+              <span className="text-muted-foreground/50">|</span>
+              <span className="flex items-center"><LucideCalendarIcon className="mr-1 h-3 w-3" />Entrou em {joinedDateFormatted}</span>
+            </div>
+            <div className="mt-4 flex justify-center gap-2">
+              <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6 text-sm font-semibold">
+                Subscribe
+              </Button>
+              <Button variant="outline" className="rounded-full px-6 text-sm font-semibold">
+                Editar perfil
+              </Button>
+            </div>
+          </div>
+        </div>
+        {/* End New Profile Header */}
 
         <div className="flex flex-col md:flex-row gap-6">
           <nav className="md:w-72 lg:w-80 flex-shrink-0">
@@ -474,3 +445,5 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
+
+    
