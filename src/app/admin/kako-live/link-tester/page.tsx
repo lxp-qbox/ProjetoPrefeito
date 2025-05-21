@@ -42,7 +42,7 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
   const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
-  const [showLiveDataFilter, setShowLiveDataFilter] = useState(true); // New filter state
+  const [showLiveDataFilter, setShowLiveDataFilter] = useState(true);
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -54,23 +54,26 @@ export default function AdminKakoLiveLinkTesterPage() {
       return;
     }
 
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      toast({
-        title: "Já Conectado",
-        description: "Já existe uma conexão ativa. Desconecte primeiro.",
-        variant: "default",
-      });
-      return;
+    if (socketRef.current) {
+      if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+        console.log("WebSocket Link Tester: Closing existing WebSocket before opening new one.");
+        socketRef.current.onopen = null;
+        socketRef.current.onmessage = null;
+        socketRef.current.onerror = null;
+        socketRef.current.onclose = null;
+        socketRef.current.close();
+      }
+      socketRef.current = null; // Ensure it's nullified before new assignment
     }
 
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
-    setProcessedMessages([]);
+    setProcessedMessages(prev => prev.filter(msg => msg.type !== 'system' && msg.type !== 'error')); // Clear previous system/error messages
     setErrorDetails(null);
 
     try {
       const newSocket = new WebSocket(wsUrl);
-      socketRef.current = newSocket;
+      socketRef.current = newSocket; // Assign the new socket to the ref
 
       newSocket.onopen = () => {
         setIsConnecting(false);
@@ -87,75 +90,71 @@ export default function AdminKakoLiveLinkTesterPage() {
 
       newSocket.onmessage = async (event) => {
         let messageContentString = "";
-        if (event.data instanceof Blob) {
-          try {
-            messageContentString = await event.data.text();
-          } catch (e) {
-            console.error("Erro ao ler Blob:", e);
-            messageContentString = "[Erro ao ler Blob do WebSocket]";
-          }
-        } else if (typeof event.data === 'string') {
-          messageContentString = event.data;
-        } else {
-          try {
-            messageContentString = JSON.stringify(event.data);
-          } catch {
-            messageContentString = "[Tipo de mensagem desconhecido do WebSocket]";
-          }
-        }
-
-        let parsedJson: Record<string, any> | undefined;
-        let isJsonMessage = false;
-        let classification: string | undefined = undefined;
-
         try {
-          const firstBrace = messageContentString.indexOf('{');
-          const lastBrace = messageContentString.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace > firstBrace) {
-            const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
-            parsedJson = JSON.parse(jsonStr);
-            isJsonMessage = true;
-          } else {
-             // Attempt to parse the whole string if no clear JSON object found
-             // This might fail if there are leading/trailing non-JSON chars not handled by substring
-             try {
-                parsedJson = JSON.parse(messageContentString);
-                isJsonMessage = true;
-             } catch {
-                // Fallback if full string parsing fails
-             }
-          }
-
-          if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-            if ('roomId' in parsedJson && 'mute' in parsedJson) {
-              classification = "Dados da LIVE";
-            } else if ('roomId' in parsedJson) {
-              classification = "Dados da Sala";
-            } else if ('game' in parsedJson) {
-              classification = "Dados de Jogo";
-            } else if ('giftId' in parsedJson && !('roomId' in parsedJson) ) { 
-              classification = "Dados Externos";
+            if (event.data instanceof Blob) {
+              messageContentString = await event.data.text();
+            } else if (typeof event.data === 'string') {
+              messageContentString = event.data;
+            } else {
+              messageContentString = JSON.stringify(event.data);
             }
-          }
+
+            let parsedJson: Record<string, any> | undefined;
+            let isJsonMessage = false;
+            let classification: string | undefined = undefined;
+
+            const firstBrace = messageContentString.indexOf('{');
+            const lastBrace = messageContentString.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+              const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
+              try {
+                parsedJson = JSON.parse(jsonStr);
+                isJsonMessage = true;
+              } catch { /* Parsing error, treat as non-JSON */ }
+            } else {
+                 try {
+                    parsedJson = JSON.parse(messageContentString);
+                    isJsonMessage = true;
+                 } catch { /* Fallback if full string parsing fails */ }
+            }
+
+            if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
+              if ('roomId' in parsedJson && 'mute' in parsedJson) {
+                classification = "Dados da LIVE";
+              } else if ('roomId' in parsedJson) {
+                classification = "Dados da Sala";
+              } else if ('game' in parsedJson) {
+                classification = "Dados de Jogo";
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) {
+                classification = "Dados Externos";
+              }
+            }
+            
+            setProcessedMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              type: 'received',
+              originalData: messageContentString,
+              parsedData: parsedJson,
+              isJson: isJsonMessage,
+              classification: classification,
+            }]);
 
         } catch (e) {
-          isJsonMessage = false;
+            console.error("Erro ao processar mensagem WebSocket:", e);
+            setProcessedMessages(prev => [...prev, {
+                id: generateUniqueId(),
+                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                type: 'error',
+                originalData: `[ERRO INTERNO AO PROCESSAR MENSAGEM] ${e instanceof Error ? e.message : String(e)}. Dados brutos: ${messageContentString.substring(0,100)}...`,
+                isJson: false,
+              }]);
         }
-
-        setProcessedMessages(prev => [...prev, {
-          id: generateUniqueId(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type: 'received',
-          originalData: messageContentString,
-          parsedData: parsedJson,
-          isJson: isJsonMessage,
-          classification: classification,
-        }]);
       };
 
       newSocket.onerror = (errorEvent) => {
         setIsConnecting(false);
-        const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type}`;
+        const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
         setProcessedMessages(prev => [...prev, {
@@ -166,15 +165,26 @@ export default function AdminKakoLiveLinkTesterPage() {
           isJson: false,
         }]);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
-        if (socketRef.current) {
-            socketRef.current.close();
-            socketRef.current = null;
+        
+        // Clean up the specific socket instance that errored
+        const currentSocketInstance = socketRef.current;
+        if (currentSocketInstance && currentSocketInstance === newSocket) {
+            currentSocketInstance.onopen = null;
+            currentSocketInstance.onmessage = null;
+            currentSocketInstance.onerror = null;
+            currentSocketInstance.onclose = null;
+            if (currentSocketInstance.readyState === WebSocket.OPEN || currentSocketInstance.readyState === WebSocket.CONNECTING) {
+              currentSocketInstance.close();
+            }
+            if (socketRef.current === currentSocketInstance) {
+              socketRef.current = null;
+            }
         }
       };
 
       newSocket.onclose = (closeEvent) => {
         setIsConnecting(false);
-        let closeMsg = `Desconectado de ${wsUrl}.`;
+        let closeMsg = `Desconectado de ${newSocket.url}.`; // Use newSocket.url as wsUrl might change
         if (closeEvent.code || closeEvent.reason) {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
@@ -187,7 +197,11 @@ export default function AdminKakoLiveLinkTesterPage() {
           isJson: false,
         }]);
         toast({ title: "Desconectado", description: closeMsg });
-        socketRef.current = null;
+
+        // Nullify the ref only if this is the socket currently in the ref
+        if (socketRef.current === newSocket) {
+          socketRef.current = null;
+        }
       };
 
     } catch (error) {
@@ -199,11 +213,11 @@ export default function AdminKakoLiveLinkTesterPage() {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           type: 'error',
-          originalData: `[ERRO CRÍTICO] ${errMsg}`,
+          originalData: `[ERRO CRÍTICO AO CONECTAR] ${errMsg}`,
           isJson: false,
         }]);
       toast({ title: "Falha ao Conectar", description: errMsg, variant: "destructive" });
-      if (socketRef.current) {
+      if (socketRef.current) { // If a socket was somehow assigned and then an error occurred
         socketRef.current.close();
         socketRef.current = null;
       }
@@ -211,10 +225,10 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   const handleDisconnect = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.close(); // onclose handler will update status and nullify ref
     } else {
-      setConnectionStatus("Desconectado");
+      setConnectionStatus("Desconectado"); // Ensure status is updated if not already connected
       toast({ title: "Já Desconectado", description: "Nenhuma conexão ativa para desconectar." });
     }
   };
@@ -255,19 +269,27 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   useEffect(() => {
+    // Cleanup effect: runs only on component unmount
     return () => {
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.close();
+      if (socketRef.current) {
+        if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+          console.log("WebSocket Link Tester: Closing WebSocket on component unmount.");
+          // Detach handlers to prevent them from running on a socket that's being forcibly closed
+          socketRef.current.onopen = null;
+          socketRef.current.onmessage = null;
+          socketRef.current.onerror = null;
+          socketRef.current.onclose = null; 
+          socketRef.current.close();
+        }
+        socketRef.current = null;
       }
-      socketRef.current = null;
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
 
   const filteredMessages = processedMessages.filter(msg => {
     if (msg.type === 'sent' || msg.type === 'system' || msg.type === 'error') {
-      return true; // Always show sent, system, and error messages
+      return true;
     }
-    // For 'received' messages:
     if (msg.classification === "Dados da LIVE") {
       return showLiveDataFilter;
     }
@@ -280,7 +302,7 @@ export default function AdminKakoLiveLinkTesterPage() {
     if (msg.classification === "Dados Externos") {
       return showExternalDataFilter;
     }
-    return true; // Show unclassified received messages by default
+    return true; 
   });
 
   return (
@@ -310,7 +332,7 @@ export default function AdminKakoLiveLinkTesterPage() {
           <div className="flex space-x-2">
             <Button
               onClick={handleConnect}
-              disabled={isConnecting || (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) || !wsUrl.trim()}
+              disabled={isConnecting || (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && socketRef.current.url === wsUrl) || !wsUrl.trim()}
             >
               {isConnecting ? <LoadingSpinner size="sm" className="mr-2" /> : <PlugZap className="mr-2 h-4 w-4" />}
               {isConnecting ? "Conectando..." : (socketRef.current && socketRef.current.readyState === WebSocket.OPEN ? "Conectado" : "Conectar")}
@@ -318,7 +340,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             <Button
               variant="outline"
               onClick={handleDisconnect}
-              disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
+              disabled={!socketRef.current || (socketRef.current.readyState !== WebSocket.OPEN && socketRef.current.readyState !== WebSocket.CONNECTING)}
             >
               <XCircle className="mr-2 h-4 w-4" />
               Desconectar
@@ -355,7 +377,7 @@ export default function AdminKakoLiveLinkTesterPage() {
           </div>
 
           <div className="mt-4 flex items-center space-x-4 border-t pt-4 flex-wrap gap-y-2">
-            <div className="flex items-center space-x-2">
+             <div className="flex items-center space-x-2">
               <Checkbox
                 id="showLiveDataFilter"
                 checked={showLiveDataFilter}
@@ -478,4 +500,3 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
-
