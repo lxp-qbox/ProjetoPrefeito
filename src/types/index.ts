@@ -40,6 +40,7 @@ export interface Host { // This type is for the public-facing host list (/hosts 
   rankPosition: number; 
   name: string; // Kako nickname
   avatarUrl: string; // Kako avatar
+  dataAiHint?: string;
   avgViewers: number;
   timeStreamed: number; // in hours
   allTimePeakViewers: number;
@@ -65,7 +66,8 @@ export interface UserProfile {
   email?: string | null;
   role?: 'player' | 'host'; // Base role
   adminLevel?: 'master' | 'admin' | 'suporte' | null; // Hierarchical admin level
-  kakoLiveId?: string;       // User's own Kako Live ID, if they link it
+  kakoLiveId?: string;       // User's own Kako Live ID (FUID), if they link it
+  kakoLiveRoomId?: string;   // User's Kako Live Room ID, if applicable (especially for hosts)
   profileName?: string;      // Preferred display name in this app (can be from Kako, or set by user)
   displayName?: string | null; // From Firebase Auth, should ideally be synced with profileName
   photoURL?: string | null;    // From Firebase Auth, for avatar (can be from Kako, or uploaded)
@@ -101,8 +103,8 @@ export interface UserProfile {
   updatedAt?: any;           // Firestore Timestamp
 }
 
-export interface KakoProfile {
-  id: string; // Kako Live userId (maps to `userId` from Kako API)
+export interface KakoProfile { // For storing profiles fetched from Kako Live API
+  id: string; // Kako Live userId (maps to `userId` from Kako API, usually the FUID)
   numId?: number; // Kako's numerical ID (maps to `numId` from Kako API)
   nickname: string;
   avatarUrl: string;
@@ -168,8 +170,6 @@ export interface FirestoreConversation {
   lastMessageSenderId?: string; // UID of the sender of the last message
   createdAt: any; // Firestore Server Timestamp
   updatedAt: any; // Firestore Server Timestamp
-  // Optional: for managing unread counts per user more robustly on the backend
-  // unreadCounts?: { [uid: string]: number }; 
 }
 
 // Feed Types
@@ -222,3 +222,4 @@ export interface BanEntry {
   bannedAt: any; // Firestore Timestamp
   expiresAt?: any | null; // Firestore Timestamp, optional
 }
+
