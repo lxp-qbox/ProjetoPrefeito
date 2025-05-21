@@ -65,7 +65,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
-const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765";
+const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; // Example Room ID
 
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
@@ -120,9 +120,11 @@ export default function AdminKakoLiveDataListPageContent() {
           await updateDoc(profileDocRef, updates);
           toast({ title: "Perfil Kako Atualizado", description: `Perfil de ${profileData.nickname} atualizado no Firestore.` });
         } else {
-           await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() }); // Still update lastFetchedAt
+           // Even if no other data changed, we still update lastFetchedAt if it was "seen"
+           await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() });
         }
       } else {
+        // New profile, save all data, including id and lastFetchedAt
         await setDoc(profileDocRef, dataToSave);
         toast({ title: "Novo Perfil Kako Salvo", description: `Perfil de ${profileData.nickname} salvo no Firestore.` });
       }
@@ -178,13 +180,14 @@ export default function AdminKakoLiveDataListPageContent() {
             if (parsedJson.user && parsedJson.user.userId) {
               const userData = parsedJson.user;
               const newProfileData = {
-                id: userData.userId,
+                id: userData.userId, // This is the FUID, used as document ID
                 nickname: userData.nickname || "N/A",
                 avatarUrl: userData.avatar || userData.avatarUrl || "",
                 level: userData.level,
                 numId: userData.numId,
                 showId: userData.showId,
                 gender: userData.gender,
+                // lastFetchedAt will be added by upsertKakoProfileToFirestore
               };
 
               // Upsert to Firestore
@@ -201,7 +204,7 @@ export default function AdminKakoLiveDataListPageContent() {
                   const updatedProfiles = [...prevProfiles];
                   updatedProfiles[existingProfileIndex] = {
                     ...updatedProfiles[existingProfileIndex],
-                    ...profileWithTimestamp, 
+                    ...profileWithTimestamp, // Update existing profile with new data
                   };
                   return updatedProfiles;
                 } else {
@@ -230,16 +233,16 @@ export default function AdminKakoLiveDataListPageContent() {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
         
-        if (socketRef.current === newSocket) { 
+        if (socketRef.current === newSocket) { // Check if this is the current socket
             if (!isManuallyDisconnectingRef.current) {
                 setConnectionStatus("Desconectado - Tentando Reconectar...");
                 toast({ title: "WebSocket Desconectado", description: `${closeMsg} Tentando reconectar em 5 segundos.` });
-                socketRef.current = null;
+                socketRef.current = null; // Allow connectWebSocket to try again
                 reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
             } else {
                 setConnectionStatus("Desconectado");
                 toast({ title: "WebSocket Desconectado Manualmente" });
-                socketRef.current = null;
+                socketRef.current = null; // Nullify after manual disconnect
             }
         }
       };
@@ -250,10 +253,11 @@ export default function AdminKakoLiveDataListPageContent() {
       setErrorDetails(errMsg);
       toast({ title: "Falha ao Conectar WebSocket", description: errMsg, variant: "destructive" });
     }
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // connectWebSocket should be stable or wrapped in useCallback if it needs to be a dependency
 
   const disconnectWebSocket = useCallback(() => {
-    isManuallyDisconnectingRef.current = true;
+    isManuallyDisconnectingRef.current = true; // Signal that this is an intentional disconnect
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -262,9 +266,9 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current.onopen = null;
       socketRef.current.onmessage = null;
       socketRef.current.onerror = null;
-      socketRef.current.onclose = null;
+      socketRef.current.onclose = null; // Important to prevent onclose from trying to reconnect
       socketRef.current.close();
-      socketRef.current = null; // Ensure it's nullified here
+      socketRef.current = null; // Explicitly nullify
       // Status and toast are handled by onclose now
     } else {
       toast({ title: "Já Desconectado", description: "Nenhuma conexão WebSocket ativa para desconectar." });
@@ -272,11 +276,12 @@ export default function AdminKakoLiveDataListPageContent() {
   }, [toast]);
 
   useEffect(() => {
-    connectWebSocket();
+    connectWebSocket(); // Attempt to connect on mount
     return () => {
-      disconnectWebSocket();
+      disconnectWebSocket(); // Disconnect on unmount
     };
   }, [connectWebSocket, disconnectWebSocket]);
+
 
   const handleRequestRemoveProfile = (profile: KakoProfile) => {
     setProfileToRemove(profile);
@@ -288,7 +293,7 @@ export default function AdminKakoLiveDataListPageContent() {
     setKakoProfiles(prevProfiles => prevProfiles.filter(p => p.id !== profileToRemove.id));
     toast({
       title: "Perfil Removido",
-      description: `O perfil de ${profileToRemove.nickname} foi removido da lista atual.`,
+      description: `O perfil de ${profileToRemove.nickname} foi removido da lista atual (localmente).`,
     });
     setIsConfirmRemoveDialogOpen(false);
     setProfileToRemove(null);
