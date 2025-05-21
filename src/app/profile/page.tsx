@@ -10,11 +10,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Mail, UserCircle2, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck, ChevronRight, Bell, CalendarDays as LucideCalendarIcon, Fingerprint
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck, ChevronRight, Bell, CalendarDays as LucideCalendarIcon, Fingerprint,
+  LayoutDashboard, Star, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones // Added icons from admin menu
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; // Added usePathname
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
@@ -54,12 +55,14 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
+// Define interfaces for menu structure, similar to admin layout
 interface ProfileMenuItem {
-  id: string;
+  id?: string; // Added id for easier state management
   title: string;
   icon: React.ElementType;
-  currentValue?: string;
   link?: string;
+  currentValue?: string;
+  subItems?: ProfileMenuItem[]; // For potential future nesting, not used by current admin menu directly
 }
 
 interface ProfileMenuGroup {
@@ -68,34 +71,52 @@ interface ProfileMenuGroup {
   isBottomSection?: boolean;
 }
 
+// Cloned and adapted adminMenuGroups for profile page context
 const profileMenuGroups: ProfileMenuGroup[] = [
   {
-    groupTitle: "Conta",
+    groupTitle: "GERAL",
     items: [
-      { id: 'inicio', title: 'Visão Geral', icon: UserCircle2 },
-      { id: 'informacoesPessoais', title: 'Informações Pessoais', icon: Clipboard },
-      { id: 'seguranca', title: 'Segurança', icon: Lock },
-    ]
+      { id: "profileDashboard", title: "Visão Geral", icon: LayoutDashboard, link: "#inicio" }, // Link to overview within profile
+      { id: "profileLanguage", title: "Idioma", icon: Globe, link: "#language", currentValue: "Português(Brasil)" },
+      { id: "profileNotifications", title: "Configurações de notificação", icon: Bell, link: "#notifications" },
+    ],
   },
   {
-    groupTitle: "Preferências",
+    groupTitle: "MINHA CONTA", // Changed from "GESTÃO DE USUÁRIOS"
     items: [
-      { id: 'aparencia', title: 'Aparência', icon: SettingsIcon, link: "/settings" },
-      { id: 'notificacoes', title: 'Notificações', icon: Bell, currentValue: "Ativadas" },
-    ]
+      { id: "profileInfo", title: "Informações Pessoais", icon: UserCircle2, link: "#informacoesPessoais" },
+      { id: "profileSecurity", title: "Segurança da Conta", icon: Lock, link: "#seguranca" },
+      { id: "profileAppearance", title: "Aparência", icon: SettingsIcon, link: "/settings" }, // Links to actual settings page
+    ],
+  },
+  {
+    groupTitle: "SOBRE",
+    items: [
+      { id: "profileUserAgreement", title: "Contrato do usuário", icon: FileText, link: "#user-agreement" },
+      { id: "profilePrivacyPolicy", title: "Política de privacidade", icon: FileText, link: "#privacy-policy" },
+      { id: "profileHostAgreement", title: "Contrato de Host", icon: FileText, link: "#host-agreement" },
+      { id: "profileAboutKako", title: "Sobre Kako Live", icon: Info, link: "#about-kako" },
+    ],
   },
   {
     items: [
-      { id: 'logout', title: 'Sair', icon: LogOut },
+      { id: "profileSupport", title: "Entre em contato conosco", icon: Headphones, link: "/support" }, // Links to actual support page
     ],
     isBottomSection: true,
-  }
+  },
+  {
+    items: [
+      { id: "logout", title: "Sair", icon: LogOut, link: "#logout" },
+    ],
+  },
 ];
+
 
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname(); // To determine active link based on hash
 
   const [editableCountry, setEditableCountry] = useState<string | undefined>(undefined);
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
@@ -103,7 +124,20 @@ export default function ProfilePage() {
   const [editablePhoneNumber, setEditablePhoneNumber] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('inicio');
+
+  const [activeTab, setActiveTab] = useState<string>('profileDashboard'); // Default tab
+
+  useEffect(() => {
+    // Set active tab based on URL hash if present
+    if (window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const allItems = profileMenuGroups.flatMap(group => group.items);
+      if (allItems.some(item => item.link === `#${hash}` || item.id === hash)) {
+        setActiveTab(hash);
+      }
+    }
+  }, []);
+
 
   useEffect(() => {
     if (currentUser) {
@@ -114,14 +148,14 @@ export default function ProfilePage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
+             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
               parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
             } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
               parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
-            if (!parsedDate || !isValid(parsedDate)) {
-              const isoDate = parseISO(currentUser.birthDate);
-              if (isValid(isoDate)) parsedDate = isoDate;
+             if (!parsedDate || !isValid(parsedDate)) {
+                const isoDate = parseISO(currentUser.birthDate);
+                if(isValid(isoDate)) parsedDate = isoDate;
             }
           } else if ((currentUser.birthDate as any)?.toDate) { 
             parsedDate = (currentUser.birthDate as any).toDate();
@@ -135,7 +169,7 @@ export default function ProfilePage() {
             setEditableBirthDate(undefined);
           }
         } catch (error) {
-          console.error("Error parsing birthDate from currentUser on profile page:", error);
+          console.error("Error parsing birthDate:", error);
           setEditableBirthDate(undefined);
         }
       } else {
@@ -187,30 +221,71 @@ export default function ProfilePage() {
   const handleMenuClick = (itemId: string, itemLink?: string) => {
     if (itemId === 'logout') {
       handleLogout();
-    } else if (itemLink) {
+    } else if (itemLink && itemLink.startsWith('/')) {
       router.push(itemLink);
+    } else if (itemLink && itemLink.startsWith('#')) {
+      setActiveTab(itemLink.substring(1));
+      // Optionally update URL hash for better navigation history, but keep it client-side
+      window.location.hash = itemLink;
     } else {
       setActiveTab(itemId);
+      window.location.hash = itemId;
     }
   };
+  
+  const getInitials = (name?: string | null): string => {
+    if (!name) return "U";
+    const parts = name.split(" ");
+    if (parts.length > 1 && parts[0] && parts[1]) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const userHandle = currentUser?.email?.split('@')[0] || "usuário";
+  const joinedDateFormatted = currentUser?.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "Data de entrada não disponível";
+
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'profileDashboard': // Mapped from 'inicio'
       case 'inicio':
         return (
           <div className="space-y-6 p-6">
-            <Card className="shadow-md">
+             <Card className="shadow-md">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold">Sobre Mim (Visão Geral)</CardTitle>
+                <CardTitle className="text-lg font-semibold">Sobre Mim</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 <p>{currentUser?.bio || "Adicione uma bio para que as pessoas saibam mais sobre você."}</p>
-                <p className="mt-4">Seu e-mail: {currentUser?.email}</p>
-                <p>Seu nome de perfil: {currentUser?.profileName || currentUser?.displayName}</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Informações de Contato</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex items-center">
+                  <Mail className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>{currentUser?.email}</span>
+                </div>
+                {currentUser?.phoneNumber && (
+                  <div className="flex items-center">
+                    <Phone className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>{formatPhoneNumberForDisplay(currentUser.phoneNumber)}</span>
+                  </div>
+                )}
+                 {currentUser?.country && (
+                  <div className="flex items-center">
+                    <Globe className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>{currentUser.country}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         );
+      case 'profileInfo': // Mapped from 'informacoesPessoais'
       case 'informacoesPessoais':
         return (
           <div className="p-6">
@@ -327,12 +402,12 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Função</Label>
-                  <div className="flex items-center text-sm">
-                    <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <Badge variant="outline">{currentUser?.role === 'host' ? 'Anfitrião' : 'Participante'}</Badge>
-                  </div>
+                 <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Função</Label>
+                    <div className="flex items-center text-sm">
+                        <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Badge variant="outline">{currentUser?.role === 'host' ? 'Anfitrião' : 'Participante'}</Badge>
+                    </div>
                 </div>
                 {currentUser?.adminLevel && (
                   <div className="space-y-1">
@@ -356,29 +431,16 @@ export default function ProfilePage() {
             </Card>
           </div>
         );
-      case 'seguranca':
-      case 'notificacoes':
-        return (
-          <div className="p-6">
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">{profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab)?.title || "Seção"}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Conteúdo desta seção em desenvolvimento.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
       default:
+        const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab || item.link === `#${activeTab}`);
         return (
           <div className="p-6">
             <Card className="shadow-md">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold">Visão Geral</CardTitle>
+                <CardTitle className="text-lg font-semibold">{activeItem?.title || "Seção"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Bem-vindo ao seu perfil! Selecione uma opção no menu.</p>
+                <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
               </CardContent>
             </Card>
           </div>
@@ -389,40 +451,50 @@ export default function ProfilePage() {
   return (
     <ProtectedPage>
       <div className="flex flex-col h-full">
-        {/* Two-column layout for menu and content */}
+        {/* Profile Menu and Content Area */}
         <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
           {/* Profile Menu Sidebar */}
-          <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
-            {profileMenuGroups.map((group, groupIndex) => (
-              <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
-                {group.groupTitle && (
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                    {group.groupTitle}
-                  </h2>
-                )}
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                      <Button
-                        key={item.id}
-                        variant={isActive ? "secondary" : "ghost"}
-                        className={cn(
-                          "w-full justify-start gap-2.5 py-3 px-3 text-sm font-medium rounded-md",
-                          isActive ? "bg-primary/10 text-primary" : "text-card-foreground hover:bg-card/80 hover:text-card-foreground"
-                        )}
-                        onClick={() => handleMenuClick(item.id, item.link)}
-                      >
-                        <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
-                        <span>{item.title}</span>
-                        {item.currentValue && <span className="ml-auto text-xs text-muted-foreground">{item.currentValue}</span>}
-                        {!item.link && item.id !== 'logout' && <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
-                      </Button>
-                    );
-                  })}
+          <nav className="md:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
+            {profileMenuGroups.map((group, groupIndex) => {
+              const isFirstGroup = groupIndex === 0;
+              return (
+                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t", !isFirstGroup && !group.isBottomSection && "mt-4")}>
+                  {group.groupTitle && (
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                      {group.groupTitle}
+                    </h2>
+                  )}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                    {group.items.map((item) => {
+                      const isActive = activeTab === (item.link ? item.link.substring(1) : item.id);
+                      return (
+                        <Button
+                          key={item.id || item.title}
+                          variant="ghost"
+                          className={cn(
+                            "w-full text-left h-auto text-sm font-normal rounded-md transition-colors",
+                            isActive
+                              ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                              : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
+                            "justify-between py-3 px-3"
+                          )}
+                          onClick={() => handleMenuClick(item.id || item.title, item.link)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                            <span>{item.title}</span>
+                          </div>
+                          <div className="flex items-center ml-auto">
+                            {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                            {item.link !== "#logout" && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </div>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Profile Content Area */}
@@ -435,3 +507,4 @@ export default function ProfilePage() {
   );
 }
 
+    
