@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap } from "lucide-react"; // Added DatabaseZap
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, PlusCircle, Save, FileJson } from "lucide-react";
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -28,13 +28,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { KakoProfile, KakoGift } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp } from "@/lib/firebase";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormDescription as FormDesc, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 interface StatCardProps {
   title: string;
@@ -59,6 +67,18 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
+const newGiftSchema = z.object({
+  id: z.string().min(1, "ID do presente é obrigatório.").max(50, "ID muito longo."),
+  name: z.string().min(1, "Nome do presente é obrigatório.").max(100, "Nome muito longo."),
+  imageUrl: z.string().url({ message: "URL da imagem inválida." }).min(1, "URL da imagem é obrigatória."),
+  diamond: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+    z.number({ invalid_type_error: "Diamantes deve ser um número" }).int("Diamantes deve ser um número inteiro.").positive("Diamantes deve ser um número positivo.").optional()
+  ),
+  display: z.boolean().default(true),
+});
+type NewGiftFormValues = z.infer<typeof newGiftSchema>;
+
 
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
@@ -75,6 +95,7 @@ export default function AdminKakoLiveDataListPageContent() {
   const [isConfirmClearGiftsDBDialogOpen, setIsConfirmClearGiftsDBDialogOpen] = useState(false);
   const [isConfirmClearGiftsListLocalDialogOpen, setIsConfirmClearGiftsListLocalDialogOpen] = useState(false);
   const [isDeletingGiftsDB, setIsDeletingGiftsDB] = useState(false);
+  const [isAddGiftDialogOpen, setIsAddGiftDialogOpen] = useState(false);
 
 
   const [selectedProfileForDetails, setSelectedProfileForDetails] = useState<KakoProfile | null>(null);
@@ -89,7 +110,6 @@ export default function AdminKakoLiveDataListPageContent() {
 
 
   const addLog = useCallback((message: string, type: "success" | "error" | "info") => {
-    // For now, just console log. Could be expanded to an on-screen log.
     if (type === "error") console.error(message);
     else if (type === "info") console.info(message);
     else console.log(message);
@@ -113,7 +133,6 @@ export default function AdminKakoLiveDataListPageContent() {
         showId: profileData.showId,
         gender: profileData.gender,
         lastFetchedAt: serverTimestamp(),
-        // Include other fields from profileData if they are part of KakoProfile type
         isLiving: profileData.isLiving,
         signature: profileData.signature,
         area: profileData.area,
@@ -174,7 +193,6 @@ export default function AdminKakoLiveDataListPageContent() {
 
         newSocket.onopen = () => {
           setConnectionStatus(`Conectado a ${wsUrl}`);
-          toast({ title: "WebSocket Conectado", description: `Conexão com ${wsUrl} estabelecida.` });
         };
 
         newSocket.onmessage = async (event) => {
@@ -204,6 +222,11 @@ export default function AdminKakoLiveDataListPageContent() {
                         numId: userData.numId,
                         showId: userData.showId,
                         gender: userData.gender,
+                        signature: userData.signature,
+                        area: userData.area,
+                        school: userData.school,
+                        roomId: parsedJson.roomId, // Include roomId from the message context
+                        isLiving: 'isLiving' in userData ? userData.isLiving : (parsedJson.anchor?.isLiving), // Prefer user.isLiving, fallback to anchor.isLiving
                         lastFetchedAt: new Date() 
                     };
                     
@@ -212,9 +235,10 @@ export default function AdminKakoLiveDataListPageContent() {
                         if (existingProfileIndex !== -1) {
                             const updatedProfiles = [...prevProfiles];
                             updatedProfiles[existingProfileIndex] = { ...updatedProfiles[existingProfileIndex], ...profileData, lastFetchedAt: new Date() };
-                            return updatedProfiles.sort((a, b) => (b.lastFetchedAt as Date).getTime() - (a.lastFetchedAt as Date).getTime());
+                            return updatedProfiles.sort((a, b) => ((b.lastFetchedAt instanceof Date ? b.lastFetchedAt.getTime() : 0) - (a.lastFetchedAt instanceof Date ? a.lastFetchedAt.getTime() : 0)));
                         }
-                        return [...prevProfiles, profileData].sort((a, b) => (b.lastFetchedAt as Date).getTime() - (a.lastFetchedAt as Date).getTime());
+                        const newProfiles = [...prevProfiles, profileData];
+                        return newProfiles.sort((a, b) => ((b.lastFetchedAt instanceof Date ? b.lastFetchedAt.getTime() : 0) - (a.lastFetchedAt instanceof Date ? a.lastFetchedAt.getTime() : 0)));
                     });
                     await upsertKakoProfileToFirestore(profileData); 
                 }
@@ -228,7 +252,6 @@ export default function AdminKakoLiveDataListPageContent() {
           const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
           setConnectionStatus("Erro na Conexão");
           setErrorDetails(errorMsg);
-          toast({ title: "Erro WebSocket", description: errorMsg, variant: "destructive" });
           if (socketRef.current === newSocket) {
             socketRef.current.onopen = null;
             socketRef.current.onmessage = null;
@@ -247,12 +270,10 @@ export default function AdminKakoLiveDataListPageContent() {
           if (socketRef.current === newSocket) { 
               if (!isManuallyDisconnectingRef.current) {
                   setConnectionStatus("Desconectado - Tentando Reconectar...");
-                  toast({ title: "WebSocket Desconectado", description: "Tentando reconectar em 5 segundos."});
                   socketRef.current = null; 
                   reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
               } else {
                   setConnectionStatus("Desconectado");
-                   toast({ title: "WebSocket Desconectado", description: "Desconexão manual."});
                   socketRef.current = null; 
               }
           }
@@ -261,13 +282,12 @@ export default function AdminKakoLiveDataListPageContent() {
         const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
         setConnectionStatus("Erro ao Iniciar Conexão");
         setErrorDetails(errMsg);
-        toast({ title: "Falha ao Conectar WebSocket", description: errMsg, variant: "destructive" });
       }
-    };
-  }, [wsUrl, upsertKakoProfileToFirestore, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wsUrl, upsertKakoProfileToFirestore]);
 
   const disconnectManually = useCallback(() => {
-    isManuallyDisconnectingRef.current = true;
+    isManuallyDisconnectingRef.current = true; 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -276,21 +296,22 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current.onopen = null;
       socketRef.current.onmessage = null;
       socketRef.current.onerror = null;
-      socketRef.current.onclose = null;
+      socketRef.current.onclose = null; 
       socketRef.current.close();
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
     }
-  }, [addLog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // addLog dependency removed as it's stable
 
   useEffect(() => {
     connectWebSocket(); 
     return () => {
       disconnectManually();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectWebSocket, disconnectManually]);
 
-  // Fetch Kako Gifts from Firestore
   const fetchKakoGifts = useCallback(async () => {
     setIsLoadingGifts(true);
     try {
@@ -300,10 +321,10 @@ export default function AdminKakoLiveDataListPageContent() {
       querySnapshot.forEach((docSnap) => {
         fetchedGifts.push({ id: docSnap.id, ...docSnap.data() } as KakoGift);
       });
-      setKakoGifts(fetchedGifts);
+      setKakoGifts(fetchedGifts.sort((a, b) => parseInt(a.id) - parseInt(b.id)));
     } catch (error) {
       console.error("Erro ao buscar presentes do Firestore:", error);
-      toast({ title: "Erro ao Carregar Presentes", description: "Não foi possível carregar a lista de presentes do banco de dados.", variant: "destructive" });
+      toast({ title: "Erro ao Carregar Presentes", description: "Não foi possível carregar a lista de presentes.", variant: "destructive" });
     } finally {
       setIsLoadingGifts(false);
     }
@@ -312,7 +333,6 @@ export default function AdminKakoLiveDataListPageContent() {
   useEffect(() => {
     fetchKakoGifts();
   }, [fetchKakoGifts]);
-
 
   const handleConfirmClearProfilesDB = async () => {
     setIsDeletingProfilesDB(true);
@@ -336,7 +356,7 @@ export default function AdminKakoLiveDataListPageContent() {
       });
     } catch (error) {
       console.error("Erro ao apagar perfis do Firestore:", error);
-      toast({ title: "Erro ao Apagar do DB", description: "Não foi possível apagar os perfis do banco de dados.", variant: "destructive" });
+      toast({ title: "Erro ao Apagar do DB", description: "Não foi possível apagar os perfis.", variant: "destructive" });
     } finally {
       setIsDeletingProfilesDB(false);
       setIsConfirmClearProfilesDBDialogOpen(false);
@@ -390,11 +410,62 @@ export default function AdminKakoLiveDataListPageContent() {
     setIsConfirmClearGiftsListLocalDialogOpen(false);
   };
 
-
   const handleShowDetails = (profile: KakoProfile) => {
     setSelectedProfileForDetails(profile);
     setIsDetailModalOpen(true);
   };
+
+  const giftForm = useForm<NewGiftFormValues>({
+    resolver: zodResolver(newGiftSchema),
+    defaultValues: {
+      id: "",
+      name: "",
+      imageUrl: "",
+      diamond: undefined,
+      display: true,
+    },
+  });
+
+  const onSubmitNewGift = async (values: NewGiftFormValues) => {
+    try {
+      const giftDocRef = doc(db, "kakoGifts", values.id);
+      const docSnap = await getDoc(giftDocRef);
+
+      if (docSnap.exists()) {
+        toast({
+          title: "ID de Presente já Existe",
+          description: `O ID '${values.id}' já está em uso. Por favor, use um ID diferente.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const newGiftData: Omit<KakoGift, 'diamond'> & {diamond?: number | null} = {
+        id: values.id,
+        name: values.name,
+        imageUrl: values.imageUrl,
+        display: values.display,
+        diamond: values.diamond === undefined ? null : values.diamond, // Store undefined as null
+        // Add other fields as needed, e.g., createdAt
+      };
+      await setDoc(giftDocRef, newGiftData);
+      toast({
+        title: "Presente Cadastrado!",
+        description: `O presente '${values.name}' foi salvo com sucesso.`,
+      });
+      setIsAddGiftDialogOpen(false);
+      giftForm.reset();
+      fetchKakoGifts(); // Refresh the list
+    } catch (error) {
+      console.error("Erro ao cadastrar presente:", error);
+      toast({
+        title: "Erro ao Cadastrar",
+        description: "Não foi possível salvar o presente. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   const filteredProfiles = kakoProfiles.filter(profile =>
     profile.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -404,7 +475,6 @@ export default function AdminKakoLiveDataListPageContent() {
   );
   
   const displayLoading = isLoadingProfiles && kakoProfiles.length === 0;
-
 
   return (
     <>
@@ -445,11 +515,10 @@ export default function AdminKakoLiveDataListPageContent() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard title="Total de Perfis Identificados (Sessão/DB)" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Perfis Identificados (Sessão)" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
           <StatCard title="Total de Presentes (DB)" count={kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
         </div>
 
-        {/* Kako Profiles List */}
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Lista de Perfis do Kako Live</CardTitle>
@@ -466,7 +535,7 @@ export default function AdminKakoLiveDataListPageContent() {
               <Table>
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow>
-                    <TableHead className="w-[60px] px-4"></TableHead> {/* Avatar */}
+                    <TableHead className="w-[60px] px-4"></TableHead> 
                     <TableHead className="min-w-[200px]">NICKNAME / SHOW ID</TableHead>
                     <TableHead>NÍVEL</TableHead>
                     <TableHead>USER ID (FUID)</TableHead>
@@ -506,7 +575,7 @@ export default function AdminKakoLiveDataListPageContent() {
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
-                              <Eye className="h-3 w-3 mr-1" />
+                              <FileJson className="h-3 w-3 mr-1" /> {/* Changed icon */}
                               Detalhes
                             </Button>
                           </div>
@@ -520,7 +589,7 @@ export default function AdminKakoLiveDataListPageContent() {
             </div>
           </CardContent>
            <CardFooter className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground">Mostrando {filteredProfiles.length} de {kakoProfiles.length} perfis identificados/carregados.</p>
+            <p className="text-xs text-muted-foreground">Mostrando {filteredProfiles.length} de {kakoProfiles.length} perfis identificados.</p>
           </CardFooter>
         </Card>
 
@@ -532,6 +601,107 @@ export default function AdminKakoLiveDataListPageContent() {
                     <CardDescription>Presentes recuperados do banco de dados 'kakoGifts'.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Dialog open={isAddGiftDialogOpen} onOpenChange={setIsAddGiftDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9">
+                                <PlusCircle className="mr-2 h-4 w-4" /> Novo Presente
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Cadastrar Novo Presente</DialogTitle>
+                                <DialogDescription>
+                                    Preencha os detalhes do novo presente para adicioná-lo ao sistema.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Form {...giftForm}>
+                                <form onSubmit={giftForm.handleSubmit(onSubmitNewGift)} className="space-y-4 py-4">
+                                    <FormField
+                                        control={giftForm.control}
+                                        name="id"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>ID do Presente</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: 40" {...field} />
+                                                </FormControl>
+                                                <FormDesc>ID numérico ou string única do Kako Live.</FormDesc>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={giftForm.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Nome do Presente</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: Miau" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={giftForm.control}
+                                        name="imageUrl"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>URL da Imagem</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="https://..." {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={giftForm.control}
+                                        name="diamond"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Valor em Diamantes (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="Ex: 100" {...field} onChange={event => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={giftForm.control}
+                                        name="display"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-1 leading-none">
+                                                    <FormLabel>Visível na Loja?</FormLabel>
+                                                    <FormDesc>
+                                                        Marque se este presente deve ser exibido na loja do Kako Live.
+                                                    </FormDesc>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button type="button" variant="outline">Cancelar</Button>
+                                        </DialogClose>
+                                        <Button type="submit" disabled={giftForm.formState.isSubmitting}>
+                                            {giftForm.formState.isSubmitting ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                            Salvar Presente
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
                     <Button variant="outline" size="sm" onClick={fetchKakoGifts} disabled={isLoadingGifts} className="h-9">
                         <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
                     </Button>
@@ -602,7 +772,6 @@ export default function AdminKakoLiveDataListPageContent() {
 
       </div>
 
-      {/* Details Dialog */}
       {selectedProfileForDetails && (
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
           <DialogContent className="sm:max-w-md">
@@ -694,7 +863,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </Dialog>
       )}
 
-      {/* Clear Profiles Local List Dialog */}
       <AlertDialog open={isConfirmClearProfilesListLocalDialogOpen} onOpenChange={setIsConfirmClearProfilesListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -715,7 +883,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear Profiles DB Dialog */}
       <AlertDialog open={isConfirmClearProfilesDBDialogOpen} onOpenChange={setIsConfirmClearProfilesDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -740,8 +907,7 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-       {/* Clear Gifts Local List Dialog */}
-      <AlertDialog open={isConfirmClearGiftsListLocalDialogOpen} onOpenChange={setIsConfirmClearGiftsListLocalDialogOpen}>
+       <AlertDialog open={isConfirmClearGiftsListLocalDialogOpen} onOpenChange={setIsConfirmClearGiftsListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Limpar Tela (Presentes)</AlertDialogTitle>
@@ -761,7 +927,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear Gifts DB Dialog */}
       <AlertDialog open={isConfirmClearGiftsDBDialogOpen} onOpenChange={setIsConfirmClearGiftsDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -788,5 +953,3 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
-
-    
