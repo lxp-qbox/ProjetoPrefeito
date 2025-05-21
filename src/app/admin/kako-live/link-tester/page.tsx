@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@
 interface ProcessedMessage {
   id: string;
   timestamp: string;
+  type: 'received' | 'sent' | 'system' | 'error';
   originalData: string;
   parsedData?: Record<string, any>;
   isJson: boolean;
@@ -31,6 +32,7 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [messageToSend, setMessageToSend] = useState<string>("");
   const { toast } = useToast();
 
   const handleConnect = () => {
@@ -67,6 +69,7 @@ export default function AdminKakoLiveLinkTesterPage() {
         setProcessedMessages(prev => [...prev, {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          type: 'system',
           originalData: `[SISTEMA] Conexão estabelecida com ${wsUrl}`,
           isJson: false,
         }]);
@@ -95,7 +98,6 @@ export default function AdminKakoLiveLinkTesterPage() {
         let parsedJson: Record<string, any> | undefined;
         let isJsonMessage = false;
         try {
-          // Attempt to clean potential non-JSON prefix
           const firstBrace = messageContentString.indexOf('{');
           const lastBrace = messageContentString.lastIndexOf('}');
           if (firstBrace !== -1 && lastBrace > firstBrace) {
@@ -103,18 +105,17 @@ export default function AdminKakoLiveLinkTesterPage() {
             parsedJson = JSON.parse(jsonStr);
             isJsonMessage = true;
           } else {
-             // Check if the whole string is valid JSON
              parsedJson = JSON.parse(messageContentString);
              isJsonMessage = true;
           }
         } catch (e) {
-          // Not a JSON message or malformed
           isJsonMessage = false;
         }
 
         setProcessedMessages(prev => [...prev, {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          type: 'received',
           originalData: messageContentString,
           parsedData: parsedJson,
           isJson: isJsonMessage,
@@ -129,12 +130,13 @@ export default function AdminKakoLiveLinkTesterPage() {
         setProcessedMessages(prev => [...prev, {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          type: 'error',
           originalData: `[ERRO] ${errorMsg}`,
           isJson: false,
         }]);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
         if (socketRef.current) {
-            socketRef.current.close(); 
+            socketRef.current.close();
             socketRef.current = null;
         }
       };
@@ -149,11 +151,12 @@ export default function AdminKakoLiveLinkTesterPage() {
         setProcessedMessages(prev => [...prev, {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          type: 'system',
           originalData: `[SISTEMA] ${closeMsg}`,
           isJson: false,
         }]);
         toast({ title: "Desconectado", description: closeMsg });
-        socketRef.current = null; 
+        socketRef.current = null;
       };
 
     } catch (error) {
@@ -164,6 +167,7 @@ export default function AdminKakoLiveLinkTesterPage() {
       setProcessedMessages(prev => [...prev, {
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          type: 'error',
           originalData: `[ERRO CRÍTICO] ${errMsg}`,
           isJson: false,
         }]);
@@ -181,6 +185,41 @@ export default function AdminKakoLiveLinkTesterPage() {
     } else {
       setConnectionStatus("Desconectado");
       toast({ title: "Já Desconectado", description: "Nenhuma conexão ativa para desconectar." });
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      toast({ title: "Não Conectado", description: "Conecte ao WebSocket antes de enviar mensagens.", variant: "destructive" });
+      return;
+    }
+    if (!messageToSend.trim()) {
+      toast({ title: "Mensagem Vazia", description: "Digite uma mensagem para enviar.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      socketRef.current.send(messageToSend.trim());
+      setProcessedMessages(prev => [...prev, {
+        id: generateUniqueId(),
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        type: 'sent',
+        originalData: `[ENVIADO] ${messageToSend.trim()}`,
+        isJson: false, // Assuming sent messages are plain text for now
+      }]);
+      toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
+      setMessageToSend("");
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao enviar mensagem.";
+      setProcessedMessages(prev => [...prev, {
+        id: generateUniqueId(),
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        type: 'error',
+        originalData: `[ERRO AO ENVIAR] ${errMsg}`,
+        isJson: false,
+      }]);
+      toast({ title: "Erro ao Enviar", description: errMsg, variant: "destructive" });
     }
   };
 
@@ -243,19 +282,45 @@ export default function AdminKakoLiveLinkTesterPage() {
             )}
           </div>
 
+          {/* Send Message Section */}
+          <div className="mt-4 space-y-2 border-t pt-4">
+            <Label htmlFor="messageToSend">Mensagem para Enviar</Label>
+            <div className="flex space-x-2">
+              <Input
+                id="messageToSend"
+                value={messageToSend}
+                onChange={(e) => setMessageToSend(e.target.value)}
+                placeholder="Digite sua mensagem aqui..."
+                disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}
+                onKeyPress={(e) => e.key === 'Enter' && messageToSend.trim() && handleSendMessage()}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !messageToSend.trim()}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Enviar
+              </Button>
+            </div>
+          </div>
+
+
           <div className="mt-4 flex-grow flex flex-col min-h-0">
-            <Label htmlFor="rawMessagesArea">Mensagens Recebidas:</Label>
+            <Label htmlFor="rawMessagesArea">Mensagens Recebidas/Enviadas:</Label>
             <ScrollArea id="rawMessagesArea" className="flex-grow h-72 rounded-md border bg-muted/30 p-1 mt-1">
               <div className="p-3 space-y-3">
                 {processedMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aguardando mensagens...</p>}
                 {processedMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
-                    <p className="text-xs text-muted-foreground mb-1">Recebido às: {msg.timestamp}</p>
-                    {msg.isJson && msg.parsedData ? (
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
+                      {msg.timestamp}
+                    </p>
+                    {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
                         <h4 className="text-sm font-semibold mb-1 flex items-center">
                           <TableIcon className="w-4 h-4 mr-2 text-primary" />
-                          Dados JSON Formatados:
+                          Dados JSON Recebidos:
                         </h4>
                         <div className="max-h-60 overflow-y-auto text-xs border rounded-md">
                           <Table>
@@ -278,7 +343,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                           </Table>
                         </div>
                          <details className="mt-2 text-xs">
-                            <summary className="cursor-pointer text-muted-foreground hover:text-primary">Ver dados brutos</summary>
+                            <summary className="cursor-pointer text-muted-foreground hover:text-primary">Ver dados brutos recebidos</summary>
                             <pre className="mt-1 p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                               {msg.originalData}
                             </pre>
@@ -286,7 +351,12 @@ export default function AdminKakoLiveLinkTesterPage() {
                       </div>
                     ) : (
                       <div>
-                        <h4 className="text-sm font-semibold mb-1">Dados Brutos (Não JSON):</h4>
+                        <h4 className="text-sm font-semibold mb-1">
+                          {msg.type === 'sent' ? 'Dados Brutos Enviados:' : 
+                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON):' : 
+                           msg.type === 'system' ? 'Mensagem do Sistema:' :
+                           'Mensagem de Erro:'}
+                        </h4>
                         <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                           {msg.originalData}
                         </pre>
@@ -307,5 +377,6 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
+
 
     
