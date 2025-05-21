@@ -38,7 +38,7 @@ export default function RoleSelectionPage() {
     setLoadingRole(role);
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
       await updateDoc(userDocRef, {
         role: role,
         updatedAt: serverTimestamp(),
@@ -76,17 +76,18 @@ export default function RoleSelectionPage() {
             </Link>
         </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Star className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
         <CardDescription>
-          Para começar, escolha como você<br />pretende utilizar sua conta:
+          Para começar, escolha como você<br />
+          pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
-        <div className="grid grid-cols-1 gap-6 w-full my-auto">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('host')}
