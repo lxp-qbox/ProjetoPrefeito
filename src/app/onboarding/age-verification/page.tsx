@@ -41,27 +41,24 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
 
   const originalStartsWithPlus = value.charAt(0) === '+';
-  // Remove all non-digits, except for a leading +
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
 
-  digitsOnly = digitsOnly.slice(0, 15); // Max 15 digits after potential plus
+  digitsOnly = digitsOnly.slice(0, 15); 
   const len = digitsOnly.length;
 
   if (len === 0) {
-    return originalStartsWithPlus ? "+" : ""; // Return "+" if user typed only that, or "" if empty
+    return originalStartsWithPlus ? "+" : ""; 
   }
 
-  let formatted = "+"; // Always start with + if there are digits
+  let formatted = "+"; 
 
-  if (len <= 2) { // Country code part, e.g., +55
+  if (len <= 2) { 
     formatted += digitsOnly;
-  } else if (len <= 4) { // Area code part, e.g., +55 (19
+  } else if (len <= 4) { 
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else if (len <= 9) { // First part of main number, e.g., +55 (19) 99636 (for a 9-digit local number after area code)
+  } else if (len <= 9) { 
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  } else { // Second part of main number, and allows for longer numbers
-             // e.g., +55 (19) 99636-4022 for 13 digits total after +
-             // or   +55 (19) 99636-40221 for 14 digits total after +
+  } else { 
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   }
   return formatted;
@@ -110,7 +107,8 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-     if (!phoneNumber.trim()) {
+
+    if (!phoneNumber.trim()) {
       toast({
         title: "Atenção",
         description: "Por favor, informe seu número de celular.",
@@ -152,7 +150,7 @@ export default function AgeVerificationPage() {
 
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
         country: selectedCountry,
         gender: selectedGender,
@@ -172,7 +170,8 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile");
+        // Fallback for users who might not have a typical player/host role but are somehow in this flow
+        router.push("/profile"); 
       }
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -342,3 +341,4 @@ export default function AgeVerificationPage() {
     </>
   );
 }
+
