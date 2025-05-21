@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon,
-  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3 // Added for bingo placeholder
+  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, Globe, Bell // Added Globe, Bell
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth'; // For logout action
 
@@ -63,7 +63,7 @@ export default function AdminBingoAdminPage() {
       ]
     },
     {
-      groupTitle: "BINGO", // Added for Bingo Admin specific section
+      groupTitle: "BINGO", 
       items: [
         { id: "bingoAdminMain", title: "Administração Bingo", icon: TicketIcon, link: "/admin/bingo-admin"},
       ]
@@ -77,7 +77,7 @@ export default function AdminBingoAdminPage() {
     {
       groupTitle: "SOBRE",
       items: [
-        { id: "userAgreement", title: "Contrato do usuário", icon: FileText, link: "/admin#user-agreement" }, // Placeholder links
+        { id: "userAgreement", title: "Contrato do usuário", icon: FileText, link: "/admin#user-agreement" }, 
         { id: "privacyPolicy", title: "Política de privacidade", icon: FileText, link: "/admin#privacy-policy" },
         { id: "hostAgreement", title: "Contrato de Host", icon: FileText, link: "/admin#host-agreement" },
         { id: "aboutKako", title: "Sobre Kako Live", icon: Info, link: "/admin#about-kako" },
@@ -96,10 +96,9 @@ export default function AdminBingoAdminPage() {
     },
   ];
 
-  const [activeTab, setActiveTab] = useState<string>('bingoAdminMain'); // Default to bingo admin content
+  const [activeTab, setActiveTab] = useState<string>('bingoAdminMain'); 
 
   useEffect(() => {
-    // Determine active tab based on current path, if needed for direct navigation
     const currentPath = pathname;
     const matchingItem = adminMenuGroups.flatMap(g => g.items).find(item => item.link === currentPath);
     if (matchingItem) {
@@ -115,7 +114,7 @@ export default function AdminBingoAdminPage() {
       item.action();
     } else if (item.link) {
       // If the link is the current page or a section of it, just set activeTab
-      if (item.link.startsWith(pathname) || item.link.startsWith(\`\${pathname}#\`)) {
+      if (item.link.startsWith(pathname) || item.link.startsWith(pathname + '#')) {
          setActiveTab(item.id);
          // Optionally update URL hash if item.link has one
          if (item.link.includes('#')) {
@@ -172,8 +171,6 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-  // This page assumes it's rendered within the admin layout, so it doesn't need ProtectedPage directly
-  // The /admin route itself should be protected.
   return (
     <div className="flex flex-col md:flex-row h-full gap-0 overflow-hidden">
       <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
@@ -221,5 +218,3 @@ export default function AdminBingoAdminPage() {
     </div>
   );
 }
-
-    
