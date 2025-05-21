@@ -16,13 +16,13 @@ import PostCard from "@/components/feed/post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LogOut, UserCircle2, Save, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, Home as HomeIcon, Clock, Users, Package, Database as DatabaseIcon, ThumbsUp, UserPlus, Image as ImageIconProp, Settings as SettingsIcon, Check, Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText as FileTextIcon, Headphones, LayoutDashboard, Star, Share2, CalendarDays as LucideCalendarIcon, BadgeCheck
+  LogOut, UserCircle2, Save, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check, Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2, CalendarDays as LucideCalendarIcon, BadgeCheck, Fingerprint
 } from "lucide-react";
 import Link from "next/link";
 import Image from 'next/image';
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { UserProfile, FeedPost } from "@/types";
 import { countries } from "@/lib/countries";
 import { format, parseISO, subYears, isValid, parse, formatDistanceToNow } from "date-fns";
@@ -46,7 +46,6 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
-
 interface ProfileMenuItem {
   id: string;
   title: string;
@@ -66,7 +65,11 @@ export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
 
+  const [activeTab, setActiveTab] = useState<string>("/admin/hosts"); // Default tab
+
+  // Profile editing states
   const [editableProfileName, setEditableProfileName] = useState<string>("");
   const [editableBio, setEditableBio] = useState<string>("");
   const [editableKakoShowId, setEditableKakoShowId] = useState<string>("");
@@ -74,7 +77,7 @@ export default function ProfilePage() {
   const [editableGender, setEditableGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [editableBirthDate, setEditableBirthDate] = useState<Date | undefined>(undefined);
   const [editablePhoneNumber, setEditablePhoneNumber] = useState<string>("");
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
@@ -86,41 +89,59 @@ export default function ProfilePage() {
       timestamp: "2h",
       stats: { replies: 10, retweets: 5, likes: 20 },
     },
+     {
+      id: "post2",
+      user: { name: currentUser?.profileName || "Usuário", handle: `@${currentUser?.email?.split('@')[0] || 'usuario'}`, avatarUrl: currentUser?.photoURL || "https://placehold.co/48x48.png" },
+      content: "Aproveitando o dia! ☀️ #blessed",
+      timestamp: "5h",
+      imageUrl: "https://placehold.co/600x400.png",
+      imageAiHint: "sunny beach",
+      stats: { replies: 15, retweets: 8, likes: 50 },
+    },
   ];
-
 
   const profileMenuGroups: ProfileMenuGroup[] = useMemo(() => [
     {
       groupTitle: "GERAL",
       items: [
-        { id: "visaoGeral", title: "Visão Geral", icon: HomeIcon },
-        { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard },
+        { id: "visaoGeral", title: "Visão Geral", icon: UserCircle2, link: "/profile/overview" },
+        { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard, link: "/profile/edit" },
+        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
       ],
     },
     {
-        groupTitle: "CONTA",
-        items: [
-            { id: "seguranca", title: "Segurança", icon: Lock },
-            { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
-            { id: "notificacoes", title: "Notificações", icon: Bell },
-        ]
+      groupTitle: "CONTA",
+      items: [
+          { id: "seguranca", title: "Segurança", icon: Lock, link: "/profile/security" },
+          { id: "notificacoes", title: "Notificações", icon: Bell, link: "/profile/notifications" },
+      ]
     },
     {
       groupTitle: "SOBRE",
       items: [
-        { id: "user-agreement", title: "Contrato do usuário", icon: FileTextIcon },
-        { id: "privacy-policy", title: "Política de privacidade", icon: FileTextIcon },
+        { id: "user-agreement", title: "Contrato do usuário", icon: FileText, link: "/profile/user-agreement" },
+        { id: "privacy-policy", title: "Política de privacidade", icon: FileText, link: "/profile/privacy-policy" },
       ],
     },
     {
       items: [
         { id: "suporte", title: "Suporte", icon: Headphones, link: "/support" },
+      ],
+    },
+     {
+      items: [
         { id: "sair", title: "Sair", icon: LogOut, action: () => handleLogout() },
       ],
     },
   ], []);
 
-  const [activeTab, setActiveTab] = useState<string>(profileMenuGroups[0].items[0].id);
+
+  useEffect(() => {
+    // Initialize activeTab based on the current path or a default
+    const initialTab = profileMenuGroups.flatMap(g => g.items).find(item => item.link === pathname)?.id || "visaoGeral";
+    setActiveTab(initialTab);
+  }, [pathname, profileMenuGroups]);
+
 
   useEffect(() => {
     if (currentUser) {
@@ -197,7 +218,7 @@ export default function ProfilePage() {
     }
 
     try {
-      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
+      const userDocRef = doc(db, "accounts", currentUser.uid);
       await updateDoc(userDocRef, dataToUpdate);
       toast({ title: "Perfil Atualizado", description: "Suas informações foram salvas." });
     } catch (error) {
@@ -217,6 +238,8 @@ export default function ProfilePage() {
     } else if (item.link) {
       router.push(item.link);
     } else {
+      // For items that change content within the profile page
+      // This might need to be adjusted if some items should navigate instead of just setting tab
       setActiveTab(item.id);
     }
   };
@@ -231,24 +254,22 @@ export default function ProfilePage() {
   };
 
   const userHandle = currentUser?.email?.split('@')[0] || "usuario";
-  const userShortBio = currentUser?.bio || "Adicione uma bio...";
-  const userLocation = currentUser?.country || "Não informado";
-  const joinedDateFormatted = currentUser?.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "Data de entrada não disponível";
   const profileName = currentUser?.profileName || currentUser?.displayName || "Usuário";
 
 
   const renderContent = () => {
-    if (!currentUser) return <LoadingSpinner />;
+    if (!currentUser) return <div className="p-6"><LoadingSpinner /></div>;
 
     switch (activeTab) {
       case 'visaoGeral':
+      case '/profile/overview':
         return (
           <div className="w-full">
-             {/* Banner */}
+            {/* Banner */}
             <div className="h-40 bg-gradient-to-r from-primary/30 to-accent/30 relative">
                <Image src="https://placehold.co/1200x400.png" alt="Banner do perfil" layout="fill" objectFit="cover" data-ai-hint="abstract banner" />
-               <div className="absolute top-4 right-4 flex space-x-2">
-                <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm text-foreground hover:bg-white/90 h-8 w-8 rounded-full">
+              <div className="absolute top-4 right-4 flex space-x-2">
+                <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -263,23 +284,24 @@ export default function ProfilePage() {
                 </Avatar>
                 
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-muted-foreground">@{userHandle}</p>
-                  <div className="flex items-center justify-center mt-1">
-                      <h1 className="text-2xl font-bold text-foreground">{profileName}</h1>
-                      {currentUser.isVerified && (
-                           <BadgeCheck className="h-5 w-5 text-pink-500 ml-1.5" />
-                      )}
-                  </div>
-                  <p className="mt-1 text-sm text-foreground/90 max-w-md mx-auto">{userShortBio}</p>
+                    <p className="text-sm text-muted-foreground">@{userHandle}</p>
+                    <div className="flex items-center justify-center mt-1">
+                        <h1 className="text-2xl font-bold text-foreground">{profileName}</h1>
+                        {currentUser.isVerified && (
+                             <BadgeCheck className="h-5 w-5 text-pink-500 ml-1.5" />
+                        )}
+                    </div>
+                    <p className="mt-1 text-sm text-foreground/90">{currentUser.bio || "UX/UI Designer, 4+ years of experience"}</p>
                 </div>
 
                 <div className="mt-3 text-xs text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-                  <div className="flex items-center">
-                    <MapPin className="h-3.5 w-3.5 mr-1" /> {userLocation}
-                  </div>
-                  <div className="flex items-center">
-                    <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
-                  </div>
+                    <div className="flex items-center">
+                    <MapPin className="h-3.5 w-3.5 mr-1" /> {currentUser.country || "Luxemburgo"}
+                    </div>
+                    <div className="flex items-center">
+                    <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> 
+                    Entrou {currentUser.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "há cerca de 2 horas"}
+                    </div>
                    {currentUser.kakoShowId && (
                     <div className="flex items-center">
                         <Fingerprint className="h-3.5 w-3.5 mr-1" /> Show ID: {currentUser.kakoShowId}
@@ -303,7 +325,7 @@ export default function ProfilePage() {
               </div>
             </div>
              <Tabs defaultValue="posts" className="w-full mt-0">
-              <TabsList className="grid w-full grid-cols-3 sticky top-0 z-30 bg-card border-b">
+              <TabsList className="grid w-full grid-cols-3 sticky top-0 z-10 bg-card border-b">
                 <TabsTrigger value="posts">Posts</TabsTrigger>
                 <TabsTrigger value="respostas">Respostas</TabsTrigger>
                 <TabsTrigger value="midia">Mídia</TabsTrigger>
@@ -329,6 +351,7 @@ export default function ProfilePage() {
           </div>
         );
       case 'informacoesPessoais':
+      case '/profile/edit':
         return (
           <Card>
             <CardHeader>
@@ -444,10 +467,11 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         );
+      // Add cases for other activeTab values (seguranca, notificacoes, etc.)
       default:
         const activeMenuItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
         return (
-          <Card className="m-6"> {/* Added margin for placeholder cards */}
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">{activeMenuItem?.title || "Seção"}</CardTitle>
             </CardHeader>
@@ -461,9 +485,10 @@ export default function ProfilePage() {
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-full">
-        <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
-          <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-2 space-y-4">
+       <div className="flex flex-col h-full"> {/* Main container for full height */}
+         <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden"> {/* Two-column layout */}
+           {/* Left Navigation Sidebar */}
+           <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-2 space-y-4">
             {profileMenuGroups.map((group, groupIndex) => (
               <div key={group.groupTitle || `group-${groupIndex}`} className={cn(groupIndex > 0 && "pt-4")}>
                 {group.groupTitle && (
@@ -473,28 +498,36 @@ export default function ProfilePage() {
                 )}
                 <div className="space-y-1">
                   {group.items.map((item) => {
-                    const isActive = activeTab === item.id;
+                    const isActive = activeTab === item.id || (item.link && pathname === item.link);
+                    const isAction = !!item.action;
+
+                    const buttonContent = (
+                        <>
+                          <div className="flex items-center gap-2.5">
+                            <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                            <span>{item.title}</span>
+                          </div>
+                          <div className="flex items-center ml-auto">
+                            {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                            {!isAction && item.link !== "/settings" && item.link !== "/support" && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </div>
+                        </>
+                    );
+                    
                     return (
-                      <Button
+                       <Button
                         key={item.id}
                         variant="ghost"
                         className={cn(
-                          "w-full text-left h-auto text-sm font-normal rounded-md transition-colors",
-                          isActive
+                          "w-full text-left h-auto text-sm font-medium rounded-md transition-colors",
+                           isActive
                             ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
                             : "text-card-foreground hover:bg-card/80 bg-card shadow-sm hover:text-card-foreground",
-                          "justify-between py-3 px-3"
+                           "justify-between py-3 px-3"
                         )}
                         onClick={() => handleMenuClick(item)}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
-                          <span>{item.title}</span>
-                        </div>
-                        <div className="flex items-center ml-auto">
-                          {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                          {!item.action && item.link !== "/settings" && item.link !== "/support" && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                        </div>
+                        {buttonContent}
                       </Button>
                     );
                   })}
@@ -502,7 +535,9 @@ export default function ProfilePage() {
               </div>
             ))}
           </nav>
-          <main className="flex-1 h-full overflow-y-auto bg-background"> {/* Changed from p-6 to bg-background */}
+
+          {/* Right Content Area */}
+           <main className="flex-1 h-full overflow-y-auto p-6">
             {renderContent()}
           </main>
         </div>
