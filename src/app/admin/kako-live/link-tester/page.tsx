@@ -7,13 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower, MessageSquare } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower, MessageSquare, UserCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ProcessedMessage {
   id: string;
@@ -23,6 +24,13 @@ interface ProcessedMessage {
   parsedData?: Record<string, any>;
   isJson: boolean;
   classification?: string;
+  parsedUserData?: {
+    nickname?: string;
+    avatarUrl?: string;
+    level?: number;
+    showId?: string;
+    userId?: string;
+  };
 }
 
 const generateUniqueId = () => {
@@ -70,7 +78,8 @@ export default function AdminKakoLiveLinkTesterPage() {
 
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
-    setProcessedMessages(prev => prev.filter(msg => msg.type !== 'system' && msg.type !== 'error')); 
+    // Clear previous messages except system/error ones if needed, or keep them
+    // setProcessedMessages(prev => prev.filter(msg => msg.type === 'system' || msg.type === 'error')); 
     setErrorDetails(null);
 
     try {
@@ -104,6 +113,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             let parsedJson: Record<string, any> | undefined;
             let isJsonMessage = false;
             let classification: string | undefined = undefined;
+            let parsedUserData: ProcessedMessage['parsedUserData'] = undefined;
 
             const firstBrace = messageContentString.indexOf('{');
             const lastBrace = messageContentString.lastIndexOf('}');
@@ -121,6 +131,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             }
 
             if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
+              // Classification logic
               if ('roomId' in parsedJson && 'mute' in parsedJson) {
                 classification = "Dados da LIVE";
               } else if ('roomId' in parsedJson && 'text' in parsedJson) {
@@ -129,8 +140,19 @@ export default function AdminKakoLiveLinkTesterPage() {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
                 classification = "Dados de Jogo";
-              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { // Stricter check for external
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
                 classification = "Dados Externos";
+              }
+
+              // Parse user data if present
+              if (parsedJson.user && typeof parsedJson.user === 'object') {
+                parsedUserData = {
+                  nickname: parsedJson.user.nickname,
+                  avatarUrl: parsedJson.user.avatar || parsedJson.user.avatarUrl,
+                  level: parsedJson.user.level,
+                  showId: parsedJson.user.showId,
+                  userId: parsedJson.user.userId,
+                };
               }
             }
             
@@ -142,6 +164,7 @@ export default function AdminKakoLiveLinkTesterPage() {
               parsedData: parsedJson,
               isJson: isJsonMessage,
               classification: classification,
+              parsedUserData: parsedUserData,
             }]);
 
         } catch (e) {
@@ -227,7 +250,7 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   const handleDisconnect = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
       socketRef.current.close(); 
     } else {
       setConnectionStatus("Desconectado"); 
@@ -430,7 +453,9 @@ export default function AdminKakoLiveLinkTesterPage() {
                 {filteredMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
                     <div className="flex justify-between items-center mb-1">
-                        <p className={cn("text-xs", (msg.type === 'system' || msg.type === 'error') ? "text-destructive" : "text-muted-foreground")}>
+                        <p className={cn("text-xs", 
+                            (msg.type === 'system' || msg.type === 'error') ? "text-destructive" : "text-muted-foreground"
+                        )}>
                         {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
                         {msg.timestamp}
                         </p>
@@ -452,11 +477,38 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </Badge>
                         )}
                     </div>
+
+                    {msg.type === 'received' && msg.isJson && msg.parsedUserData && (
+                      <Card className="mb-2 border-primary/30">
+                        <CardHeader className="p-2 bg-primary/5">
+                          <CardTitle className="text-sm font-semibold flex items-center">
+                            <Avatar className="h-8 w-8 mr-2 border">
+                              <AvatarImage src={msg.parsedUserData.avatarUrl} alt={msg.parsedUserData.nickname} data-ai-hint="user avatar"/>
+                              <AvatarFallback>
+                                {msg.parsedUserData.nickname ? msg.parsedUserData.nickname.substring(0,2).toUpperCase() : <UserCircle2 size={16}/>}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              {msg.parsedUserData.nickname || "Usuário Desconhecido"}
+                              {msg.parsedUserData.level && <Badge variant="secondary" className="ml-2 text-xs">Nv. {msg.parsedUserData.level}</Badge>}
+                            </div>
+                          </CardTitle>
+                          { (msg.parsedUserData.showId || msg.parsedUserData.userId) &&
+                            <CardDescription className="text-xs mt-0.5">
+                                {msg.parsedUserData.showId && <span>Show ID: {msg.parsedUserData.showId}</span>}
+                                {msg.parsedUserData.userId && msg.parsedUserData.showId && <span className="mx-1">|</span>}
+                                {msg.parsedUserData.userId && <span>FUID: {msg.parsedUserData.userId}</span>}
+                            </CardDescription>
+                          }
+                        </CardHeader>
+                      </Card>
+                    )}
+
                     {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
                         <h4 className="text-sm font-semibold mb-1 flex items-center">
                           <TableIcon className="w-4 h-4 mr-2 text-primary" />
-                          Dados JSON Recebidos:
+                          Dados JSON da Mensagem:
                         </h4>
                         <div className="max-h-60 overflow-y-auto text-xs border rounded-md">
                           <Table>
@@ -479,20 +531,26 @@ export default function AdminKakoLiveLinkTesterPage() {
                           </Table>
                         </div>
                          <details className="mt-2 text-xs">
-                            <summary className="cursor-pointer text-muted-foreground hover:text-primary">Ver dados brutos recebidos</summary>
+                            <summary className="cursor-pointer text-muted-foreground hover:text-primary">Ver dados brutos originais</summary>
                             <pre className="mt-1 p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                               {msg.originalData}
                             </pre>
                           </details>
                       </div>
-                    ) : (
+                    ) : msg.type !== 'received' ? ( // For sent, system, error messages
                       <div>
                         <h4 className="text-sm font-semibold mb-1">
                           {msg.type === 'sent' ? 'Dados Brutos Enviados:' :
-                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON/Erro de Parse):' :
                            msg.type === 'system' ? 'Mensagem do Sistema:' :
                            'Mensagem de Erro:'}
                         </h4>
+                        <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                          {msg.originalData}
+                        </pre>
+                      </div>
+                    ) : ( // Received but not JSON or parsing failed
+                       <div>
+                        <h4 className="text-sm font-semibold mb-1">Dados Brutos Recebidos (Não JSON/Erro de Parse):</h4>
                         <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                           {msg.originalData}
                         </pre>
@@ -513,4 +571,3 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
-
