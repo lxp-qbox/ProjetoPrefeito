@@ -273,7 +273,7 @@ export default function AdminKakoLiveDataListPageContent() {
                   <TableHead className="min-w-[150px]">NICKNAME / SHOW ID</TableHead>
                   <TableHead>NÍVEL</TableHead>
                   <TableHead>USER ID (FUID)</TableHead>
-                  <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
+                  <TableHead className="text-right w-[250px]">AÇÕES</TableHead> {/* Increased width */}
                 </TableRow>
               </TableHeader>
               <TableBody>
