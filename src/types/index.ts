@@ -65,13 +65,13 @@ export interface UserProfile {
   role?: 'player' | 'host'; 
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
-  showId?: string;          // User's Kako Live Show ID (e.g., "10763129") - Primary link to KakoProfile
-  kakoLiveId?: string;      // User's Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Stored after linking
+  showId?: string;          // Kako Live user-facing Show ID (e.g., "10763129") - Key link
+  kakoLiveId?: string;      // Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Synced if profile linked
 
-  profileName?: string;      
-  displayName?: string | null; 
-  photoURL?: string | null;    
-  level?: number;            // This will be dynamically populated from linked KakoProfile
+  profileName?: string;      // App's primary display name, can be from Kako or Firebase Auth
+  displayName?: string | null; // Usually from Firebase Auth initially
+  photoURL?: string | null;    // App's primary avatar URL, can be from Kako or Firebase Auth
+  level?: number;            // Populated from linked KakoProfile
   
   profileHeader?: string;    
   bio?: string;              
@@ -121,6 +121,14 @@ export interface KakoProfile {
   lastFetchedAt?: any; 
 }
 
+export interface KakoGift {
+  id: string; // From Kako API: gifts[x].id (converted to string)
+  name: string; // From Kako API: gifts[x].name
+  imageUrl: string; // From Kako API: gifts[x].imageUrl
+  diamond?: number; // Optional: from Kako API: gifts[x].diamond
+  display?: boolean; // Optional: from Kako API: gifts[x].display
+}
+
 
 export interface ChatMessage { 
   id: string;
@@ -134,7 +142,7 @@ export interface ChatMessage {
   extractedRoomId?: string; 
   userId?: string; 
   userLevel?: number; 
-  gender?: number; // Added for nickname color coding
+  gender?: number; 
 }
 
 export interface ConversationPreview {
@@ -300,3 +308,4 @@ export interface SidebarNavItem {
 }
 
 export type SidebarFooterItem = SidebarNavItem; 
+
