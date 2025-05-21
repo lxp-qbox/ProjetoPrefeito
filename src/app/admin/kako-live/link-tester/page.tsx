@@ -22,6 +22,7 @@ interface ParsedUserData {
   level?: number;
   showId?: string;
   userId?: string;
+  gender?: number; // Added gender
 }
 interface ProcessedMessage {
   id: string;
@@ -88,13 +89,13 @@ export default function AdminKakoLiveLinkTesterPage() {
       newSocket.onopen = () => {
         setIsConnecting(false);
         setConnectionStatus(`Conectado a: ${wsUrl}`);
-        setProcessedMessages(prev => [...prev, {
+        setProcessedMessages(prev => [{
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           type: 'system',
           originalData: `[SISTEMA] Conexão estabelecida com ${wsUrl}`,
           isJson: false,
-        }]);
+        }, ...prev.slice(0,199)]); // Keep last 200 messages
         toast({ title: "Conectado!", description: `Conexão WebSocket com ${wsUrl} estabelecida.` });
       };
 
@@ -130,7 +131,6 @@ export default function AdminKakoLiveLinkTesterPage() {
             }
 
             if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-              // Classification logic
               if ('roomId' in parsedJson && 'mute' in parsedJson) {
                 classification = "Dados da LIVE";
               } else if ('roomId' in parsedJson && 'text' in parsedJson) {
@@ -143,7 +143,6 @@ export default function AdminKakoLiveLinkTesterPage() {
                 classification = "Dados Externos";
               }
 
-              // Parse user data if present
               if (parsedJson.user && typeof parsedJson.user === 'object') {
                 parsedUserData = {
                   nickname: parsedJson.user.nickname,
@@ -151,11 +150,12 @@ export default function AdminKakoLiveLinkTesterPage() {
                   level: parsedJson.user.level,
                   showId: parsedJson.user.showId,
                   userId: parsedJson.user.userId,
+                  gender: parsedJson.user.gender, // Extract gender
                 };
               }
             }
             
-            setProcessedMessages(prev => [...prev, {
+            setProcessedMessages(prev => [{
               id: generateUniqueId(),
               timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               type: 'received',
@@ -164,17 +164,17 @@ export default function AdminKakoLiveLinkTesterPage() {
               isJson: isJsonMessage,
               classification: classification,
               parsedUserData: parsedUserData,
-            }]);
+            }, ...prev.slice(0,199)]);
 
         } catch (e) {
             console.error("Erro ao processar mensagem WebSocket:", e);
-            setProcessedMessages(prev => [...prev, {
+            setProcessedMessages(prev => [{
                 id: generateUniqueId(),
                 timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
                 type: 'error',
                 originalData: `[ERRO INTERNO AO PROCESSAR MENSAGEM] ${e instanceof Error ? e.message : String(e)}. Dados brutos: ${messageContentString.substring(0,100)}...`,
                 isJson: false,
-              }]);
+              }, ...prev.slice(0,199)]);
         }
       };
 
@@ -183,13 +183,13 @@ export default function AdminKakoLiveLinkTesterPage() {
         const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
-        setProcessedMessages(prev => [...prev, {
+        setProcessedMessages(prev => [{
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           type: 'error',
           originalData: `[ERRO] ${errorMsg}`,
           isJson: false,
-        }]);
+        }, ...prev.slice(0,199)]);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
         
         const currentSocketInstance = socketRef.current;
@@ -214,13 +214,13 @@ export default function AdminKakoLiveLinkTesterPage() {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
         setConnectionStatus("Desconectado");
-        setProcessedMessages(prev => [...prev, {
+        setProcessedMessages(prev => [{
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           type: 'system',
           originalData: `[SISTEMA] ${closeMsg}`,
           isJson: false,
-        }]);
+        }, ...prev.slice(0,199)]);
         toast({ title: "Desconectado", description: closeMsg });
 
         if (socketRef.current === newSocket) {
@@ -233,13 +233,13 @@ export default function AdminKakoLiveLinkTesterPage() {
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
       setConnectionStatus("Erro ao Iniciar Conexão");
       setErrorDetails(errMsg);
-      setProcessedMessages(prev => [...prev, {
+      setProcessedMessages(prev => [{
           id: generateUniqueId(),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           type: 'error',
           originalData: `[ERRO CRÍTICO AO CONECTAR] ${errMsg}`,
           isJson: false,
-        }]);
+        }, ...prev.slice(0,199)]);
       toast({ title: "Falha ao Conectar", description: errMsg, variant: "destructive" });
       if (socketRef.current) { 
         socketRef.current.close();
@@ -269,25 +269,25 @@ export default function AdminKakoLiveLinkTesterPage() {
 
     try {
       socketRef.current.send(messageToSend.trim());
-      setProcessedMessages(prev => [...prev, {
+      setProcessedMessages(prev => [{
         id: generateUniqueId(),
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'sent',
-        originalData: `${messageToSend.trim()}`, // Removed [ENVIADO] prefix for cleaner JSON sending
-        isJson: false, // Assume sent as string, server might parse if it's JSON string
-      }]);
+        originalData: `${messageToSend.trim()}`,
+        isJson: false, 
+      }, ...prev.slice(0,199)]);
       toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
       setMessageToSend("");
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao enviar mensagem.";
-      setProcessedMessages(prev => [...prev, {
+      setProcessedMessages(prev => [{
         id: generateUniqueId(),
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'error',
         originalData: `[ERRO AO ENVIAR] ${errMsg}`,
         isJson: false,
-      }]);
+      }, ...prev.slice(0,199)]);
       toast({ title: "Erro ao Enviar", description: errMsg, variant: "destructive" });
     }
   };
@@ -402,15 +402,15 @@ export default function AdminKakoLiveLinkTesterPage() {
           </div>
 
           <div className="mt-4 flex items-center space-x-4 border-t pt-4 flex-wrap gap-y-2">
-             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="showLiveDataFilter"
-                checked={showLiveDataFilter}
-                onCheckedChange={(checked) => setShowLiveDataFilter(Boolean(checked))}
-              />
-              <Label htmlFor="showLiveDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da LIVE</Label>
-            </div>
             <div className="flex items-center space-x-2">
+                <Checkbox
+                    id="showLiveDataFilter"
+                    checked={showLiveDataFilter}
+                    onCheckedChange={(checked) => setShowLiveDataFilter(Boolean(checked))}
+                />
+                <Label htmlFor="showLiveDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da LIVE</Label>
+            </div>
+             <div className="flex items-center space-x-2">
                 <Checkbox
                     id="showChatMessageFilter"
                     checked={showChatMessageFilter}
@@ -480,7 +480,11 @@ export default function AdminKakoLiveLinkTesterPage() {
                     {msg.type === 'received' && msg.isJson && msg.parsedUserData && (
                       <Card className="mb-2 border-primary/30">
                         <CardHeader className="p-2 bg-primary/5">
-                          <CardTitle className="text-sm font-semibold flex items-center">
+                           <CardTitle className={cn(
+                            "text-sm font-semibold flex items-center",
+                            msg.parsedUserData.gender === 1 ? "text-primary" : // Blue for gender 1
+                            msg.parsedUserData.gender === 2 ? "text-pink-500" : "text-foreground" // Pink for gender 2, default otherwise
+                          )}>
                             <Avatar className="h-8 w-8 mr-2 border">
                               <AvatarImage src={msg.parsedUserData.avatarUrl} alt={msg.parsedUserData.nickname} data-ai-hint="user avatar"/>
                               <AvatarFallback>
@@ -493,7 +497,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </div>
                           </CardTitle>
                           { (msg.parsedUserData.showId || msg.parsedUserData.userId) &&
-                            <CardDescription className="text-xs mt-0.5">
+                            <CardDescription className="text-xs mt-0.5 pl-10"> {/* Added pl-10 to align with nickname */}
                                 {msg.parsedUserData.showId && <span>Show ID: {msg.parsedUserData.showId}</span>}
                                 {msg.parsedUserData.userId && msg.parsedUserData.showId && <span className="mx-1">|</span>}
                                 {msg.parsedUserData.userId && <span>FUID: {msg.parsedUserData.userId}</span>}
@@ -542,14 +546,14 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </pre>
                           </details>
                       </div>
-                    ) : msg.type === 'sent' ? ( // For sent messages
+                    ) : msg.type === 'sent' ? ( 
                         <div>
                           <h4 className="text-sm font-semibold mb-1">Dados Brutos Enviados:</h4>
                           <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                             {msg.originalData}
                           </pre>
                         </div>
-                    ) : msg.type !== 'received' ? ( // For system, error messages
+                    ) : msg.type !== 'received' ? ( 
                       <div>
                         <h4 className="text-sm font-semibold mb-1">
                           {msg.type === 'system' ? 'Mensagem do Sistema:' :
@@ -559,7 +563,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                           {msg.originalData}
                         </pre>
                       </div>
-                    ) : ( // Received but not JSON or parsing failed
+                    ) : ( 
                        <div>
                         <h4 className="text-sm font-semibold mb-1">Dados Brutos Recebidos (Não JSON/Erro de Parse):</h4>
                         <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
@@ -582,6 +586,3 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
-
-
-    
