@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -41,7 +41,8 @@ export default function AdminKakoLiveLinkTesterPage() {
 
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
-  const [showExternalDataFilter, setShowExternalDataFilter] = useState(true); // State for new filter
+  const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
+  const [showLiveDataFilter, setShowLiveDataFilter] = useState(true); // New filter state
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -115,16 +116,24 @@ export default function AdminKakoLiveLinkTesterPage() {
             parsedJson = JSON.parse(jsonStr);
             isJsonMessage = true;
           } else {
-             parsedJson = JSON.parse(messageContentString);
-             isJsonMessage = true;
+             // Attempt to parse the whole string if no clear JSON object found
+             // This might fail if there are leading/trailing non-JSON chars not handled by substring
+             try {
+                parsedJson = JSON.parse(messageContentString);
+                isJsonMessage = true;
+             } catch {
+                // Fallback if full string parsing fails
+             }
           }
 
           if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-            if ('roomId' in parsedJson && !('game' in parsedJson) && !('giftId' in parsedJson && !('roomId' in parsedJson))) {
+            if ('roomId' in parsedJson && 'mute' in parsedJson) {
+              classification = "Dados da LIVE";
+            } else if ('roomId' in parsedJson) {
               classification = "Dados da Sala";
             } else if ('game' in parsedJson) {
               classification = "Dados de Jogo";
-            } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
+            } else if ('giftId' in parsedJson && !('roomId' in parsedJson) ) { 
               classification = "Dados Externos";
             }
           }
@@ -259,6 +268,9 @@ export default function AdminKakoLiveLinkTesterPage() {
       return true; // Always show sent, system, and error messages
     }
     // For 'received' messages:
+    if (msg.classification === "Dados da LIVE") {
+      return showLiveDataFilter;
+    }
     if (msg.classification === "Dados da Sala") {
       return showRoomDataFilter;
     }
@@ -345,6 +357,14 @@ export default function AdminKakoLiveLinkTesterPage() {
           <div className="mt-4 flex items-center space-x-4 border-t pt-4 flex-wrap gap-y-2">
             <div className="flex items-center space-x-2">
               <Checkbox
+                id="showLiveDataFilter"
+                checked={showLiveDataFilter}
+                onCheckedChange={(checked) => setShowLiveDataFilter(Boolean(checked))}
+              />
+              <Label htmlFor="showLiveDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da LIVE</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
                 id="showRoomDataFilter"
                 checked={showRoomDataFilter}
                 onCheckedChange={(checked) => setShowRoomDataFilter(Boolean(checked))}
@@ -383,11 +403,13 @@ export default function AdminKakoLiveLinkTesterPage() {
                         </p>
                         {msg.classification && msg.type === 'received' && (
                             <Badge className={cn(`text-xs`, 
+                                msg.classification === "Dados da LIVE" && "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
                                 msg.classification === "Dados da Sala" && "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200",
                                 msg.classification === "Dados de Jogo" && "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
                                 msg.classification === "Dados Externos" && "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
-                                !(msg.classification === "Dados da Sala" || msg.classification === "Dados de Jogo" || msg.classification === "Dados Externos") && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
+                                !["Dados da LIVE", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
                             )}>
+                                {msg.classification === "Dados da LIVE" && <RadioTower className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />}
