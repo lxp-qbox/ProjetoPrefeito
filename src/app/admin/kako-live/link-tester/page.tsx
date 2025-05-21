@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -109,15 +109,22 @@ export default function AdminKakoLiveLinkTesterPage() {
             parsedJson = JSON.parse(jsonStr);
             isJsonMessage = true;
           } else {
+             // If no clear JSON object boundaries, try to parse the whole string
+             // This might fail for messages with leading/trailing non-JSON text, but it's a fallback.
              parsedJson = JSON.parse(messageContentString);
              isJsonMessage = true;
           }
 
-          if (isJsonMessage && parsedJson && typeof parsedJson === 'object' && 'roomId' in parsedJson) {
-            classification = "Dados da Sala";
+          if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
+            if ('roomId' in parsedJson) {
+              classification = "Dados da Sala";
+            } else if ('game' in parsedJson) {
+              classification = "Dados de Jogo";
+            }
           }
 
         } catch (e) {
+          // console.warn("Failed to parse message as JSON or classify:", e);
           isJsonMessage = false;
         }
 
@@ -234,6 +241,7 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   useEffect(() => {
+    // Cleanup function to close WebSocket on component unmount
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
@@ -328,8 +336,13 @@ export default function AdminKakoLiveLinkTesterPage() {
                         {msg.timestamp}
                         </p>
                         {msg.classification && msg.type === 'received' && (
-                            <Badge className="text-xs bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200">
-                                <BadgeInfo className="mr-1.5 h-3 w-3" />
+                            <Badge className={`text-xs ${
+                                msg.classification === "Dados da Sala" ? "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200" :
+                                msg.classification === "Dados de Jogo" ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" :
+                                "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200" // Default badge
+                            }`}>
+                                {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
                                 {msg.classification}
                             </Badge>
                         )}
