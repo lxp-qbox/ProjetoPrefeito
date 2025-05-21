@@ -47,10 +47,10 @@ interface BingoAdminMenuGroup {
   isBottomSection?: boolean;
 }
 
-// Sample data for GeneratedBingoCard
-const placeholderGeneratedCards: GeneratedBingoCard[] = [
+// Sample data for GeneratedBingoCard (90-ball)
+const placeholderGenerated90BallCards: GeneratedBingoCard[] = [
   {
-    id: 'card-uuid-001',
+    id: 'card-90-001',
     cardNumbers: [
       [5, null, 30, null, 49, null, 61, null, 81],
       [8, 17, null, 32, null, 53, null, 70, 89],
@@ -68,7 +68,7 @@ const placeholderGeneratedCards: GeneratedBingoCard[] = [
     ]
   },
   {
-    id: 'card-uuid-002',
+    id: 'card-90-002',
     cardNumbers: [
       [1, 20, null, 33, null, 50, 65, null, 88],
       [null, 15, 25, 35, 45, null, 68, 72, 82],
@@ -84,9 +84,52 @@ const placeholderGeneratedCards: GeneratedBingoCard[] = [
   }
 ];
 
-const formatCardNumbersPreview = (numbers: (number | null)[][]): string => {
+// Sample data for 75-ball cards
+const placeholderGenerated75BallCards: GeneratedBingoCard[] = [
+  {
+    id: 'card-75-001',
+    cardNumbers: [ // 5x5 grid
+      [1, 16, 31, 46, 61],
+      [5, 20, 35, 50, 65],
+      [10, 25, null, 55, 70], // N column, middle is free (null)
+      [12, 28, 40, 58, 72],
+      [15, 30, 45, 60, 75]
+    ],
+    creatorId: 'user-creator-75A',
+    createdAt: new Date(Date.now() - 172800000), // Two days ago
+    usageHistory: [
+      { userId: 'playerABC', gameId: 'game75-1', timestamp: new Date(), isWinner: false },
+    ],
+    timesAwarded: 0,
+    awardsHistory: []
+  },
+  {
+    id: 'card-75-002',
+    cardNumbers: [
+      [2, 17, 32, 47, 62],
+      [6, 21, 36, 51, 66],
+      [11, 26, null, 56, 71],
+      [13, 29, 41, 59, 73],
+      [14, 27, 44, 57, 74]
+    ],
+    creatorId: 'system-generator-75',
+    createdAt: new Date(Date.now() - 259200000), // Three days ago
+    usageHistory: [],
+    timesAwarded: 0,
+    awardsHistory: []
+  }
+];
+
+const format90BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
   const firstRowNumbers = numbers[0]?.filter(n => n !== null).slice(0, 3).join(', ');
   return firstRowNumbers ? `${firstRowNumbers}...` : 'N/A';
+};
+
+const format75BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
+  if (!numbers || numbers.length === 0) return 'N/A';
+  // Example: Get first 3 non-null numbers from the first row for 75-ball card
+  const firstRowPreview = numbers[0]?.filter(n => n !== null).slice(0,3).join(', ');
+  return firstRowPreview ? `${firstRowPreview}...` : 'N/A';
 };
 
 
@@ -115,10 +158,14 @@ export default function AdminBingoAdminPage() {
   ];
 
   const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
-  const [generatedCards, setGeneratedCards] = useState<GeneratedBingoCard[]>(placeholderGeneratedCards);
+  const [generated90BallCards, setGenerated90BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated90BallCards);
+  const [generated75BallCards, setGenerated75BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated75BallCards);
+
   const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isConfirmDeleteAllCardsDialogOpen, setIsConfirmDeleteAllCardsDialogOpen] = useState(false);
+  const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
+  const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
+
 
   useEffect(() => {
     const hash = window.location.hash.substring(1); 
@@ -147,16 +194,31 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-  const handleViewCardDetails = (card: GeneratedBingoCard) => {
+  const handleView90BallCardDetails = (card: GeneratedBingoCard) => {
     setSelectedCardForDetails(card);
     setIsDetailModalOpen(true);
   };
+  
+  // For 75-ball, details modal not fully implemented yet, logs to console
+  const handleView75BallCardDetails = (card: GeneratedBingoCard) => {
+    console.log("Detalhes da Cartela 75 Bolas:", card);
+    // Potentially open a different, simpler modal or just log for now
+    // setSelectedCardForDetails(card);
+    // setIsDetailModalOpen(true); // If using the same modal, ensure it can handle 5x5
+    alert("Visualização detalhada para cartelas de 75 bolas ainda em desenvolvimento.");
+  };
 
-  const handleConfirmDeleteAllCards = () => {
-    setGeneratedCards([]);
-    // toast({ title: "Lista de Cartelas Limpa", description: "Todas as cartelas foram removidas da lista (localmente)." }); // Toast can be added if useToast is available
-    console.log("Todas as cartelas foram removidas da lista (localmente).");
-    setIsConfirmDeleteAllCardsDialogOpen(false);
+
+  const handleConfirmDeleteAll90BallCards = () => {
+    setGenerated90BallCards([]);
+    console.log("Todas as cartelas de 90 bolas foram removidas da lista (localmente).");
+    setIsConfirmDeleteAll90BallCardsDialogOpen(false);
+  };
+
+  const handleConfirmDeleteAll75BallCards = () => {
+    setGenerated75BallCards([]);
+    console.log("Todas as cartelas de 75 bolas foram removidas da lista (localmente).");
+    setIsConfirmDeleteAll75BallCardsDialogOpen(false);
   };
 
 
@@ -199,22 +261,66 @@ export default function AdminBingoAdminPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <LayoutGrid className="mr-2 h-6 w-6 text-primary" />
-                  Cartelas de Bingo 75 Bolas
+                  Cartelas de Bingo 75 Bolas Geradas
                 </CardTitle>
                 <CardDescription>
-                  Gerencie e visualize cartelas específicas para jogos de bingo de 75 bolas.
+                  Visualize informações sobre as cartelas de bingo de 75 bolas geradas no sistema.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Conteúdo para gerenciamento de cartelas de 75 bolas em desenvolvimento...</p>
-                 <p className="mt-4 text-sm text-muted-foreground">
-                    Funcionalidades planejadas:
-                    <ul className="list-disc list-inside ml-4 mt-2">
-                    <li>Visualizar cartelas de 75 bolas existentes.</li>
-                    <li>Gerar novas cartelas de 75 bolas.</li>
-                    <li>Importar/Exportar cartelas.</li>
-                    <li>Verificar padrões de cartelas.</li>
-                    </ul>
+                <div className="mb-4 flex justify-end">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setIsConfirmDeleteAll75BallCardsDialogOpen(true)}
+                    disabled={generated75BallCards.length === 0}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Apagar Todas (75 Bolas - Local)
+                  </Button>
+                </div>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID da Cartela</TableHead>
+                        <TableHead>Números (Início)</TableHead>
+                        <TableHead>ID do Criador</TableHead>
+                        <TableHead>Data de Criação</TableHead>
+                        <TableHead className="text-center">Usos</TableHead>
+                        <TableHead className="text-center">Premiada</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {generated75BallCards.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center h-24">
+                            Nenhuma cartela de 75 bolas gerada encontrada.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        generated75BallCards.map((card) => (
+                          <TableRow key={card.id}>
+                            <TableCell className="font-mono text-xs">{card.id}</TableCell>
+                            <TableCell className="text-xs">{format75BallCardNumbersPreview(card.cardNumbers)}</TableCell>
+                            <TableCell className="text-xs">{card.creatorId}</TableCell>
+                            <TableCell>{card.createdAt instanceof Date ? format(card.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
+                            <TableCell className="text-center">{card.usageHistory.length}</TableCell>
+                            <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
+                            <TableCell>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleView75BallCardDetails(card)} disabled>
+                                <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                 <p className="mt-4 text-xs text-muted-foreground">
+                  Esta tabela mostrará as cartelas de 75 bolas. A visualização detalhada específica para este tipo de cartela está em desenvolvimento.
                 </p>
               </CardContent>
             </Card>
@@ -238,11 +344,11 @@ export default function AdminBingoAdminPage() {
                   <Button 
                     variant="destructive" 
                     size="sm" 
-                    onClick={() => setIsConfirmDeleteAllCardsDialogOpen(true)}
-                    disabled={generatedCards.length === 0}
+                    onClick={() => setIsConfirmDeleteAll90BallCardsDialogOpen(true)}
+                    disabled={generated90BallCards.length === 0}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Apagar Todas as Cartelas (Local)
+                    Apagar Todas (90 Bolas - Local)
                   </Button>
                 </div>
                 <div className="rounded-md border overflow-x-auto">
@@ -259,23 +365,23 @@ export default function AdminBingoAdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {generatedCards.length === 0 ? (
+                      {generated90BallCards.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center h-24">
-                            Nenhuma cartela gerada encontrada.
+                            Nenhuma cartela de 90 bolas gerada encontrada.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        generatedCards.map((card) => (
+                        generated90BallCards.map((card) => (
                           <TableRow key={card.id}>
                             <TableCell className="font-mono text-xs">{card.id}</TableCell>
-                            <TableCell className="text-xs">{formatCardNumbersPreview(card.cardNumbers)}</TableCell>
+                            <TableCell className="text-xs">{format90BallCardNumbersPreview(card.cardNumbers)}</TableCell>
                             <TableCell className="text-xs">{card.creatorId}</TableCell>
                             <TableCell>{card.createdAt instanceof Date ? format(card.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleView90BallCardDetails(card)}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -404,25 +510,35 @@ export default function AdminBingoAdminPage() {
             <ScrollArea className="max-h-[calc(80vh-100px)] pr-4"> {/* Adjusted max-h for scroll area */}
               <div className="space-y-6 py-4">
                 
-                {/* Visual Card Grid */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Visualização da Cartela</h3>
-                  <div className="grid grid-cols-9 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md mx-auto">
-                    {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
-                      row.map((cell, colIndex) => (
-                        <div
-                          key={`detail-card-${rowIndex}-${colIndex}`}
-                          className={cn(
-                            "flex items-center justify-center h-12 text-base font-medium aspect-square",
-                            cell === null ? 'bg-primary/10' : 'bg-card text-primary'
-                          )}
-                        >
-                          {cell !== null ? cell : ""}
-                        </div>
-                      ))
-                    )}
+                {/* Visual Card Grid - Specific to 90-ball card structure */}
+                {selectedCardForDetails.cardNumbers.length === 3 && selectedCardForDetails.cardNumbers[0].length === 9 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (90 Bolas)</h3>
+                    <div className="grid grid-cols-9 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md mx-auto">
+                      {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
+                        row.map((cell, colIndex) => (
+                          <div
+                            key={`detail-card-${rowIndex}-${colIndex}`}
+                            className={cn(
+                              "flex items-center justify-center h-12 text-base font-medium aspect-square",
+                              cell === null ? 'bg-primary/10' : 'bg-card text-primary'
+                            )}
+                          >
+                            {cell !== null ? cell : ""}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+                 {/* Placeholder for 75-ball card visualization if needed in future */}
+                 {/* {selectedCardForDetails.cardNumbers.length === 5 && selectedCardForDetails.cardNumbers[0].length === 5 && (
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (75 Bolas)</h3>
+                        // ... 5x5 grid rendering ...
+                    </div>
+                 )} */}
+
 
                 {/* Basic Information */}
                 <Card>
@@ -511,22 +627,43 @@ export default function AdminBingoAdminPage() {
         </Dialog>
       )}
 
-      <AlertDialog open={isConfirmDeleteAllCardsDialogOpen} onOpenChange={setIsConfirmDeleteAllCardsDialogOpen}>
+      <AlertDialog open={isConfirmDeleteAll90BallCardsDialogOpen} onOpenChange={setIsConfirmDeleteAll90BallCardsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão de Todas as Cartelas</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Exclusão (90 Bolas)</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja apagar TODAS as cartelas geradas desta lista?
+              Você tem certeza que deseja apagar TODAS as cartelas de 90 bolas geradas desta lista?
               Esta ação é apenas local e não afeta o banco de dados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsConfirmDeleteAllCardsDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsConfirmDeleteAll90BallCardsDialogOpen(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDeleteAllCards}
+              onClick={handleConfirmDeleteAll90BallCards}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
-              Apagar Tudo (Local)
+              Apagar Tudo (90 Bolas - Local)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConfirmDeleteAll75BallCardsDialogOpen} onOpenChange={setIsConfirmDeleteAll75BallCardsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão (75 Bolas)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja apagar TODAS as cartelas de 75 bolas geradas desta lista?
+              Esta ação é apenas local e não afeta o banco de dados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmDeleteAll75BallCardsDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteAll75BallCards}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Apagar Tudo (75 Bolas - Local)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
