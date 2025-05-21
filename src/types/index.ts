@@ -68,9 +68,9 @@ export interface UserProfile {
   showId?: string;          // Kako Live user-facing Show ID (e.g., "10763129") - Key link
   kakoLiveId?: string;      // Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Synced if profile linked
 
-  profileName?: string;      // App's primary display name, can be from Kako or Firebase Auth
+  profileName?: string;      // App's primary display name
   displayName?: string | null; // Usually from Firebase Auth initially
-  photoURL?: string | null;    // App's primary avatar URL, can be from Kako or Firebase Auth
+  photoURL?: string | null;    // App's primary avatar URL
   level?: number;            // Populated from linked KakoProfile
   
   profileHeader?: string;    
@@ -115,7 +115,7 @@ export interface KakoProfile {
   gender?: number; // 1 for male, 2 for female (based on example)
   area?: string;
   school?: string;
-  showId?: string; // The user-facing searchable ID from Kako
+  showId: string; // The user-facing searchable ID from Kako
   isLiving?: boolean; 
   roomId?: string; 
   lastFetchedAt?: any; 
@@ -277,23 +277,23 @@ export interface GeneratedBingoCard {
 }
 
 export interface BingoPrize {
-  id: string; 
+  id?: string; // Firestore document ID, optional if using addDoc
   name: string; 
   description?: string; 
   type: 'kako_virtual' | 'cash' | 'physical_item' | 'other'; 
   imageUrl?: string; 
-  valueDisplay?: string; 
+  valueDisplay?: string; // e.g., "R$50,00" or "1000 Moedas"
   
-  kakoGiftId?: string; 
-  kakoGiftName?: string; 
-  kakoGiftImageUrl?: string; 
+  kakoGiftId?: string; // Specific ID from Kako Live's gift system
+  kakoGiftName?: string; // Optional: Name of the gift in Kako's system
+  kakoGiftImageUrl?: string; // Optional: Image URL from Kako's system
 
   isActive: boolean; 
-  quantityAvailable?: number | null; 
+  quantityAvailable?: number | null; // null for unlimited
   
-  createdAt: any; 
-  updatedAt: any; 
-  createdBy?: string; 
+  createdAt: any; // Firestore Server Timestamp
+  updatedAt: any; // Firestore Server Timestamp
+  createdBy?: string; // UID of admin who created it
 }
 
 export interface SidebarNavItem {
@@ -308,4 +308,3 @@ export interface SidebarNavItem {
 }
 
 export type SidebarFooterItem = SidebarNavItem; 
-

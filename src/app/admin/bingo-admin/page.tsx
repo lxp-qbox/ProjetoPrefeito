@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +28,19 @@ import {
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance, AwardInstance } from '@/types';
+import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import NextImage from 'next/image';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp } from "@/lib/firebase";
+import LoadingSpinner from '@/components/ui/loading-spinner';
 
 
 interface BingoAdminMenuItem {
@@ -103,21 +113,6 @@ const placeholderGenerated75BallCards: GeneratedBingoCard[] = [
     timesAwarded: 0,
     awardsHistory: []
   },
-  {
-    id: 'card-75-002',
-    cardNumbers: [
-      [2, 17, 32, 47, 62],
-      [6, 21, 36, 51, 66],
-      [11, 26, null, 56, 71],
-      [13, 29, 41, 59, 73],
-      [14, 27, 44, 57, 74]
-    ],
-    creatorId: 'system-generator-75',
-    createdAt: new Date(Date.now() - 259200000), // Three days ago
-    usageHistory: [],
-    timesAwarded: 0,
-    awardsHistory: []
-  }
 ];
 
 const format90BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
@@ -127,16 +122,25 @@ const format90BallCardNumbersPreview = (numbers: (number | null)[][]): string =>
 
 const format75BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
   if (!numbers || numbers.length === 0) return 'N/A';
-  // Example: Get first 3 non-null numbers from the first row for 75-ball card
   const firstRowPreview = numbers[0]?.filter(n => n !== null).slice(0,3).join(', ');
   return firstRowPreview ? `${firstRowPreview}...` : 'N/A';
 };
+
+const newKakoPrizeSchema = z.object({
+  name: z.string().min(1, "Nome do prêmio é obrigatório."),
+  imageUrl: z.string().url({ message: "URL da imagem inválida." }).optional().or(z.literal('')),
+  kakoGiftId: z.string().optional(),
+  valueDisplay: z.string().optional(),
+  description: z.string().max(200, "Descrição muito longa (máx. 200 caracteres).").optional(),
+});
+type NewKakoPrizeFormValues = z.infer<typeof newKakoPrizeSchema>;
 
 
 export default function AdminBingoAdminPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout } = useAuth(); // Assuming useAuth provides logout
+  const { toast } = useToast();
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
     {
@@ -173,6 +177,84 @@ export default function AdminBingoAdminPage() {
   const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
   const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
 
+  // State for Kako Prizes
+  const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
+  const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
+  const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
+  const { currentUser } = useAuth();
+
+  const kakoPrizeForm = useForm<NewKakoPrizeFormValues>({
+    resolver: zodResolver(newKakoPrizeSchema),
+    defaultValues: {
+      name: "",
+      imageUrl: "",
+      kakoGiftId: "",
+      valueDisplay: "",
+      description: "",
+    },
+  });
+
+  const fetchKakoPrizes = useCallback(async () => {
+    setIsLoadingKakoPrizes(true);
+    try {
+      const prizesCollectionRef = collection(db, "bingoPrizes");
+      const q = query(prizesCollectionRef, where("type", "==", "kako_virtual"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedPrizes: BingoPrize[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetchedPrizes.push({ id: docSnap.id, ...docSnap.data() } as BingoPrize);
+      });
+      setKakoPrizes(fetchedPrizes);
+    } catch (error) {
+      console.error("Erro ao buscar prêmios Kako Live:", error);
+      toast({ title: "Erro ao Carregar Prêmios", description: "Não foi possível carregar a lista de prêmios Kako Live.", variant: "destructive" });
+    } finally {
+      setIsLoadingKakoPrizes(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (activeTab === 'bingoPremiosKako') {
+      fetchKakoPrizes();
+    }
+  }, [activeTab, fetchKakoPrizes]);
+
+  const onSubmitNewKakoPrize = async (values: NewKakoPrizeFormValues) => {
+    if (!currentUser) {
+        toast({ title: "Erro de Autenticação", description: "Você precisa estar logado para adicionar prêmios.", variant: "destructive"});
+        return;
+    }
+    try {
+      const newPrizeData: Omit<BingoPrize, 'id'> = {
+        name: values.name,
+        imageUrl: values.imageUrl || undefined,
+        kakoGiftId: values.kakoGiftId || undefined,
+        valueDisplay: values.valueDisplay || undefined,
+        description: values.description || undefined,
+        type: 'kako_virtual',
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: currentUser.uid,
+      };
+      await addDoc(collection(db, "bingoPrizes"), newPrizeData);
+      toast({
+        title: "Prêmio Cadastrado!",
+        description: `O prêmio '${values.name}' foi salvo com sucesso.`,
+      });
+      setIsAddKakoPrizeDialogOpen(false);
+      kakoPrizeForm.reset();
+      fetchKakoPrizes(); 
+    } catch (error) {
+      console.error("Erro ao cadastrar prêmio Kako Live:", error);
+      toast({
+        title: "Erro ao Cadastrar",
+        description: "Não foi possível salvar o prêmio. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   useEffect(() => {
     const hash = window.location.hash.substring(1); 
@@ -208,13 +290,13 @@ export default function AdminBingoAdminPage() {
 
   const handleConfirmDeleteAll90BallCards = () => {
     setGenerated90BallCards([]);
-    console.log("Todas as cartelas de 90 bolas foram removidas da lista (localmente).");
+    toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 90 bolas foram removidas da lista (localmente)."});
     setIsConfirmDeleteAll90BallCardsDialogOpen(false);
   };
 
   const handleConfirmDeleteAll75BallCards = () => {
     setGenerated75BallCards([]);
-    console.log("Todas as cartelas de 75 bolas foram removidas da lista (localmente).");
+    toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 75 bolas foram removidas da lista (localmente)."});
     setIsConfirmDeleteAll75BallCardsDialogOpen(false);
   };
 
@@ -396,9 +478,157 @@ export default function AdminBingoAdminPage() {
           </div>
         );
       case 'bingoPremiosKako':
-        contentTitle = "Gerenciamento de Prêmios - Kako Live";
-        contentDescription = "Configure e visualize prêmios virtuais do Kako Live para os jogos de bingo.";
-        break;
+        return (
+            <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+                <CardHeader className="flex flex-row justify-between items-center">
+                    <div>
+                        <CardTitle className="flex items-center">
+                            <Gift className="mr-2 h-6 w-6 text-primary" />
+                            Gerenciamento de Prêmios - Kako Live
+                        </CardTitle>
+                        <CardDescription>
+                            Cadastre e visualize prêmios virtuais do Kako Live para os jogos de bingo.
+                        </CardDescription>
+                    </div>
+                    <Dialog open={isAddKakoPrizeDialogOpen} onOpenChange={setIsAddKakoPrizeDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Prêmio
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Adicionar Novo Prêmio Kako Live</DialogTitle>
+                                <DialogDescription>
+                                    Preencha os detalhes do novo prêmio virtual.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Form {...kakoPrizeForm}>
+                                <form onSubmit={kakoPrizeForm.handleSubmit(onSubmitNewKakoPrize)} className="space-y-4 py-2 pb-4">
+                                    <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Nome do Prêmio</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: Coroa de Diamantes Kako" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="imageUrl"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>URL da Imagem do Prêmio</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="https://..." {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="kakoGiftId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>ID do Presente Kako (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: 10000 (ID do Kako)" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                     <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="valueDisplay"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Valor de Exibição (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: 10.000 Diamantes" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="description"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Descrição (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Textarea placeholder="Descreva brevemente o prêmio..." {...field} rows={3}/>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button type="button" variant="outline">Cancelar</Button>
+                                        </DialogClose>
+                                        <Button type="submit" disabled={kakoPrizeForm.formState.isSubmitting}>
+                                            {kakoPrizeForm.formState.isSubmitting ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                            Salvar Prêmio
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingKakoPrizes ? (
+                        <div className="flex justify-center items-center h-32">
+                            <LoadingSpinner size="md" />
+                            <p className="ml-2 text-muted-foreground">Carregando prêmios...</p>
+                        </div>
+                    ) : kakoPrizes.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Nenhum prêmio Kako Live cadastrado.</p>
+                    ) : (
+                        <ScrollArea className="h-[calc(100vh-350px)]"> {/* Adjust height as needed */}
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[80px]">Imagem</TableHead>
+                                        <TableHead>Nome</TableHead>
+                                        <TableHead>ID Kako</TableHead>
+                                        <TableHead>Valor</TableHead>
+                                        <TableHead>Descrição</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {kakoPrizes.map((prize) => (
+                                        <TableRow key={prize.id}>
+                                            <TableCell>
+                                                {prize.imageUrl ? (
+                                                    <NextImage src={prize.imageUrl} alt={prize.name} width={40} height={40} className="rounded-md object-contain" data-ai-hint="prize icon" />
+                                                ) : (
+                                                    <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center text-muted-foreground text-xs">Sem Img</div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="font-medium">{prize.name}</TableCell>
+                                            <TableCell className="text-xs">{prize.kakoGiftId || "N/A"}</TableCell>
+                                            <TableCell className="text-xs">{prize.valueDisplay || "N/A"}</TableCell>
+                                            <TableCell className="text-xs max-w-xs truncate" title={prize.description}>{prize.description || "N/A"}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    )}
+                </CardContent>
+            </Card>
+            </div>
+        );
       case 'bingoPremiosDinheiro':
         contentTitle = "Gerenciamento de Prêmios - Dinheiro";
         contentDescription = "Defina e administre prêmios em dinheiro para diferentes tipos de bingo e classificações.";
@@ -446,7 +676,6 @@ export default function AdminBingoAdminPage() {
               {activeTab === 'bingoGanhadores' && <Trophy className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoBolasSorteadas' && <Dice5 className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoTelaSorteio' && <PlaySquare className="mr-2 h-6 w-6 text-primary" />}
-              {activeTab === 'bingoPremiosKako' && <Gift className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoPremiosDinheiro' && <DollarSign className="mr-2 h-6 w-6 text-primary" />}
               {contentTitle}
             </CardTitle>
