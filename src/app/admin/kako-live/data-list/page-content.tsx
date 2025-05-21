@@ -40,6 +40,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, writeBatch, query, where, getDocs, deleteDoc } from "@/lib/firebase";
 
 interface StatCardProps {
   title: string;
@@ -64,11 +65,11 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
-const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; // Hardcoded for example
+const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765";
 
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Used for connect/disconnect
+  const [isConnecting, setIsConnecting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const [profileToRemove, setProfileToRemove] = useState<KakoProfile | null>(null);
@@ -81,13 +82,69 @@ export default function AdminKakoLiveDataListPageContent() {
   const socketRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const isManuallyDisconnectingRef = useRef(false);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const upsertKakoProfileToFirestore = async (profileData: Omit<KakoProfile, 'lastFetchedAt'> & { id: string }) => {
+    if (!profileData.id) {
+      console.error("Cannot upsert profile without an ID", profileData);
+      return;
+    }
+    const profileDocRef = doc(db, "kakoProfiles", profileData.id);
+    try {
+      const docSnap = await getDoc(profileDocRef);
+      const dataToSave: Partial<KakoProfile> = {
+        id: profileData.id,
+        nickname: profileData.nickname,
+        avatarUrl: profileData.avatarUrl,
+        level: profileData.level,
+        numId: profileData.numId,
+        showId: profileData.showId,
+        gender: profileData.gender,
+        lastFetchedAt: serverTimestamp(),
+      };
+
+      if (docSnap.exists()) {
+        const existingData = docSnap.data() as KakoProfile;
+        let hasChanges = false;
+        const updates: Partial<KakoProfile> = { lastFetchedAt: serverTimestamp() };
+
+        if (profileData.nickname !== existingData.nickname) { updates.nickname = profileData.nickname; hasChanges = true; }
+        if (profileData.avatarUrl !== existingData.avatarUrl) { updates.avatarUrl = profileData.avatarUrl; hasChanges = true; }
+        if (profileData.level !== existingData.level) { updates.level = profileData.level; hasChanges = true; }
+        if (profileData.showId !== existingData.showId) { updates.showId = profileData.showId; hasChanges = true; }
+        if (profileData.numId !== existingData.numId) { updates.numId = profileData.numId; hasChanges = true; }
+        if (profileData.gender !== existingData.gender) { updates.gender = profileData.gender; hasChanges = true; }
+        
+        if (hasChanges) {
+          await updateDoc(profileDocRef, updates);
+          toast({ title: "Perfil Kako Atualizado", description: `Perfil de ${profileData.nickname} atualizado no Firestore.` });
+        } else {
+           await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() }); // Still update lastFetchedAt
+        }
+      } else {
+        await setDoc(profileDocRef, dataToSave);
+        toast({ title: "Novo Perfil Kako Salvo", description: `Perfil de ${profileData.nickname} salvo no Firestore.` });
+      }
+    } catch (error) {
+      console.error("Erro ao salvar/atualizar perfil Kako no Firestore:", error);
+      toast({ title: "Erro no Firestore", description: "Não foi possível salvar/atualizar o perfil Kako.", variant: "destructive" });
+    }
+  };
+
 
   const connectWebSocket = useCallback(() => {
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
       toast({ title: "Conexão Existente", description: "Já conectado ou conectando ao WebSocket.", variant: "default" });
       return;
     }
-    setIsLoading(true);
+    isManuallyDisconnectingRef.current = false;
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    setIsConnecting(true);
     setConnectionStatus(`Conectando a ${WS_URL}...`);
     setErrorDetails(null);
 
@@ -96,7 +153,7 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current = newSocket;
 
       newSocket.onopen = () => {
-        setIsLoading(false);
+        setIsConnecting(false);
         setConnectionStatus(`Conectado a ${WS_URL}`);
         toast({ title: "WebSocket Conectado!", description: `Conexão com ${WS_URL} estabelecida.` });
       };
@@ -120,28 +177,35 @@ export default function AdminKakoLiveDataListPageContent() {
 
             if (parsedJson.user && parsedJson.user.userId) {
               const userData = parsedJson.user;
-              const newProfile: KakoProfile = {
-                id: userData.userId, // This is the FUID
+              const newProfileData = {
+                id: userData.userId,
                 nickname: userData.nickname || "N/A",
                 avatarUrl: userData.avatar || userData.avatarUrl || "",
                 level: userData.level,
                 numId: userData.numId,
-                showId: userData.showId, // Capture showId
+                showId: userData.showId,
                 gender: userData.gender,
-                lastFetchedAt: new Date(), // Indicate when this user was "seen"
               };
 
+              // Upsert to Firestore
+              upsertKakoProfileToFirestore(newProfileData);
+
+              // Update local state for UI
               setKakoProfiles(prevProfiles => {
-                const existingProfileIndex = prevProfiles.findIndex(p => p.id === newProfile.id);
+                const existingProfileIndex = prevProfiles.findIndex(p => p.id === newProfileData.id);
+                const profileWithTimestamp: KakoProfile = {
+                    ...newProfileData,
+                    lastFetchedAt: new Date() // For UI, this is the "seen now" time
+                };
                 if (existingProfileIndex > -1) {
                   const updatedProfiles = [...prevProfiles];
                   updatedProfiles[existingProfileIndex] = {
                     ...updatedProfiles[existingProfileIndex],
-                    ...newProfile, // Update with latest info
+                    ...profileWithTimestamp, 
                   };
                   return updatedProfiles;
                 } else {
-                  return [...prevProfiles, newProfile];
+                  return [...prevProfiles, profileWithTimestamp];
                 }
               });
             }
@@ -152,7 +216,7 @@ export default function AdminKakoLiveDataListPageContent() {
       };
 
       newSocket.onerror = (errorEvent) => {
-        setIsLoading(false);
+        setIsConnecting(false);
         const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
@@ -160,19 +224,27 @@ export default function AdminKakoLiveDataListPageContent() {
       };
 
       newSocket.onclose = (closeEvent) => {
-        setIsLoading(false);
+        setIsConnecting(false);
         let closeMsg = `Desconectado de ${newSocket.url}.`;
         if (closeEvent.code || closeEvent.reason) {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
-        setConnectionStatus("Desconectado");
-        if (socketRef.current === newSocket) { // Only show toast if this is the active socket closing
-            toast({ title: "WebSocket Desconectado", description: closeMsg });
-            socketRef.current = null;
+        
+        if (socketRef.current === newSocket) { 
+            if (!isManuallyDisconnectingRef.current) {
+                setConnectionStatus("Desconectado - Tentando Reconectar...");
+                toast({ title: "WebSocket Desconectado", description: `${closeMsg} Tentando reconectar em 5 segundos.` });
+                socketRef.current = null;
+                reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+            } else {
+                setConnectionStatus("Desconectado");
+                toast({ title: "WebSocket Desconectado Manualmente" });
+                socketRef.current = null;
+            }
         }
       };
     } catch (error) {
-      setIsLoading(false);
+      setIsConnecting(false);
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
       setConnectionStatus("Erro ao Iniciar Conexão");
       setErrorDetails(errMsg);
@@ -181,24 +253,28 @@ export default function AdminKakoLiveDataListPageContent() {
   }, [toast]);
 
   const disconnectWebSocket = useCallback(() => {
+    isManuallyDisconnectingRef.current = true;
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
     if (socketRef.current) {
       socketRef.current.onopen = null;
       socketRef.current.onmessage = null;
       socketRef.current.onerror = null;
       socketRef.current.onclose = null;
       socketRef.current.close();
-      socketRef.current = null;
-      setConnectionStatus("Desconectado");
-      toast({ title: "WebSocket Desconectado Manualmente" });
+      socketRef.current = null; // Ensure it's nullified here
+      // Status and toast are handled by onclose now
     } else {
       toast({ title: "Já Desconectado", description: "Nenhuma conexão WebSocket ativa para desconectar." });
     }
   }, [toast]);
 
   useEffect(() => {
-    connectWebSocket(); // Connect on mount
+    connectWebSocket();
     return () => {
-      disconnectWebSocket(); // Disconnect on unmount
+      disconnectWebSocket();
     };
   }, [connectWebSocket, disconnectWebSocket]);
 
@@ -234,9 +310,9 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const filteredProfiles = kakoProfiles.filter(profile =>
     profile.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.id.toLowerCase().includes(searchTerm.toLowerCase()) || // FUID search
-    (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase())) || // showId search
-    (profile.numId && profile.numId.toString().includes(searchTerm)) // numId search
+    profile.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase())) || 
+    (profile.numId && profile.numId.toString().includes(searchTerm)) 
   );
 
   return (
@@ -245,7 +321,7 @@ export default function AdminKakoLiveDataListPageContent() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis (Tempo Real via Chat)</h1>
-            <p className="text-sm text-muted-foreground">Usuários identificados nas mensagens do chat do RoomID: {WS_URL.split('roomId=')[1]}.</p>
+            <p className="text-sm text-muted-foreground">Usuários identificados nas mensagens do chat do RoomID: {WS_URL.split('roomId=')[1]}. Os perfis são salvos/atualizados no Firestore.</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
@@ -267,20 +343,18 @@ export default function AdminKakoLiveDataListPageContent() {
 
         <div className="space-y-2">
             <div className="flex items-center gap-2">
-                 <Button onClick={connectWebSocket} disabled={isLoading || (socketRef.current?.readyState === WebSocket.OPEN)}>
+                 <Button onClick={connectWebSocket} disabled={isConnecting || (socketRef.current?.readyState === WebSocket.OPEN)}>
                     <PlugZap className="mr-2 h-4 w-4"/> {socketRef.current?.readyState === WebSocket.OPEN ? 'Conectado' : 'Conectar WebSocket'}
                  </Button>
-                 <Button onClick={disconnectWebSocket} variant="outline" disabled={!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN}>
-                    <XCircle className="mr-2 h-4 w-4"/> Desconectar
-                 </Button>
+                 {/* Desconectar button removed as per logic change */}
             </div>
-            <p className="text-xs p-2 bg-muted rounded-md">Status: <span className={connectionStatus.startsWith("Conectado") ? "text-green-600" : connectionStatus.startsWith("Erro") ? "text-destructive" : "text-muted-foreground"}>{connectionStatus}</span></p>
+            <p className="text-xs p-2 bg-muted rounded-md">Status: <span className={connectionStatus.startsWith("Conectado") ? "text-green-600" : connectionStatus.startsWith("Erro") || connectionStatus.includes("Reconectar") ? "text-destructive" : "text-muted-foreground"}>{connectionStatus}</span></p>
             {errorDetails && <p className="text-xs text-destructive p-2 bg-destructive/10 rounded-md">Detalhes do Erro: {errorDetails}</p>}
         </div>
 
 
         <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-          <StatCard title="Total de Perfis Identificados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Perfis Identificados (Sessão Atual)" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
         </div>
 
         <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -292,14 +366,14 @@ export default function AdminKakoLiveDataListPageContent() {
                   <TableHead className="min-w-[150px]">NICKNAME / SHOW ID</TableHead>
                   <TableHead>NÍVEL</TableHead>
                   <TableHead>USER ID (FUID)</TableHead>
-                  <TableHead className="text-right w-[250px]">AÇÕES</TableHead> {/* Increased width */}
+                  <TableHead className="text-right w-[250px]">AÇÕES</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProfiles.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Nenhum perfil identificado nas mensagens do chat ainda...
+                      {isConnecting ? "Conectando ao chat para identificar perfis..." : connectionStatus.includes("Reconectar") ? "Tentando reconectar ao chat..." : "Nenhum perfil identificado nas mensagens do chat ainda..."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -340,11 +414,12 @@ export default function AdminKakoLiveDataListPageContent() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => toast({title: "Sincronizar Dados", description:"Funcionalidade em desenvolvimento."})}>
+                              {/* Sincronizar Dados can be re-added if an "update from DB" specific function is needed */}
+                              {/* <DropdownMenuItem onSelect={() => toast({title: "Sincronizar Dados", description:"Funcionalidade em desenvolvimento."})}>
                                  <RefreshCw className="mr-2 h-4 w-4" />
                                  Sincronizar Dados
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              <DropdownMenuSeparator /> */}
                               <DropdownMenuItem
                                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                 onSelect={() => handleRequestRemoveProfile(profile)}
@@ -388,7 +463,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 Detalhes de: {selectedProfileForDetails.nickname}
               </DialogTitle>
               <DialogDescription>
-                Informações detalhadas do perfil identificado no Kako Live.
+                Informações detalhadas do perfil identificado no Kako Live e salvas no Firestore.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 text-sm">
@@ -417,7 +492,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 <span>{selectedProfileForDetails.gender === 1 ? "Masculino" : selectedProfileForDetails.gender === 2 ? "Feminino" : "N/A"}</span>
               </div>
               <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Visto pela Última Vez:</span>
+                <span className="font-medium text-muted-foreground">Visto pela Última Vez (Local):</span>
                 <span>{selectedProfileForDetails.lastFetchedAt ? format(new Date(selectedProfileForDetails.lastFetchedAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}</span>
               </div>
                <div className="grid grid-cols-[120px_1fr] items-start gap-2">
@@ -442,7 +517,7 @@ export default function AdminKakoLiveDataListPageContent() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
               <AlertDialogDescription>
-                Você tem certeza que deseja remover o perfil de <span className="font-semibold">{profileToRemove.nickname}</span> da lista atual? Esta ação é apenas local.
+                Você tem certeza que deseja remover o perfil de <span className="font-semibold">{profileToRemove.nickname}</span> da lista atual? Esta ação é apenas local e não afeta o banco de dados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -463,7 +538,7 @@ export default function AdminKakoLiveDataListPageContent() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Limpar Lista Local</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja limpar todos os perfis identificados nesta sessão? Eles serão recarregados se novas mensagens de chat chegarem.
+              Você tem certeza que deseja limpar todos os perfis identificados nesta sessão? Eles serão recarregados se novas mensagens de chat chegarem. Esta ação não afeta o banco de dados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -480,3 +555,5 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
+    
