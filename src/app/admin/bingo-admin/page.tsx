@@ -8,12 +8,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
-  FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon,
-  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, Globe, Bell
+  FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
+  ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
-// Define AdminMenuItem and AdminMenuGroup interfaces (copied from admin/layout.tsx or defined locally)
 interface AdminMenuItem {
   id: string;
   title: string;
@@ -21,7 +20,6 @@ interface AdminMenuItem {
   link?: string;
   currentValue?: string; 
   action?: () => void; 
-  separatorAbove?: boolean; 
 }
 
 interface AdminMenuGroup {
@@ -35,8 +33,6 @@ export default function AdminBingoAdminPage() {
   const pathname = usePathname();
   const { logout } = useAuth(); 
 
-  // This menu is specific to the Bingo Admin page if it has its own sub-navigation
-  // Or, it could be a simplified version if the main admin layout handles most navigation
   const bingoAdminMenuGroups: AdminMenuGroup[] = [
     {
       groupTitle: "GERAL",
@@ -66,10 +62,7 @@ export default function AdminBingoAdminPage() {
     {
       groupTitle: "BINGO", 
       items: [
-        // This should be the default active item if this page is loaded
         { id: "bingoAdminMain", title: "Administração Bingo", icon: TicketIcon, link: "/admin/bingo-admin"},
-        // Add other bingo-specific sub-menu items here if needed
-        // Example: { id: "bingoGameSettings", title: "Configurações de Partida", icon: SettingsIconLucide, link: "/admin/bingo-admin/settings"},
       ]
     },
     {
@@ -100,18 +93,17 @@ export default function AdminBingoAdminPage() {
     },
   ];
 
-  const [activeTab, setActiveTab] = useState<string>('bingoAdminMain'); // Default to bingo main content
+  const [activeTab, setActiveTab] = useState<string>('bingoAdminMain'); 
 
   useEffect(() => {
-    // This effect ensures that if the user navigates directly to /admin/bingo-admin,
-    // the 'bingoAdminMain' tab is correctly set as active.
     if (pathname === "/admin/bingo-admin") {
       setActiveTab("bingoAdminMain");
     } else {
-      // If there were sub-routes like /admin/bingo-admin/settings, you'd match them here
       const matchingItem = bingoAdminMenuGroups.flatMap(g => g.items).find(item => item.link === pathname);
       if (matchingItem) {
         setActiveTab(matchingItem.id);
+      } else {
+        setActiveTab("bingoAdminMain"); // Default to bingo admin if no other match on this page
       }
     }
   }, [pathname, bingoAdminMenuGroups]);
@@ -121,22 +113,24 @@ export default function AdminBingoAdminPage() {
     if (item.action) {
       item.action();
     } else if (item.link) {
-      // If navigating to a different top-level admin section, let AdminLayout handle it
-      if (!item.link.startsWith("/admin/bingo-admin") && item.link.startsWith("/admin/")) {
-        router.push(item.link);
-      } else {
-        // For internal navigation within bingo-admin or to non-admin pages
+      if (item.link === "/admin/bingo-admin") {
         setActiveTab(item.id);
+        // If already on /admin/bingo-admin, no need to push, just set tab
+        if (pathname !== item.link) {
+          router.push(item.link);
+        }
+      } else {
+        // For all other links, navigate away
         router.push(item.link);
       }
     } else {
-      setActiveTab(item.id); // For items that only change content on this page
+      // For items that might only change content on this page (if any in future)
+      setActiveTab(item.id); 
     }
   };
 
   const renderBingoAdminContent = () => {
-    // Only render content if the activeTab is specifically for Bingo Administration
-    if (activeTab === 'bingoAdminMain') {
+    if (activeTab === 'bingoAdminMain' && pathname === '/admin/bingo-admin') {
       return (
         <div className="space-y-6 p-6">
           <h1 className="text-2xl font-semibold text-foreground">Administração de Bingo</h1>
@@ -163,28 +157,24 @@ export default function AdminBingoAdminPage() {
         </div>
       );
     }
-    // For other items clicked in the *cloned* admin menu on this page, show a placeholder.
-    // This indicates that those sections are accessed via the main admin layout, not from within bingo-admin.
-    const activeItem = bingoAdminMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
+    // If a different tab is active *on this page* (though most items navigate away)
+    // or if the path is not /admin/bingo-admin (meaning a navigation should have occurred)
+    // show a placeholder or redirect.
+    const activeItemDetails = bingoAdminMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
     return (
       <div className="p-6">
         <Card>
-          <CardHeader><CardTitle>{activeItem?.title || "Seção Administrativa"}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{activeItemDetails?.title || "Seção Administrativa"}</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} é gerenciado em outra área do painel.</p>
+            <p className="text-muted-foreground">Conteúdo para {activeItemDetails?.title || "esta seção"} é gerenciado em outra área do painel.</p>
           </CardContent>
         </Card>
       </div>
     );
   };
   
-  // This page might have its own sidebar or reuse the main admin sidebar structure.
-  // For now, let's assume it might have its own internal navigation distinct from the main AdminLayout sidebar
-  // if it becomes a complex section. If it's simple, just renderBingoAdminContent() directly.
-  // The image provided showed a page with an internal menu, so we replicate that.
   return (
     <div className="flex flex-col md:flex-row h-full gap-0 overflow-hidden">
-      {/* Internal Sidebar for Bingo Admin section - cloned from main AdminLayout */}
       <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
         {bingoAdminMenuGroups.map((group, groupIndex) => (
           <div key={group.groupTitle || `admin-bingo-group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
@@ -195,7 +185,11 @@ export default function AdminBingoAdminPage() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = activeTab === item.id || (item.link && pathname === item.link);
+                // Active state is true if item.id matches activeTab AND current pathname matches item.link (if link exists)
+                // OR if it's the bingoAdminMain and we are on the bingo admin page.
+                const isActive = (item.id === 'bingoAdminMain' && pathname === '/admin/bingo-admin' && activeTab === 'bingoAdminMain') || 
+                                 (item.link && pathname === item.link && activeTab === item.id);
+
                 return (
                   <Button
                     key={item.id}
@@ -230,6 +224,4 @@ export default function AdminBingoAdminPage() {
     </div>
   );
 }
-
-
     
