@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { KakoProfile } from "@/types"; 
+import type { KakoProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 
@@ -63,7 +63,7 @@ const placeholderKakoProfiles: KakoProfile[] = [
     numId: 1000360701,
     gender: 2,
     showId: "10956360",
-    isLiving: true, // Assuming still relevant for potential "online" status simulation
+    isLiving: true,
   },
   {
     id: "0322d2dd57e74a028a9e72c2fae1fd9a",
@@ -105,6 +105,8 @@ export default function AdminKakoLiveDataListPageContent() {
   const { toast } = useToast();
   const [profileToDelete, setProfileToDelete] = useState<KakoProfile | null>(null);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [isConfirmClearDialogOpen, setIsConfirmClearDialogOpen] = useState(false);
+
 
   useEffect(() => {
     setIsLoading(true);
@@ -128,6 +130,15 @@ export default function AdminKakoLiveDataListPageContent() {
     });
     setIsConfirmDeleteDialogOpen(false);
     setProfileToDelete(null);
+  };
+
+  const handleConfirmClearList = () => {
+    setKakoProfiles([]);
+    toast({
+      title: "Lista Zerada",
+      description: "Todos os perfis foram removidos da lista atual.",
+    });
+    setIsConfirmClearDialogOpen(false);
   };
 
   const filteredProfiles = kakoProfiles.filter(profile =>
@@ -155,21 +166,26 @@ export default function AdminKakoLiveDataListPageContent() {
             <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live</h1>
             <p className="text-sm text-muted-foreground">Visualize dados de perfis (simulado).</p>
           </div>
-          <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar perfis (Nome, ID Kako...)"
-                className="pl-10 w-full h-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar perfis (Nome, ID Kako...)"
+                  className="pl-10 w-full h-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button variant="outline" onClick={() => setIsConfirmClearDialogOpen(true)} className="h-10">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Zerar Lista
+              </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-1 gap-4"> {/* Changed to 1 column for stat cards */}
           <StatCard title="Total de Perfis Carregados" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
-          {/* Removed Online Profiles Stat Card to simplify as isLiving might not always be primary focus */}
         </div>
 
         <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
@@ -281,7 +297,26 @@ export default function AdminKakoLiveDataListPageContent() {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      <AlertDialog open={isConfirmClearDialogOpen} onOpenChange={setIsConfirmClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Zerar Lista</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja remover todos os perfis da lista atual? Esta ação não pode ser desfeita para a visualização atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmClearDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmClearList}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Zerar Lista
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
-
