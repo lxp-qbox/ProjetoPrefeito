@@ -2,8 +2,28 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, GoogleAuthProvider } from "firebase/auth"; // Import GoogleAuthProvider
-import { getAnalytics, type Analytics } from "firebase/analytics";
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp, collection, writeBatch, query, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, increment  } from "firebase/firestore";
+import { getAnalytics, type Analytics, isSupported } from "firebase/analytics"; // Added isSupported
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp, 
+  collection, 
+  writeBatch, 
+  query, 
+  where, 
+  getDocs, 
+  deleteDoc, 
+  updateDoc, 
+  arrayUnion, 
+  arrayRemove, 
+  increment,
+  Timestamp, // Imported Timestamp
+  addDoc, // Imported addDoc
+  onSnapshot, // Imported onSnapshot
+  orderBy // Imported orderBy
+} from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -29,7 +49,11 @@ let analytics: Analytics | null = null;
 
 // Initialize Firebase Analytics only on the client-side
 if (typeof window !== 'undefined') {
-  analytics = getAnalytics(app);
+  isSupported().then(supported => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  });
 }
 
 const auth: Auth = getAuth(app);
@@ -54,5 +78,9 @@ export {
   updateDoc,
   arrayUnion,
   arrayRemove,
-  increment
+  increment,
+  Timestamp, // Exporting Timestamp
+  addDoc, // Exporting addDoc
+  onSnapshot, // Exporting onSnapshot
+  orderBy // Exporting orderBy
 };
