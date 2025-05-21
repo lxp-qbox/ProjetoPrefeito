@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,10 +27,10 @@ interface SimulatedKakoProfile {
   nickname: string;
   signature: string;
   roomId?: string; 
-  showId?: string;
+  showId: string; // Show ID is crucial for matching
 }
 
-// Updated simulated profiles to include showId
+// Updated simulated profiles to include showId explicitly for the lookup
 const simulatedKakoProfiles: SimulatedKakoProfile[] = [
   {
     id: "0322d2dd57e74a028a9e72c2fae1fd9a", 
@@ -53,6 +54,13 @@ const simulatedKakoProfiles: SimulatedKakoProfile[] = [
     signature: "Esta é a minha bio do Kako Live!",
     roomId: "67d3a3e04f934128296bac6f",
     showId: "10171348"
+  },
+  {
+    id: "fuidForMasterAdmin", // Placeholder FUID for the master admin showId
+    nickname: "Master Admin Placeholder",
+    signature: "Master Admin Bio.",
+    roomId: "master-room-id",
+    showId: "10933200" // The special Show ID for Master Admin
   },
   {
     id: "12345simulado", 
@@ -81,8 +89,8 @@ const formatPhoneNumberForDisplay = (value: string): string => {
 
 const editHostSchema = z.object({
   profileName: z.string().min(2, "Nome do perfil deve ter pelo menos 2 caracteres.").max(50, "Nome do perfil muito longo."),
-  kakoLiveId: z.string().optional(), // Renamed from kakoFuid to match UserProfile.kakoLiveId (FUID)
-  kakoShowId: z.string().optional(), // For UserProfile.kakoShowId
+  kakoLiveId: z.string().optional(), 
+  kakoShowId: z.string().optional(), 
   kakoLiveRoomId: z.string().optional(), 
   phoneNumber: z.string().optional(),
   hostStatus: z.enum(["approved", "pending_review", "banned"]),
@@ -110,8 +118,8 @@ export default function EditHostPage() {
     resolver: zodResolver(editHostSchema),
     defaultValues: {
       profileName: "",
-      kakoLiveId: "", // FUID
-      kakoShowId: "", // Show ID
+      kakoLiveId: "", 
+      kakoShowId: "", 
       kakoLiveRoomId: "",
       phoneNumber: "",
       hostStatus: "pending_review",
@@ -132,8 +140,8 @@ export default function EditHostPage() {
             setHostData(data);
             form.reset({
               profileName: data.profileName || data.displayName || "",
-              kakoLiveId: data.kakoLiveId || "", // FUID
-              kakoShowId: data.kakoShowId || "", // Show ID
+              kakoLiveId: data.kakoLiveId || "", 
+              kakoShowId: data.kakoShowId || "", 
               kakoLiveRoomId: data.kakoLiveRoomId || "",
               phoneNumber: data.phoneNumber ? formatPhoneNumberForDisplay(data.phoneNumber) : "",
               hostStatus: data.hostStatus || "pending_review",
@@ -163,18 +171,24 @@ export default function EditHostPage() {
     }
     setIsFetchingKakoData(true);
 
-    let foundKakoProfileData: KakoProfile | null = null; // From 'kakoProfiles' collection
+    let foundKakoProfileData: KakoProfile | null = null; 
 
     try {
-      // Attempt to parse as URL first to extract FUID or RoomID if available
       let fuidFromUrl: string | undefined;
       let roomIdFromUrl: string | undefined;
+      let showIdFromInput: string | undefined = searchInput; // Assume input might be a Show ID directly
 
       try {
         const url = new URL(searchInput); 
         fuidFromUrl = url.searchParams.get("fuid") || undefined;
         roomIdFromUrl = url.searchParams.get("id") || url.searchParams.get("roomId") || undefined;
+        // If it's a URL, Show ID might not be directly parsable from it unless it's also a query param or part of path.
+        // We'll prioritize searching by Show ID directly first if the input isn't clearly a complex URL.
+        if (fuidFromUrl || roomIdFromUrl) {
+            showIdFromInput = undefined; // Don't use the full URL as showId if we parsed other params
+        }
       } catch (e) {
+        // Not a valid URL, assume it might be a Show ID, FUID, or partial param string
         const fuidMatch = searchInput.match(/fuid=([a-f0-9]+)/);
         if (fuidMatch && fuidMatch[1]) fuidFromUrl = fuidMatch[1];
         
@@ -182,37 +196,36 @@ export default function EditHostPage() {
         if (roomIdMatch) roomIdFromUrl = roomIdMatch[1] || roomIdMatch[2];
       }
 
-      // Primary search: by showId in kakoProfiles collection
-      const profilesRef = collection(db, "kakoProfiles");
-      // Try searching by showId first, as it's the user-facing ID
-      const qByShowId = query(profilesRef, where("showId", "==", searchInput));
-      let querySnapshot = await getDocs(qByShowId);
-
-      if (!querySnapshot.empty) {
-        const profileDoc = querySnapshot.docs[0];
-        foundKakoProfileData = { ...profileDoc.data(), id: profileDoc.id } as KakoProfile; // id is FUID
-      } else if (fuidFromUrl) {
-        // Fallback: search by FUID if showId search yields no results and FUID was parsed
-        const qByFuid = query(profilesRef, where("id", "==", fuidFromUrl)); // 'id' is FUID in kakoProfiles
-        querySnapshot = await getDocs(qByFuid);
-        if (!querySnapshot.empty) {
-           const profileDoc = querySnapshot.docs[0];
-           foundKakoProfileData = { ...profileDoc.data(), id: profileDoc.id } as KakoProfile;
-        }
+      // Attempt to find from Firestore 'kakoProfiles' collection using showIdFromInput or fuidFromUrl
+      if (showIdFromInput) {
+          const profilesRef = collection(db, "kakoProfiles");
+          const qByShowId = query(profilesRef, where("showId", "==", showIdFromInput));
+          let querySnapshot = await getDocs(qByShowId);
+          if (!querySnapshot.empty) {
+            const profileDoc = querySnapshot.docs[0];
+            foundKakoProfileData = { ...profileDoc.data(), id: profileDoc.id } as KakoProfile; 
+          }
+      }
+      
+      if (!foundKakoProfileData && fuidFromUrl) {
+          const profilesRef = collection(db, "kakoProfiles");
+          const qByFuid = query(profilesRef, where("id", "==", fuidFromUrl)); 
+          let querySnapshot = await getDocs(qByFuid);
+          if (!querySnapshot.empty) {
+             const profileDoc = querySnapshot.docs[0];
+             foundKakoProfileData = { ...profileDoc.data(), id: profileDoc.id } as KakoProfile;
+          }
       }
       
       if (foundKakoProfileData) {
         form.setValue("profileName", foundKakoProfileData.nickname, { shouldValidate: true });
-        form.setValue("kakoLiveId", foundKakoProfileData.id, { shouldValidate: true }); // FUID
-        form.setValue("kakoShowId", foundKakoProfileData.showId || "", { shouldValidate: true }); // Show ID
+        form.setValue("kakoLiveId", foundKakoProfileData.id, { shouldValidate: true }); 
+        form.setValue("kakoShowId", foundKakoProfileData.showId || "", { shouldValidate: true }); 
         form.setValue("bio", foundKakoProfileData.signature || "", { shouldValidate: true });
         
         if (roomIdFromUrl) {
           form.setValue("kakoLiveRoomId", roomIdFromUrl, { shouldValidate: true });
-        }
-        // We could also try to find a roomId from simulated data if it's not in the URL and not in foundKakoProfileData
-        // For example, if foundKakoProfileData.id (FUID) matches a simulated profile's FUID.
-        else if (foundKakoProfileData.id) {
+        } else if (foundKakoProfileData.id) { // Check if the found profile itself has a default roomId
             const simulatedForRoom = simulatedKakoProfiles.find(p => p.id === foundKakoProfileData!.id);
             if (simulatedForRoom?.roomId) {
                  form.setValue("kakoLiveRoomId", simulatedForRoom.roomId, { shouldValidate: true });
@@ -220,7 +233,7 @@ export default function EditHostPage() {
         }
         toast({ title: "Dados Encontrados (Firestore)", description: "Campos do formulário preenchidos com dados do perfil Kako." });
       } else {
-        // If no match in Firestore, try the local simulated profiles (as a final fallback for demo)
+        // Fallback to local simulated data if not found in Firestore
         const simulated = simulatedKakoProfiles.find(p => p.showId === searchInput || p.id === searchInput || (fuidFromUrl && p.id === fuidFromUrl));
         if (simulated) {
             form.setValue("profileName", simulated.nickname, { shouldValidate: true });
@@ -250,15 +263,21 @@ export default function EditHostPage() {
     setIsSaving(true);
     try {
       const hostDocRef = doc(db, "accounts", hostAuthUid); 
+
+      let finalAdminLevel = data.adminLevel === NONE_ADMIN_LEVEL_VALUE ? null : data.adminLevel;
+      if (data.kakoShowId?.trim() === "10933200") {
+        finalAdminLevel = 'master';
+      }
+      
       const updateData: Partial<UserProfile> = {
         profileName: data.profileName,
         displayName: data.profileName, 
-        kakoLiveId: data.kakoLiveId, // FUID
-        kakoShowId: data.kakoShowId, // Show ID
+        kakoLiveId: data.kakoLiveId, 
+        kakoShowId: data.kakoShowId, 
         kakoLiveRoomId: data.kakoLiveRoomId,
         phoneNumber: data.phoneNumber?.replace(/[^\d+]/g, ""), 
         hostStatus: data.hostStatus,
-        adminLevel: data.adminLevel === NONE_ADMIN_LEVEL_VALUE ? null : data.adminLevel,
+        adminLevel: finalAdminLevel,
         bio: data.bio,
         updatedAt: serverTimestamp(),
       };
@@ -467,3 +486,5 @@ export default function EditHostPage() {
     </div>
   );
 }
+
+    
