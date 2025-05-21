@@ -164,18 +164,18 @@ export default function ProfilePage() {
 
   const displayName = currentUser?.profileName || currentUser?.displayName || "Usuário";
   const userHandle = currentUser?.email ? `@${currentUser.email.split('@')[0]}` : "@username";
-  const userShortBio = currentUser?.bio || "UX/UI Designer, 4+ years of experience"; // Placeholder if no bio
-  const userLocation = currentUser?.country || "Yerevan, Armenia"; // Placeholder if no country
+  const userShortBio = currentUser?.bio || "UX/UI Designer, 4+ years of experience"; 
+  const userLocation = currentUser?.country || "Brasil"; 
   
   const joinedDateFormatted = useMemo(() => {
     if (currentUser?.createdAt && (currentUser.createdAt as any).toDate) {
       try {
-        return format((currentUser.createdAt as any).toDate(), "MMMM yyyy", { locale: ptBR });
+        return formatDistanceToNow((currentUser.createdAt as any).toDate(), { addSuffix: true, locale: ptBR });
       } catch (e) {
         return "Data Indisponível";
       }
     }
-    return "Joined April 2023"; // Placeholder
+    return "Joined recently"; 
   }, [currentUser?.createdAt]);
 
   const maxCalendarDate = new Date();
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                     value={editableGender}
                     onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
                   >
-                    <SelectTrigger id="gender-select-profile" className="w-full h-12">
+                    <SelectTrigger id="gender-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                       <SelectValue placeholder="Selecione seu sexo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -253,7 +253,7 @@ export default function ProfilePage() {
                         id="birthdate-picker-profile"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal h-12",
+                          "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
                           !editableBirthDate && "text-muted-foreground"
                         )}
                       >
@@ -290,7 +290,7 @@ export default function ProfilePage() {
                     value={editableCountry}
                     onValueChange={(value) => setEditableCountry(value)}
                   >
-                    <SelectTrigger id="country-select-profile" className="w-full h-12">
+                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                       <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                       <SelectValue placeholder="Selecione seu país" />
                     </SelectTrigger>
@@ -389,18 +389,18 @@ export default function ProfilePage() {
             <div className="flex items-center justify-center mt-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{displayName}</h1>
               {currentUser?.isVerified && (
-                 <BadgeCheck className="ml-2 h-6 w-6 text-pink-500 fill-pink-500/20" />
+                 <BadgeCheck className="ml-2 h-6 w-6 text-primary fill-primary/20" />
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">{userShortBio}</p>
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
               <span className="flex items-center"><MapPin className="mr-1 h-3 w-3" />{userLocation}</span>
               <span className="text-muted-foreground/50">|</span>
-              <span className="flex items-center"><LucideCalendarIcon className="mr-1 h-3 w-3" />Entrou em {joinedDateFormatted}</span>
+              <span className="flex items-center"><LucideCalendarIcon className="mr-1 h-3 w-3" />Entrou {joinedDateFormatted}</span>
             </div>
             <div className="mt-4 flex justify-center gap-2">
               <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6 text-sm font-semibold">
-                Subscribe
+                Inscrever-se
               </Button>
               <Button variant="outline" className="rounded-full px-6 text-sm font-semibold">
                 Editar perfil
@@ -418,7 +418,10 @@ export default function ProfilePage() {
                   <Button
                     key={item.id}
                     variant={activeTab === item.id ? "secondary" : "ghost"}
-                    className="w-full justify-start gap-2.5 py-3 px-3 text-sm font-medium"
+                    className={cn(
+                      "w-full justify-start gap-2.5 py-3 px-3 text-sm font-medium",
+                       activeTab === item.id ? "text-primary" : "text-card-foreground hover:text-accent-foreground"
+                    )}
                     onClick={() => setActiveTab(item.id)}
                   >
                     <item.icon className={cn("h-5 w-5", activeTab === item.id ? "text-primary" : "text-muted-foreground")} />
@@ -446,4 +449,3 @@ export default function ProfilePage() {
   );
 }
 
-    
