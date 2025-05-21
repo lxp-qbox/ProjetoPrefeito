@@ -21,7 +21,7 @@ interface ParsedUserData {
   avatarUrl?: string;
   level?: number;
   showId?: string;
-  userId?: string;
+  userId?: string; // FUID
   gender?: number;
 }
 interface ProcessedMessage {
@@ -132,6 +132,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             }
 
             if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
+              // Classification Logic
               if ('roomId' in parsedJson && 'mute' in parsedJson) {
                 classification = "Dados da LIVE";
               } else if ('roomId' in parsedJson && 'text' in parsedJson) {
@@ -142,17 +143,18 @@ export default function AdminKakoLiveLinkTesterPage() {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
                 classification = "Dados de Jogo";
-              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) {
                 classification = "Dados Externos";
               }
 
+              // User Data Parsing
               if (parsedJson.user && typeof parsedJson.user === 'object') {
                 parsedUserData = {
                   nickname: parsedJson.user.nickname,
                   avatarUrl: parsedJson.user.avatar || parsedJson.user.avatarUrl,
                   level: parsedJson.user.level,
                   showId: parsedJson.user.showId,
-                  userId: parsedJson.user.userId,
+                  userId: parsedJson.user.userId, // FUID
                   gender: parsedJson.user.gender,
                 };
               }
@@ -529,6 +531,17 @@ export default function AdminKakoLiveLinkTesterPage() {
                       </div>
                     )}
 
+                    {msg.type === 'received' && msg.classification === "Presentes da Sala" && msg.parsedData && msg.parsedUserData && (
+                       <div className="mt-2 mb-3 p-3 bg-yellow-100 border border-yellow-200 rounded-md">
+                        <p className="text-sm text-yellow-800 font-medium break-all">
+                          <Gift className="inline-block mr-1.5 h-4 w-4" /> 
+                          {msg.parsedUserData?.nickname || 'Usuário Desconhecido'} enviou {msg.parsedData?.giftCount || ''}x Presente ID {msg.parsedData?.giftId}! 
+                          (Destinatário: Anfitrião da Sala)
+                        </p>
+                      </div>
+                    )}
+
+
                     {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
                         <h4 className="text-sm font-semibold mb-1 flex items-center">
@@ -602,6 +615,5 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
-
 
     
