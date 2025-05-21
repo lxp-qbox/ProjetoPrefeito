@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIcon } from "lucide-react";
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap } from "lucide-react"; // Added DatabaseZap
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -34,7 +34,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from "@/lib/firebase";
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp } from "@/lib/firebase";
 
 interface StatCardProps {
   title: string;
@@ -59,27 +59,23 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
-const placeholderKakoGifts: KakoGift[] = [
-  { id: "40", name: "Miau", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_maotou_250320.png", diamond: 1, display: true },
-  { id: "1", name: "Amor", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_aixin.png", diamond: 1, display: true },
-  { id: "26", name: "Rosas", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_meiguihua250211.png", diamond: 2, display: true },
-  { id: "46", name: "Sol", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_zao_250426.png", diamond: 5, display: true },
-  { id: "31", name: "Sorvete", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_bingqiling_250314.png", diamond: 5, display: true },
-  { id: "23", name: "Árvore", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_shengdanshu.png", diamond: 10, display: true },
-  { id: "32", name: "Música", imageUrl: "https://godzilla-live-oss.kako.live/gift/luck_yinfu_250314.png", diamond: 19, display: true },
-];
-
 
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
   const [kakoGifts, setKakoGifts] = useState<KakoGift[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
+  const [isLoadingGifts, setIsLoadingGifts] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   
-  const [isConfirmClearListDialogOpen, setIsConfirmClearListDialogOpen] = useState(false);
-  const [isConfirmClearDBDialogOpen, setIsConfirmClearDBDialogOpen] = useState(false); 
-  const [isDeletingDB, setIsDeletingDB] = useState(false);
+  const [isConfirmClearProfilesDBDialogOpen, setIsConfirmClearProfilesDBDialogOpen] = useState(false); 
+  const [isConfirmClearProfilesListLocalDialogOpen, setIsConfirmClearProfilesListLocalDialogOpen] = useState(false);
+  const [isDeletingProfilesDB, setIsDeletingProfilesDB] = useState(false);
+
+  const [isConfirmClearGiftsDBDialogOpen, setIsConfirmClearGiftsDBDialogOpen] = useState(false);
+  const [isConfirmClearGiftsListLocalDialogOpen, setIsConfirmClearGiftsListLocalDialogOpen] = useState(false);
+  const [isDeletingGiftsDB, setIsDeletingGiftsDB] = useState(false);
+
 
   const [selectedProfileForDetails, setSelectedProfileForDetails] = useState<KakoProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -89,7 +85,15 @@ export default function AdminKakoLiveDataListPageContent() {
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const isManuallyDisconnectingRef = useRef(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [wsUrl, setWsUrl] = useState<string>("wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"); // Example Room ID
+  const [wsUrl, setWsUrl] = useState<string>("wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"); 
+
+
+  const addLog = useCallback((message: string, type: "success" | "error" | "info") => {
+    // For now, just console log. Could be expanded to an on-screen log.
+    if (type === "error") console.error(message);
+    else if (type === "info") console.info(message);
+    else console.log(message);
+  }, []);
 
 
   const upsertKakoProfileToFirestore = useCallback(async (profileData: KakoProfile) => {
@@ -101,8 +105,7 @@ export default function AdminKakoLiveDataListPageContent() {
     try {
       const docSnap = await getDoc(profileDocRef);
       const dataToSave: KakoProfile = {
-        ...profileData, // Spread incoming data first
-        id: profileData.id, // Ensure id is correctly set (should be FUID)
+        id: profileData.id,
         nickname: profileData.nickname || "N/A",
         avatarUrl: profileData.avatarUrl || "",
         level: profileData.level,
@@ -110,6 +113,12 @@ export default function AdminKakoLiveDataListPageContent() {
         showId: profileData.showId,
         gender: profileData.gender,
         lastFetchedAt: serverTimestamp(),
+        // Include other fields from profileData if they are part of KakoProfile type
+        isLiving: profileData.isLiving,
+        signature: profileData.signature,
+        area: profileData.area,
+        school: profileData.school,
+        roomId: profileData.roomId,
       };
 
       if (docSnap.exists()) {
@@ -123,6 +132,11 @@ export default function AdminKakoLiveDataListPageContent() {
         if (dataToSave.showId !== existingData.showId) { updates.showId = dataToSave.showId; hasChanges = true; }
         if (dataToSave.numId !== existingData.numId) { updates.numId = dataToSave.numId; hasChanges = true; }
         if (dataToSave.gender !== existingData.gender) { updates.gender = dataToSave.gender; hasChanges = true; }
+        if (dataToSave.isLiving !== existingData.isLiving) { updates.isLiving = dataToSave.isLiving; hasChanges = true; }
+        if (dataToSave.signature !== existingData.signature) { updates.signature = dataToSave.signature; hasChanges = true; }
+        if (dataToSave.area !== existingData.area) { updates.area = dataToSave.area; hasChanges = true; }
+        if (dataToSave.school !== existingData.school) { updates.school = dataToSave.school; hasChanges = true; }
+        if (dataToSave.roomId !== existingData.roomId) { updates.roomId = dataToSave.roomId; hasChanges = true; }
         
         if (hasChanges) {
           await updateDoc(profileDocRef, updates);
@@ -138,14 +152,10 @@ export default function AdminKakoLiveDataListPageContent() {
       console.error("Erro ao salvar/atualizar perfil Kako no Firestore:", error);
       toast({ title: "Erro no Firestore", description: `Não foi possível salvar/atualizar ${profileData.nickname}.`, variant: "destructive" });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
 
   const connectWebSocket = useCallback(() => {
-     // WebSocket connection logic remains the same as in "Atualizar Dados (Chat)"
-     // but instead of directly calling upsertKakoProfileToFirestore, it will update local state.
-     // The upsert function will be called when "Salvar no DB" is triggered for selected items, or automatically.
       if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
         return;
       }
@@ -194,7 +204,7 @@ export default function AdminKakoLiveDataListPageContent() {
                         numId: userData.numId,
                         showId: userData.showId,
                         gender: userData.gender,
-                        lastFetchedAt: new Date() // For local display, update when saving to FS
+                        lastFetchedAt: new Date() 
                     };
                     
                     setKakoProfiles(prevProfiles => {
@@ -202,9 +212,9 @@ export default function AdminKakoLiveDataListPageContent() {
                         if (existingProfileIndex !== -1) {
                             const updatedProfiles = [...prevProfiles];
                             updatedProfiles[existingProfileIndex] = { ...updatedProfiles[existingProfileIndex], ...profileData, lastFetchedAt: new Date() };
-                            return updatedProfiles;
+                            return updatedProfiles.sort((a, b) => (b.lastFetchedAt as Date).getTime() - (a.lastFetchedAt as Date).getTime());
                         }
-                        return [...prevProfiles, profileData];
+                        return [...prevProfiles, profileData].sort((a, b) => (b.lastFetchedAt as Date).getTime() - (a.lastFetchedAt as Date).getTime());
                     });
                     await upsertKakoProfileToFirestore(profileData); 
                 }
@@ -219,6 +229,13 @@ export default function AdminKakoLiveDataListPageContent() {
           setConnectionStatus("Erro na Conexão");
           setErrorDetails(errorMsg);
           toast({ title: "Erro WebSocket", description: errorMsg, variant: "destructive" });
+          if (socketRef.current === newSocket) {
+            socketRef.current.onopen = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.onerror = null;
+            socketRef.current.onclose = null;
+            socketRef.current = null;
+          }
         };
 
         newSocket.onclose = (closeEvent) => {
@@ -247,10 +264,9 @@ export default function AdminKakoLiveDataListPageContent() {
         toast({ title: "Falha ao Conectar WebSocket", description: errMsg, variant: "destructive" });
       }
     };
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [wsUrl, upsertKakoProfileToFirestore, toast]);
+  }, [wsUrl, upsertKakoProfileToFirestore, toast]);
 
-  const disconnectWebSocket = useCallback(() => {
+  const disconnectManually = useCallback(() => {
     isManuallyDisconnectingRef.current = true;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -262,37 +278,50 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current.onerror = null;
       socketRef.current.onclose = null;
       socketRef.current.close();
-      // socketRef.current = null; // Let onclose handle this
+    } else {
+      addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
     }
-  }, []);
+  }, [addLog]);
 
   useEffect(() => {
-    setKakoGifts(placeholderKakoGifts); // Load placeholder gifts
-    connectWebSocket(); // Attempt to connect WebSocket on mount
-
+    connectWebSocket(); 
     return () => {
-      disconnectWebSocket();
+      disconnectManually();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency for mount/unmount
+  }, [connectWebSocket, disconnectManually]);
 
-  const handleConfirmClearListLocal = () => {
-    setKakoProfiles([]);
-    toast({
-      title: "Lista Limpa (Local)",
-      description: "Todos os perfis foram removidos da visualização atual.",
-    });
-    setIsConfirmClearListDialogOpen(false);
-  };
+  // Fetch Kako Gifts from Firestore
+  const fetchKakoGifts = useCallback(async () => {
+    setIsLoadingGifts(true);
+    try {
+      const giftsCollectionRef = collection(db, "kakoGifts");
+      const querySnapshot = await getDocs(giftsCollectionRef);
+      const fetchedGifts: KakoGift[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetchedGifts.push({ id: docSnap.id, ...docSnap.data() } as KakoGift);
+      });
+      setKakoGifts(fetchedGifts);
+    } catch (error) {
+      console.error("Erro ao buscar presentes do Firestore:", error);
+      toast({ title: "Erro ao Carregar Presentes", description: "Não foi possível carregar a lista de presentes do banco de dados.", variant: "destructive" });
+    } finally {
+      setIsLoadingGifts(false);
+    }
+  }, [toast]);
 
-  const handleConfirmClearAllFromDB = async () => {
-    setIsDeletingDB(true);
+  useEffect(() => {
+    fetchKakoGifts();
+  }, [fetchKakoGifts]);
+
+
+  const handleConfirmClearProfilesDB = async () => {
+    setIsDeletingProfilesDB(true);
     try {
       const querySnapshot = await getDocs(collection(db, "kakoProfiles"));
       if (querySnapshot.empty) {
         toast({ title: "Nada para Apagar", description: "A coleção 'kakoProfiles' já está vazia." });
-        setIsConfirmClearDBDialogOpen(false);
-        setIsDeletingDB(false);
+        setIsConfirmClearProfilesDBDialogOpen(false);
+        setIsDeletingProfilesDB(false);
         return;
       }
       const batch = writeBatch(db);
@@ -309,10 +338,58 @@ export default function AdminKakoLiveDataListPageContent() {
       console.error("Erro ao apagar perfis do Firestore:", error);
       toast({ title: "Erro ao Apagar do DB", description: "Não foi possível apagar os perfis do banco de dados.", variant: "destructive" });
     } finally {
-      setIsDeletingDB(false);
-      setIsConfirmClearDBDialogOpen(false);
+      setIsDeletingProfilesDB(false);
+      setIsConfirmClearProfilesDBDialogOpen(false);
     }
   };
+
+  const handleConfirmClearProfilesListLocal = () => {
+    setKakoProfiles([]);
+    toast({
+      title: "Lista Limpa (Local)",
+      description: "Todos os perfis foram removidos da visualização atual (localmente).",
+    });
+    setIsConfirmClearProfilesListLocalDialogOpen(false);
+  };
+
+  const handleConfirmClearAllGiftsFromDB = async () => {
+    setIsDeletingGiftsDB(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, "kakoGifts"));
+      if (querySnapshot.empty) {
+        toast({ title: "Nada para Apagar", description: "A coleção 'kakoGifts' já está vazia." });
+        setIsConfirmClearGiftsDBDialogOpen(false);
+        setIsDeletingGiftsDB(false);
+        return;
+      }
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+      await batch.commit();
+      setKakoGifts([]); 
+      toast({
+        title: "Presentes Apagados do DB",
+        description: "Todos os presentes foram apagados da coleção 'kakoGifts' no Firestore.",
+      });
+    } catch (error) {
+      console.error("Erro ao apagar presentes do Firestore:", error);
+      toast({ title: "Erro ao Apagar Presentes do DB", description: "Não foi possível apagar os presentes.", variant: "destructive" });
+    } finally {
+      setIsDeletingGiftsDB(false);
+      setIsConfirmClearGiftsDBDialogOpen(false);
+    }
+  };
+
+  const handleConfirmClearGiftsListLocal = () => {
+    setKakoGifts([]);
+    toast({
+      title: "Lista de Presentes Limpa (Local)",
+      description: "Todos os presentes foram removidos da visualização atual (localmente).",
+    });
+    setIsConfirmClearGiftsListLocalDialogOpen(false);
+  };
+
 
   const handleShowDetails = (profile: KakoProfile) => {
     setSelectedProfileForDetails(profile);
@@ -326,9 +403,7 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.numId && profile.numId.toString().includes(searchTerm)) 
   );
   
-  // Use isLoading for initial load, not for WebSocket connecting state here
-  // The page can be usable even if WebSocket is reconnecting
-  const displayLoading = isLoading && kakoProfiles.length === 0;
+  const displayLoading = isLoadingProfiles && kakoProfiles.length === 0;
 
 
   return (
@@ -336,14 +411,14 @@ export default function AdminKakoLiveDataListPageContent() {
       <div className="space-y-6 h-full flex flex-col p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis (Tempo Real via Chat)</h1>
-            <p className="text-sm text-muted-foreground">Perfis Kako Live identificados em tempo real via WebSocket e salvos no Firestore.</p>
+            <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live (via Chat)</h1>
+            <p className="text-sm text-muted-foreground">Perfis Kako Live identificados em tempo real via WebSocket e salvos/atualizados no Firestore.</p>
             <p className="text-xs text-muted-foreground mt-1">
               Conexão WebSocket: <span className={connectionStatus.startsWith("Conectado") ? "text-green-500" : "text-destructive"}>{connectionStatus}</span>
             </p>
             {errorDetails && <p className="text-xs text-destructive">Erro: {errorDetails}</p>}
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -354,93 +429,177 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={() => { disconnectWebSocket(); setTimeout(connectWebSocket, 100); }} className="h-10">
+              <Button variant="outline" onClick={() => { disconnectManually(); setTimeout(connectWebSocket, 100); }} className="h-10">
                  <RefreshCw className="mr-2 h-4 w-4" />
                 Reconectar WS
               </Button>
-              <Button variant="outline" onClick={() => setIsConfirmClearListDialogOpen(true)} className="h-10" disabled={kakoProfiles.length === 0}>
+              <Button variant="outline" onClick={() => setIsConfirmClearProfilesListLocalDialogOpen(true)} className="h-10" disabled={kakoProfiles.length === 0}>
                  <Trash2 className="mr-2 h-4 w-4" />
-                Limpar Tela
+                Limpar Tela (Perfis)
               </Button>
-              <Button variant="destructive" onClick={() => setIsConfirmClearDBDialogOpen(true)} className="h-10" disabled={isDeletingDB}>
-                 {isDeletingDB ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
-                Zerar DB
+              <Button variant="destructive" onClick={() => setIsConfirmClearProfilesDBDialogOpen(true)} className="h-10" disabled={isDeletingProfilesDB}>
+                 {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                Zerar DB (Perfis)
               </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-          <StatCard title="Total de Perfis Identificados (Nesta Sessão)" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard title="Total de Perfis Identificados (Sessão/DB)" count={kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Presentes (DB)" count={kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
         </div>
 
-        <div className="flex-grow rounded-lg border overflow-hidden shadow-sm bg-card">
-          <div className="overflow-x-auto h-full">
-            {displayLoading ? (
-              <div className="flex justify-center items-center h-full">
-                <LoadingSpinner size="lg" />
-                <p className="ml-2 text-muted-foreground">Carregando perfis do banco de dados...</p>
-              </div>
-            ) : (
-            <Table>
-              <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                <TableRow>
-                  <TableHead className="w-[60px] px-4"></TableHead> {/* Avatar */}
-                  <TableHead className="min-w-[150px]">NICKNAME / SHOW ID</TableHead>
-                  <TableHead>NÍVEL</TableHead>
-                  <TableHead>USER ID (FUID)</TableHead>
-                  <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProfiles.length === 0 ? (
+        {/* Kako Profiles List */}
+        <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Lista de Perfis do Kako Live</CardTitle>
+            <CardDescription>Perfis identificados via WebSocket e salvos no Firestore.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-grow p-0">
+            <div className="overflow-x-auto h-full">
+              {displayLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <LoadingSpinner size="lg" />
+                  <p className="ml-2 text-muted-foreground">Carregando perfis...</p>
+                </div>
+              ) : (
+              <Table>
+                <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Nenhum perfil encontrado ou identificado via chat ainda.
-                    </TableCell>
+                    <TableHead className="w-[60px] px-4"></TableHead> {/* Avatar */}
+                    <TableHead className="min-w-[200px]">NICKNAME / SHOW ID</TableHead>
+                    <TableHead>NÍVEL</TableHead>
+                    <TableHead>USER ID (FUID)</TableHead>
+                    <TableHead className="text-right w-[150px]">AÇÕES</TableHead>
                   </TableRow>
-                ) : (
-                  filteredProfiles.map((profile) => (
-                    <TableRow key={profile.id} className="hover:bg-muted/20 transition-colors">
-                      <TableCell className="px-4">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={profile.avatarUrl || undefined} alt={profile.nickname} data-ai-hint="user avatar" />
-                          <AvatarFallback>
-                              {profile.nickname ? profile.nickname.substring(0,2).toUpperCase() : <UserCircle2 />}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                          <div>
-                            <span className="text-foreground">{profile.nickname}</span>
-                            {profile.showId && <div className="text-xs text-muted-foreground">Show ID: {profile.showId}</div>}
-                          </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          Nível {profile.level || "N/A"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground font-mono">{profile.id}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
-                            <Eye className="h-3 w-3 mr-1" />
-                            Detalhes
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredProfiles.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                        Nenhum perfil encontrado ou identificado via chat ainda.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            )}
-          </div>
-        </div>
+                  ) : (
+                    filteredProfiles.map((profile) => (
+                      <TableRow key={profile.id} className="hover:bg-muted/20 transition-colors">
+                        <TableCell className="px-4">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={profile.avatarUrl || undefined} alt={profile.nickname} data-ai-hint="user avatar" />
+                            <AvatarFallback>
+                                {profile.nickname ? profile.nickname.substring(0,2).toUpperCase() : <UserCircle2 />}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                            <div>
+                              <span className="text-foreground">{profile.nickname}</span>
+                              {profile.showId && <div className="text-xs text-muted-foreground">Show ID: {profile.showId}</div>}
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs">
+                            Nível {profile.level || "N/A"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-mono">{profile.id}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Detalhes
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              )}
+            </div>
+          </CardContent>
+           <CardFooter className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground">Mostrando {filteredProfiles.length} de {kakoProfiles.length} perfis identificados/carregados.</p>
+          </CardFooter>
+        </Card>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground pt-2">
-          <p>Mostrando {filteredProfiles.length} de {kakoProfiles.length} perfis identificados</p>
-        </div>
+        {/* Kako Gifts List */}
+        <Card className="flex-grow flex flex-col min-h-0 shadow-lg mt-6">
+            <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                    <CardTitle className="flex items-center"><GiftIconLucide className="mr-2 h-5 w-5 text-primary"/> Lista de Presentes Cadastrados</CardTitle>
+                    <CardDescription>Presentes recuperados do banco de dados 'kakoGifts'.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchKakoGifts} disabled={isLoadingGifts} className="h-9">
+                        <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
+                    </Button>
+                     <Button variant="outline" size="sm" onClick={() => setIsConfirmClearGiftsListLocalDialogOpen(true)} className="h-9" disabled={kakoGifts.length === 0}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Limpar Tela
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => setIsConfirmClearGiftsDBDialogOpen(true)} className="h-9" disabled={isDeletingGiftsDB || kakoGifts.length === 0}>
+                        {isDeletingGiftsDB ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />} Zerar DB
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow p-0">
+                <div className="overflow-x-auto h-full">
+                    {isLoadingGifts ? (
+                        <div className="flex justify-center items-center h-full">
+                            <LoadingSpinner size="lg" />
+                            <p className="ml-2 text-muted-foreground">Carregando presentes...</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader className="bg-muted/50 sticky top-0 z-10">
+                                <TableRow>
+                                    <TableHead className="w-[80px]">ID</TableHead>
+                                    <TableHead>Nome do Presente</TableHead>
+                                    <TableHead className="w-[100px]">Imagem</TableHead>
+                                    <TableHead>URL da Imagem</TableHead>
+                                    <TableHead className="text-right w-[100px]">Diamantes</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {kakoGifts.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                            Nenhum presente encontrado no banco de dados.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    kakoGifts.map((gift) => (
+                                        <TableRow key={gift.id} className="hover:bg-muted/20 transition-colors">
+                                            <TableCell className="font-mono text-xs">{gift.id}</TableCell>
+                                            <TableCell className="font-medium">{gift.name}</TableCell>
+                                            <TableCell>
+                                                {gift.imageUrl && (
+                                                    <NextImage
+                                                        src={gift.imageUrl}
+                                                        alt={gift.name}
+                                                        width={40}
+                                                        height={40}
+                                                        className="rounded-md object-contain"
+                                                        data-ai-hint="gift icon"
+                                                    />
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground break-all">{gift.imageUrl}</TableCell>
+                                            <TableCell className="text-right font-medium">{gift.diamond ?? 'N/A'}</TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
+                </div>
+            </CardContent>
+            <CardFooter className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground">Mostrando {kakoGifts.length} presentes.</p>
+            </CardFooter>
+        </Card>
+
       </div>
 
       {/* Details Dialog */}
@@ -461,41 +620,70 @@ export default function AdminKakoLiveDataListPageContent() {
                 Informações detalhadas do perfil Kako Live identificadas via WebSocket e salvas no Firestore.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4 text-sm">
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">User ID (FUID):</span>
-                <span className="break-all font-mono">{selectedProfileForDetails.id}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Nickname:</span>
-                <span>{selectedProfileForDetails.nickname}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Show ID:</span>
-                <span>{selectedProfileForDetails.showId || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Nível:</span>
-                <span>{selectedProfileForDetails.level || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Num ID:</span>
-                <span>{selectedProfileForDetails.numId || "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Gênero:</span>
-                <span>{selectedProfileForDetails.gender === 1 ? "Masculino" : selectedProfileForDetails.gender === 2 ? "Feminino" : "N/A"}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] items-center gap-2">
-                <span className="font-medium text-muted-foreground">Visto pela Última Vez:</span>
-                <span>{selectedProfileForDetails.lastFetchedAt ? format(new Date(selectedProfileForDetails.lastFetchedAt), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}</span>
-              </div>
-               <div className="grid grid-cols-[120px_1fr] items-start gap-2">
-                <span className="font-medium text-muted-foreground">Avatar URL:</span>
-                <span className="break-all text-xs">{selectedProfileForDetails.avatarUrl || "N/A"}</span>
-              </div>
-            </div>
-            <DialogFooter>
+            <ScrollArea className="max-h-[60vh] pr-2">
+                <div className="grid gap-3 py-4 text-sm">
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">User ID (FUID):</span>
+                    <span className="break-all font-mono text-xs">{selectedProfileForDetails.id}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Nickname:</span>
+                    <span>{selectedProfileForDetails.nickname}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Show ID:</span>
+                    <span>{selectedProfileForDetails.showId || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Nível:</span>
+                    <span>{selectedProfileForDetails.level || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Num ID:</span>
+                    <span>{selectedProfileForDetails.numId || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Gênero:</span>
+                    <span>{selectedProfileForDetails.gender === 1 ? "Masculino" : selectedProfileForDetails.gender === 2 ? "Feminino" : "N/A"}</span>
+                  </div>
+                   <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Na Live:</span>
+                    <span>{selectedProfileForDetails.isLiving === true ? "Sim" : selectedProfileForDetails.isLiving === false ? "Não" : "N/A"}</span>
+                  </div>
+                   <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Room ID:</span>
+                    <span>{selectedProfileForDetails.roomId || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-start gap-2">
+                    <span className="font-medium text-muted-foreground">Assinatura (Bio):</span>
+                    <span className="break-words">{selectedProfileForDetails.signature || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Área:</span>
+                    <span>{selectedProfileForDetails.area || "N/A"}</span>
+                  </div>
+                   <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Escola:</span>
+                    <span>{selectedProfileForDetails.school || "N/A"}</span>
+                  </div>
+                  <div className="grid grid-cols-[120px_1fr] items-center gap-2">
+                    <span className="font-medium text-muted-foreground">Visto pela Última Vez:</span>
+                    <span>
+                        {selectedProfileForDetails.lastFetchedAt instanceof Timestamp 
+                          ? format(selectedProfileForDetails.lastFetchedAt.toDate(), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) 
+                          : selectedProfileForDetails.lastFetchedAt instanceof Date
+                            ? format(selectedProfileForDetails.lastFetchedAt, "dd/MM/yyyy HH:mm:ss", { locale: ptBR })
+                            : 'N/A'
+                        }
+                    </span>
+                  </div>
+                   <div className="grid grid-cols-[120px_1fr] items-start gap-2">
+                    <span className="font-medium text-muted-foreground">Avatar URL:</span>
+                    <span className="break-all text-xs">{selectedProfileForDetails.avatarUrl || "N/A"}</span>
+                  </div>
+                </div>
+            </ScrollArea>
+            <DialogFooter className="mt-2 pt-4 border-t">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   Fechar
@@ -506,32 +694,32 @@ export default function AdminKakoLiveDataListPageContent() {
         </Dialog>
       )}
 
-      {/* Clear List Dialog */}
-      <AlertDialog open={isConfirmClearListDialogOpen} onOpenChange={setIsConfirmClearListDialogOpen}>
+      {/* Clear Profiles Local List Dialog */}
+      <AlertDialog open={isConfirmClearProfilesListLocalDialogOpen} onOpenChange={setIsConfirmClearProfilesListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Limpar Tela</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Limpar Tela (Perfis)</AlertDialogTitle>
             <AlertDialogDescription>
               Você tem certeza que deseja limpar todos os perfis da visualização atual? Esta ação é apenas local e não afeta o banco de dados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsConfirmClearListDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsConfirmClearProfilesListLocalDialogOpen(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmClearListLocal}
+              onClick={handleConfirmClearProfilesListLocal}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
-              Limpar Tela
+              Limpar Tela (Perfis)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear DB Dialog */}
-      <AlertDialog open={isConfirmClearDBDialogOpen} onOpenChange={setIsConfirmClearDBDialogOpen}>
+      {/* Clear Profiles DB Dialog */}
+      <AlertDialog open={isConfirmClearProfilesDBDialogOpen} onOpenChange={setIsConfirmClearProfilesDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Confirmar Zerar Banco de Dados!</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">Confirmar Zerar Banco de Dados (Perfis)!</AlertDialogTitle>
             <AlertDialogDescription>
               Você tem certeza que deseja apagar <strong className="text-destructive">TODOS</strong> os perfis da coleção 'kakoProfiles' no Firestore?
               <br />
@@ -539,14 +727,60 @@ export default function AdminKakoLiveDataListPageContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsConfirmClearDBDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsConfirmClearProfilesDBDialogOpen(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmClearAllFromDB}
+              onClick={handleConfirmClearProfilesDB}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              disabled={isDeletingDB}
+              disabled={isDeletingProfilesDB}
             >
-              {isDeletingDB ? <LoadingSpinner size="sm" className="mr-2"/> : null}
-              Zerar Banco de Dados
+              {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : null}
+              Zerar Banco de Dados (Perfis)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+       {/* Clear Gifts Local List Dialog */}
+      <AlertDialog open={isConfirmClearGiftsListLocalDialogOpen} onOpenChange={setIsConfirmClearGiftsListLocalDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Limpar Tela (Presentes)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja limpar todos os presentes da visualização atual? Esta ação é apenas local e não afeta o banco de dados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmClearGiftsListLocalDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmClearGiftsListLocal}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Limpar Tela (Presentes)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Gifts DB Dialog */}
+      <AlertDialog open={isConfirmClearGiftsDBDialogOpen} onOpenChange={setIsConfirmClearGiftsDBDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Confirmar Zerar Banco de Dados (Presentes)!</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja apagar <strong className="text-destructive">TODOS</strong> os presentes da coleção 'kakoGifts' no Firestore?
+              <br />
+              <strong className="text-destructive uppercase">Esta ação é irreversível e apagará os dados permanentemente do banco de dados.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmClearGiftsDBDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmClearAllGiftsFromDB}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isDeletingGiftsDB}
+            >
+              {isDeletingGiftsDB ? <LoadingSpinner size="sm" className="mr-2"/> : null}
+              Zerar Banco de Dados (Presentes)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -555,3 +789,4 @@ export default function AdminKakoLiveDataListPageContent() {
   );
 }
 
+    
