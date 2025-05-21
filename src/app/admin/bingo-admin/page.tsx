@@ -194,20 +194,10 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-  const handleView90BallCardDetails = (card: GeneratedBingoCard) => {
+  const handleViewCardDetails = (card: GeneratedBingoCard) => {
     setSelectedCardForDetails(card);
     setIsDetailModalOpen(true);
   };
-  
-  // For 75-ball, details modal not fully implemented yet, logs to console
-  const handleView75BallCardDetails = (card: GeneratedBingoCard) => {
-    console.log("Detalhes da Cartela 75 Bolas:", card);
-    // Potentially open a different, simpler modal or just log for now
-    // setSelectedCardForDetails(card);
-    // setIsDetailModalOpen(true); // If using the same modal, ensure it can handle 5x5
-    alert("Visualização detalhada para cartelas de 75 bolas ainda em desenvolvimento.");
-  };
-
 
   const handleConfirmDeleteAll90BallCards = () => {
     setGenerated90BallCards([]);
@@ -309,7 +299,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleView75BallCardDetails(card)} disabled>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -320,7 +310,7 @@ export default function AdminBingoAdminPage() {
                   </Table>
                 </div>
                  <p className="mt-4 text-xs text-muted-foreground">
-                  Esta tabela mostrará as cartelas de 75 bolas. A visualização detalhada específica para este tipo de cartela está em desenvolvimento.
+                  Esta tabela mostrará as cartelas de 75 bolas.
                 </p>
               </CardContent>
             </Card>
@@ -381,7 +371,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleView90BallCardDetails(card)}>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -507,7 +497,7 @@ export default function AdminBingoAdminPage() {
                 Informações completas da cartela de bingo selecionada.
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[calc(80vh-100px)] pr-4"> {/* Adjusted max-h for scroll area */}
+            <ScrollArea className="max-h-[calc(80vh-100px)] pr-4">
               <div className="space-y-6 py-4">
                 
                 {/* Visual Card Grid - Specific to 90-ball card structure */}
@@ -518,7 +508,7 @@ export default function AdminBingoAdminPage() {
                       {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
                         row.map((cell, colIndex) => (
                           <div
-                            key={`detail-card-${rowIndex}-${colIndex}`}
+                            key={`detail-card-90-${rowIndex}-${colIndex}`}
                             className={cn(
                               "flex items-center justify-center h-12 text-base font-medium aspect-square",
                               cell === null ? 'bg-primary/10' : 'bg-card text-primary'
@@ -531,13 +521,27 @@ export default function AdminBingoAdminPage() {
                     </div>
                   </div>
                 )}
-                 {/* Placeholder for 75-ball card visualization if needed in future */}
-                 {/* {selectedCardForDetails.cardNumbers.length === 5 && selectedCardForDetails.cardNumbers[0].length === 5 && (
+                 {/* Visual Card Grid - Specific to 75-ball card structure */}
+                 {selectedCardForDetails.cardNumbers.length === 5 && selectedCardForDetails.cardNumbers[0].length === 5 && (
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (75 Bolas)</h3>
-                        // ... 5x5 grid rendering ...
+                        <div className="grid grid-cols-5 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-xs mx-auto">
+                          {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
+                            row.map((cell, colIndex) => (
+                              <div
+                                key={`detail-card-75-${rowIndex}-${colIndex}`}
+                                className={cn(
+                                  "flex items-center justify-center h-12 text-base font-medium aspect-square",
+                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary'
+                                )}
+                              >
+                                {cell !== null ? cell : <Star className="h-5 w-5 text-yellow-600" />}
+                              </div>
+                            ))
+                          )}
+                        </div>
                     </div>
-                 )} */}
+                 )}
 
 
                 {/* Basic Information */}
@@ -671,4 +675,6 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
+    
+
     
