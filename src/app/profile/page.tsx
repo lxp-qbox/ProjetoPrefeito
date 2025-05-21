@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, Share2, BadgeCheck, ChevronRight, Bell
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Image from "next/image";
+import Link from "next/link";
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -53,15 +54,45 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
-const profileMenuItems = [
-  { id: 'inicio', title: 'Início', icon: UserCircle2 },
-  { id: 'informacoesPessoais', title: 'Informações pessoais', icon: Clipboard },
-  { id: 'dadosPrivacidade', title: 'Dados e privacidade', icon: DatabaseZap },
-  { id: 'seguranca', title: 'Segurança', icon: Lock },
-  { id: 'pessoasCompartilhamento', title: 'Pessoas e compartilhamento', icon: Users },
-  { id: 'pagamentosAssinaturas', title: 'Pagamentos e assinaturas', icon: CreditCard },
-  { id: 'sobre', title: 'Sobre', icon: Info },
+
+interface ProfileMenuItem {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  currentValue?: string;
+  link?: string; // For items that navigate away, like Settings
+}
+
+interface ProfileMenuGroup {
+  groupTitle?: string;
+  items: ProfileMenuItem[];
+  isBottomSection?: boolean;
+}
+
+const profileMenuGroups: ProfileMenuGroup[] = [
+  {
+    groupTitle: "Conta",
+    items: [
+      { id: 'inicio', title: 'Visão Geral', icon: UserCircle2 },
+      { id: 'informacoesPessoais', title: 'Informações Pessoais', icon: Clipboard },
+      { id: 'seguranca', title: 'Segurança', icon: Lock },
+    ]
+  },
+  {
+    groupTitle: "Preferências",
+    items: [
+      { id: 'aparencia', title: 'Aparência', icon: SettingsIcon, link: "/settings" },
+      { id: 'notificacoes', title: 'Notificações', icon: Bell, currentValue: "Ativadas" },
+    ]
+  },
+  {
+    items: [
+      { id: 'logout', title: 'Sair', icon: LogOut },
+    ],
+    isBottomSection: true,
+  }
 ];
+
 
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
@@ -180,6 +211,16 @@ export default function ProfilePage() {
 
   const maxCalendarDate = new Date();
   const minCalendarDate = subYears(new Date(), 100);
+
+  const handleMenuClick = (itemId: string, itemLink?: string) => {
+    if (itemId === 'logout') {
+      handleLogout();
+    } else if (itemLink) {
+      router.push(itemLink);
+    } else {
+      setActiveTab(itemId);
+    }
+  };
 
 
   const renderContent = () => {
@@ -349,14 +390,26 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         );
+      case 'seguranca':
+      case 'notificacoes':
+        return (
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">{profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab)?.title || "Seção"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Conteúdo desta seção em desenvolvimento.</p>
+            </CardContent>
+          </Card>
+        );
       default:
         return (
           <Card className="shadow-md">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">{profileMenuItems.find(item => item.id === activeTab)?.title || "Seção"}</CardTitle>
+              <CardTitle className="text-lg font-semibold">Visão Geral</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Conteúdo desta seção em desenvolvimento.</p>
+              <p className="text-muted-foreground">Bem-vindo ao seu perfil! Selecione uma opção no menu.</p>
             </CardContent>
           </Card>
         );
@@ -389,7 +442,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-center mt-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{displayName}</h1>
               {currentUser?.isVerified && (
-                 <BadgeCheck className="ml-2 h-6 w-6 text-primary fill-primary/20" />
+                 <BadgeCheck className="ml-2 h-6 w-6 text-pink-500 fill-pink-500/20" />
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">{userShortBio}</p>
@@ -413,29 +466,43 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row gap-6">
           <nav className="md:w-72 lg:w-80 flex-shrink-0">
             <Card className="shadow-md">
-              <CardContent className="p-2 space-y-1">
-                {profileMenuItems.map((item) => (
-                  <Button
-                    key={item.id}
-                    variant={activeTab === item.id ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start gap-2.5 py-3 px-3 text-sm font-medium",
-                       activeTab === item.id ? "text-primary" : "text-card-foreground hover:text-accent-foreground"
+              <CardContent className="p-4 space-y-4"> {/* Increased overall padding */}
+                {profileMenuGroups.map((group, groupIndex) => (
+                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-4 pt-4 border-t")}>
+                    {group.groupTitle && (
+                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                        {group.groupTitle}
+                      </h2>
                     )}
-                    onClick={() => setActiveTab(item.id)}
-                  >
-                    <item.icon className={cn("h-5 w-5", activeTab === item.id ? "text-primary" : "text-muted-foreground")} />
-                    {item.title}
-                  </Button>
+                    <div className="space-y-1">
+                      {group.items.map((item) => {
+                        const isActive = activeTab === item.id;
+                        return (
+                          <Button
+                            key={item.id}
+                            variant="ghost"
+                            className={cn(
+                              "w-full justify-between py-3 px-3 text-sm font-medium rounded-md",
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-card-foreground hover:bg-card/80 hover:text-card-foreground"
+                            )}
+                            onClick={() => handleMenuClick(item.id, item.link)}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                              {item.title}
+                            </div>
+                            <div className="flex items-center">
+                                {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2.5 py-3 px-3 text-sm font-medium text-destructive hover:text-destructive"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-5 w-5" />
-                    Sair
-                  </Button>
               </CardContent>
             </Card>
           </nav>
@@ -449,3 +516,4 @@ export default function ProfilePage() {
   );
 }
 
+    
