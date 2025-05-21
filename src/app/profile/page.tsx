@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2 // Added Share2 here
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -37,9 +37,8 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Image from "next/image"; // Already imported, but good to confirm
+import Image from "next/image";
 
-// Re-define ProfileMenuItem and ProfileMenuGroup locally for this page
 interface ProfileMenuItem {
   id: string;
   title: string;
@@ -85,16 +84,16 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<string>('profileDashboard'); // Default tab
+  const [activeTab, setActiveTab] = useState<string>('visaoGeral'); 
 
 
   const profileMenuGroups: ProfileMenuGroup[] = [
     {
       groupTitle: "GERAL",
       items: [
-        { id: "profileDashboard", title: "Visão Geral", icon: LayoutDashboard, link: "/profile#profileDashboard" },
-        { id: "profileLanguage", title: "Idioma", icon: Globe, link: "/profile#language", currentValue: "Português(Brasil)" },
-        { id: "profileNotifications", title: "Configurações de notificação", icon: Bell, link: "/profile#notifications" },
+        { id: "visaoGeral", title: "Visão Geral", icon: LayoutDashboard, link: "/profile#visaoGeral" },
+        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
+        { id: "notificacoes", title: "Notificações", icon: Bell, link: "/profile#notificacoes" },
       ],
     },
     {
@@ -102,7 +101,6 @@ export default function ProfilePage() {
       items: [
         { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard, link: "/profile#informacoesPessoais" },
         { id: "seguranca", title: "Segurança da Conta", icon: Lock, link: "/profile#seguranca" },
-        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
       ],
     },
     {
@@ -110,8 +108,6 @@ export default function ProfilePage() {
       items: [
         { id: "user-agreement", title: "Contrato do usuário", icon: FileText, link: "/profile#user-agreement" },
         { id: "privacy-policy", title: "Política de privacidade", icon: FileText, link: "/profile#privacy-policy" },
-        { id: "host-agreement", title: "Contrato de Host", icon: FileText, link: "/profile#host-agreement" },
-        { id: "about-kako", title: "Sobre Kako Live", icon: Info, link: "/profile#about-kako" },
       ],
     },
     {
@@ -130,18 +126,15 @@ export default function ProfilePage() {
   useEffect(() => {
     const hash = window.location.hash.substring(1);
     const allItems = profileMenuGroups.flatMap(group => group.items);
-    const matchingItem = allItems.find(item => item.id === hash || (item.link && item.link.endsWith(`#${hash}`)));
+    const matchingItem = allItems.find(item => item.id === hash);
     
     if (matchingItem) {
       setActiveTab(matchingItem.id);
-    } else if (allItems.length > 0) {
-      // If no hash, or hash doesn't match, default to the ID of the first item of the first group
-      if (profileMenuGroups.length > 0 && profileMenuGroups[0].items.length > 0) {
-        setActiveTab(profileMenuGroups[0].items[0].id);
-      }
+    } else if (profileMenuGroups.length > 0 && profileMenuGroups[0].items.length > 0) {
+      setActiveTab(profileMenuGroups[0].items[0].id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount to set initial tab based on hash
+  }, []); 
 
   useEffect(() => {
     if (currentUser) {
@@ -152,19 +145,18 @@ export default function ProfilePage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { // YYYY-MM-DD
+            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { 
               parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
-            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { // DD/MM/YYYY
+            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { 
               parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
-            // Fallback for ISO string
             if (!parsedDate || !isValid(parsedDate)) {
               const isoDate = parseISO(currentUser.birthDate);
               if (isValid(isoDate)) parsedDate = isoDate;
             }
-          } else if ((currentUser.birthDate as any)?.toDate) { // Firestore Timestamp
+          } else if ((currentUser.birthDate as any)?.toDate) { 
             parsedDate = (currentUser.birthDate as any).toDate();
-          } else if (currentUser.birthDate instanceof Date) { // Already a Date object
+          } else if (currentUser.birthDate instanceof Date) { 
             parsedDate = currentUser.birthDate;
           }
 
@@ -228,18 +220,17 @@ export default function ProfilePage() {
     if (item.action) {
       item.action();
     } else if (item.link) {
-      if (item.link.startsWith('/')) { // Check if it's an internal app link
+      if (item.link.startsWith('/') && !item.link.includes('#')) { 
         router.push(item.link);
-      } else if (item.link.startsWith('#')) { // Check if it's a hash link for tab navigation
-        setActiveTab(item.id); // Use item.id for activeTab state
-        window.location.hash = item.id; // Update URL hash
+      } else if (item.link.includes('#')) { 
+        const newTabId = item.id;
+        setActiveTab(newTabId);
+        window.location.hash = newTabId; 
       } else {
-        // Default to setting active tab by ID if no specific link pattern matched
         setActiveTab(item.id);
         window.location.hash = item.id;
       }
     } else {
-      // If no link and no action, just set the active tab
       setActiveTab(item.id);
       window.location.hash = item.id;
     }
@@ -255,14 +246,16 @@ export default function ProfilePage() {
   };
 
   const userHandle = currentUser?.email?.split('@')[0] || "usuário";
+  const userShortBio = currentUser?.bio || "Edite seu perfil para adicionar uma bio.";
+  const userLocation = currentUser?.country || "Localização não definida";
   const joinedDateFormatted = currentUser?.createdAt?.toDate ? formatDistanceToNow(currentUser.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : "Data de entrada não disponível";
 
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'profileDashboard':
+      case 'visaoGeral':
         return (
-          <div className="space-y-6 p-6">
+          <div className="space-y-6">
              <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold">Sobre Mim</CardTitle>
@@ -298,270 +291,272 @@ export default function ProfilePage() {
         );
       case 'informacoesPessoais':
         return (
-          <div className="p-6">
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Editar Informações Pessoais</CardTitle>
-                <CardDescription>Atualize seus dados pessoais. Clique em salvar após as alterações.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone-number-profile"
-                      type="tel"
-                      placeholder="+00 (00) 00000-0000"
-                      value={editablePhoneNumber}
-                      onChange={(e) => setEditablePhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                      className="pl-10 h-12"
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Editar Informações Pessoais</CardTitle>
+              <CardDescription>Atualize seus dados pessoais. Clique em salvar após as alterações.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="phone-number-profile" className="text-sm font-medium">Celular (WhatsApp)</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="phone-number-profile"
+                    type="tel"
+                    placeholder="+00 (00) 00000-0000"
+                    value={editablePhoneNumber}
+                    onChange={(e) => setEditablePhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                    className="pl-10 h-12"
+                  />
+                </div>
+              </div>
+              <div className="pt-2 space-y-1">
+                <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
+                <Select
+                  value={editableGender}
+                  onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
+                >
+                  <SelectTrigger id="gender-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <SelectValue placeholder="Selecione seu sexo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Masculino</SelectItem>
+                    <SelectItem value="female">Feminino</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
+                    <SelectItem value="preferNotToSay">Prefiro não dizer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="pt-2 space-y-1">
+                <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">Data de Nascimento</Label>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="birthdate-picker-profile"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
+                        !editableBirthDate && "text-muted-foreground"
+                      )}
+                    >
+                      <LucideCalendarIcon className="mr-2 h-4 w-4" />
+                      {editableBirthDate ? (
+                        format(editableBirthDate, "PPP", { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={editableBirthDate}
+                      onSelect={(date) => {
+                        setEditableBirthDate(date);
+                        if (date) setIsCalendarOpen(false);
+                      }}
+                      initialFocus
+                      locale={ptBR}
+                      captionLayout="dropdown-buttons"
+                      fromYear={minCalendarDate.getFullYear()}
+                      toYear={maxCalendarDate.getFullYear()}
+                      defaultMonth={subYears(new Date(), 18)}
+                      disabled={(date) => date > maxCalendarDate || date < minCalendarDate}
                     />
-                  </div>
-                </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="pt-2 space-y-1">
+                <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
+                <Select
+                  value={editableCountry}
+                  onValueChange={(value) => setEditableCountry(value)}
+                >
+                  <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Selecione seu país" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country.code} value={country.name}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {currentUser?.email && (
                 <div className="pt-2 space-y-1">
-                  <Label htmlFor="gender-select-profile" className="text-sm font-medium">Sexo</Label>
-                  <Select
-                    value={editableGender}
-                    onValueChange={(value) => setEditableGender(value as UserProfile['gender'])}
-                  >
-                    <SelectTrigger id="gender-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                      <SelectValue placeholder="Selecione seu sexo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Masculino</SelectItem>
-                      <SelectItem value="female">Feminino</SelectItem>
-                      <SelectItem value="other">Outro</SelectItem>
-                      <SelectItem value="preferNotToSay">Prefiro não dizer</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="email-profile" className="text-sm font-medium">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="email-profile" type="email" value={currentUser.email} readOnly disabled className="pl-10 h-12 bg-muted/50" />
+                  </div>
                 </div>
+              )}
+              {currentUser?.kakoLiveId && (
                 <div className="pt-2 space-y-1">
-                  <Label htmlFor="birthdate-picker-profile" className="text-sm font-medium">Data de Nascimento</Label>
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="birthdate-picker-profile"
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
-                          !editableBirthDate && "text-muted-foreground"
-                        )}
-                      >
-                        <LucideCalendarIcon className="mr-2 h-4 w-4" />
-                        {editableBirthDate ? (
-                          format(editableBirthDate, "PPP", { locale: ptBR })
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={editableBirthDate}
-                        onSelect={(date) => {
-                          setEditableBirthDate(date);
-                          if (date) setIsCalendarOpen(false);
-                        }}
-                        initialFocus
-                        locale={ptBR}
-                        captionLayout="dropdown-buttons"
-                        fromYear={minCalendarDate.getFullYear()}
-                        toYear={maxCalendarDate.getFullYear()}
-                        defaultMonth={subYears(new Date(), 18)}
-                        disabled={(date) => date > maxCalendarDate || date < minCalendarDate}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="kako-id-profile" className="text-sm font-medium">Passaporte (ID Kako Live)</Label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="kako-id-profile" type="text" value={currentUser.kakoLiveId} readOnly disabled className="pl-10 h-12 bg-muted/50" />
+                  </div>
                 </div>
+              )}
+               <div className="pt-2 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Função</Label>
+                  <div className="flex items-center text-sm">
+                      <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <Badge variant="outline">{currentUser?.role === 'host' ? 'Anfitrião' : 'Participante'}</Badge>
+                  </div>
+              </div>
+              {currentUser?.adminLevel && (
                 <div className="pt-2 space-y-1">
-                  <Label htmlFor="country-select-profile" className="text-sm font-medium">País</Label>
-                  <Select
-                    value={editableCountry}
-                    onValueChange={(value) => setEditableCountry(value)}
-                  >
-                    <SelectTrigger id="country-select-profile" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                      <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Selecione seu país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.name}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
+                  <div className="flex items-center text-sm">
+                    <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <Badge variant="destructive">
+                      {currentUser.adminLevel.charAt(0).toUpperCase() + currentUser.adminLevel.slice(1)}
+                    </Badge>
+                  </div>
                 </div>
-                {currentUser?.email && (
-                  <div className="pt-2 space-y-1">
-                    <Label htmlFor="email-profile" className="text-sm font-medium">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="email-profile" type="email" value={currentUser.email} readOnly disabled className="pl-10 h-12 bg-muted/50" />
-                    </div>
-                  </div>
-                )}
-                {currentUser?.kakoLiveId && (
-                  <div className="pt-2 space-y-1">
-                    <Label htmlFor="kako-id-profile" className="text-sm font-medium">Passaporte (ID Kako Live)</Label>
-                    <div className="relative">
-                      <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input id="kako-id-profile" type="text" value={currentUser.kakoLiveId} readOnly disabled className="pl-10 h-12 bg-muted/50" />
-                    </div>
-                  </div>
-                )}
-                 <div className="pt-2 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Função</Label>
-                    <div className="flex items-center text-sm">
-                        <Briefcase className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <Badge variant="outline">{currentUser?.role === 'host' ? 'Anfitrião' : 'Participante'}</Badge>
-                    </div>
-                </div>
-                {currentUser?.adminLevel && (
-                  <div className="pt-2 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Nível Administrativo</Label>
-                    <div className="flex items-center text-sm">
-                      <Diamond className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <Badge variant="destructive">
-                        {currentUser.adminLevel.charAt(0).toUpperCase() + currentUser.adminLevel.slice(1)}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-                <Button onClick={handleSaveProfile} className="w-full mt-6" disabled={isSaving}>
-                  {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                  Salvar Alterações
-                </Button>
-                <p className="text-xs text-muted-foreground pt-1">
-                  ID do Usuário: {currentUser?.uid}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+              <Button onClick={handleSaveProfile} className="w-full mt-6" disabled={isSaving}>
+                {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                Salvar Alterações
+              </Button>
+              <p className="text-xs text-muted-foreground pt-1">
+                ID do Usuário: {currentUser?.uid}
+              </p>
+            </CardContent>
+          </Card>
         );
       default:
         const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
         return (
-          <div className="p-6">
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">{activeItem?.title || "Seção"}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
-                 {activeTab === 'seguranca' && <p className="mt-2 text-sm">Aqui você poderá alterar sua senha, configurar autenticação de dois fatores, etc.</p>}
-                 {activeTab === 'aparencia' && <p className="mt-2 text-sm">Esta seção irá para a página de configurações principal do aplicativo.</p>}
-                 {activeTab === 'notificacoes' && <p className="mt-2 text-sm">Gerencie suas preferências de notificação por email e push.</p>}
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">{activeItem?.title || "Seção"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
+            </CardContent>
+          </Card>
         );
     }
   };
 
   return (
     <ProtectedPage>
-      <div className="flex flex-col h-full"> {/* Outermost container */}
-        
-        {/* Top Profile Header */}
-        <div className="bg-card border-b">
-          <div className="relative">
-            <div className="h-40 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative"> {/* Adjusted height */}
-              <div className="absolute top-4 right-4 flex space-x-2">
-                <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+      <div className="flex flex-col md:flex-row h-full"> {/* Changed to two-column layout */}
+        {/* Left Navigation Menu */}
+        <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-4 space-y-4">
+          {profileMenuGroups.map((group, groupIndex) => (
+            <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
+              {group.groupTitle && (
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                  {group.groupTitle}
+                </h2>
+              )}
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <Button
+                      key={item.id}
+                      variant="ghost"
+                      className={cn(
+                        "w-full text-left h-auto text-sm font-medium rounded-md transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
+                        "justify-between py-3 px-3"
+                      )}
+                      onClick={() => handleMenuClick(item)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                        <span>{item.title}</span>
+                      </div>
+                      <div className="flex items-center ml-auto">
+                        {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                        {!item.action && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                    </Button>
+                  );
+                })}
               </div>
             </div>
-            <div className="px-6">
-              <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-14 sm:-mt-16 relative z-10"> {/* Adjusted negative margin */}
-                <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-card shadow-lg"> {/* Adjusted avatar size */}
-                  <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(currentUser?.displayName)}</AvatarFallback>
-                </Avatar>
-                <div className="sm:ml-6 mt-4 sm:mt-0 text-center sm:text-left flex-grow">
-                  <div className="flex items-center justify-center sm:justify-start">
-                    <h1 className="text-2xl font-bold text-foreground">{currentUser?.profileName || currentUser?.displayName || "Usuário"}</h1>
-                    {currentUser?.isVerified && <Check className="ml-2 h-5 w-5 text-pink-500" /> } {/* Placeholder for verified badge */}
-                  </div>
-                  <p className="text-sm text-muted-foreground">@{userHandle}</p>
-                   <p className="text-sm text-muted-foreground mt-1">{currentUser?.bio || "UX/UI Designer, 4+ anos de experiência."}</p>
-                </div>
-                <div className="mt-4 sm:mt-0 flex space-x-2">
-                  <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-4 text-sm h-9">Subscribe</Button>
-                  <Button variant="outline" className="rounded-full px-4 text-sm h-9">Editar Perfil</Button>
+          ))}
+        </nav>
+
+        {/* Right Content Area */}
+        <main className="flex-1 h-full overflow-y-auto flex flex-col">
+          {/* Profile Header Section */}
+          <div className="bg-card border-b">
+            <div className="relative">
+              <div className="h-40 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative">
+                <Image 
+                    src="https://placehold.co/1200x400.png" 
+                    alt="Banner do Perfil" 
+                    layout="fill" 
+                    objectFit="cover" 
+                    className="opacity-75"
+                    data-ai-hint="abstract banner"
+                />
+                <div className="absolute inset-0 bg-black/20"></div> {/* Subtle overlay */}
+                <div className="absolute top-4 right-4 flex space-x-2 z-10">
+                  <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="mt-4 text-xs text-muted-foreground text-center sm:text-left pb-4"> {/* Added pb-4 */}
-                <div className="flex items-center justify-center sm:justify-start space-x-3">
+              <div className="px-6">
+                <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 relative z-10">
+                  <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-card shadow-lg">
+                    <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
+                    <AvatarFallback>{getInitials(currentUser?.displayName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="sm:ml-6 mt-4 sm:mt-0 text-center sm:text-left flex-grow">
+                    <div className="flex items-center justify-center sm:justify-start">
+                      <h1 className="text-2xl font-bold text-foreground">{currentUser?.profileName || currentUser?.displayName || "Usuário"}</h1>
+                      {currentUser?.isVerified && 
+                        <Badge variant="default" className="ml-2 bg-pink-500 hover:bg-pink-600 text-white text-xs px-1.5 py-0.5">
+                           <Check className="h-3 w-3 mr-0.5" /> Verificado
+                        </Badge>
+                      }
+                    </div>
+                    <p className="text-sm text-muted-foreground">@{userHandle}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{userShortBio}</p>
+                  </div>
+                  <div className="mt-4 sm:mt-0 sm:ml-auto flex space-x-2 flex-shrink-0">
+                    <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-4 text-sm h-9">Seguir</Button>
+                    <Button variant="outline" className="rounded-full px-4 text-sm h-9">Mensagem</Button>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-muted-foreground text-center sm:text-left pb-4">
+                  <div className="flex items-center justify-center sm:justify-start space-x-3">
                     <div className="flex items-center">
-                        <MapPin className="h-3.5 w-3.5 mr-1" /> {currentUser?.country || "Localização não definida"}
+                      <MapPin className="h-3.5 w-3.5 mr-1" /> {userLocation}
                     </div>
                     <div className="flex items-center">
-                        <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
+                      <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
                     </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Content Area: Menu + Dynamic Content */}
-         <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
-          <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-2 space-y-4">
-              {profileMenuGroups.map((group, groupIndex) => {
-                const isFirstGroup = groupIndex === 0;
-                return (
-                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t", !isFirstGroup && !group.isBottomSection && "mt-4")}>
-                    {group.groupTitle && (
-                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                        {group.groupTitle}
-                      </h2>
-                    )}
-                    <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
-                      {group.items.map((item) => {
-                        const isActive = activeTab === item.id;
-                        return (
-                          <Button
-                            key={item.id}
-                            variant="ghost"
-                            className={cn(
-                              "w-full text-left h-auto text-sm font-medium rounded-md transition-colors",
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-card-foreground hover:bg-card/80 bg-card shadow-sm",
-                              "justify-between py-3 px-3"
-                            )}
-                            onClick={() => handleMenuClick(item)}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
-                              <span>{item.title}</span>
-                            </div>
-                            <div className="flex items-center ml-auto">
-                              {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                              {item.link !== "#logout" && (!item.action || item.action.toString() !== handleLogout.toString()) && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                            </div>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </nav>
-
-          <main className="flex-1 h-full overflow-y-auto">
+          {/* Tab Specific Content */}
+          <div className="flex-1 p-6">
             {renderContent()}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </ProtectedPage>
   );
