@@ -4,7 +4,31 @@
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, User, UserCog, ShieldAlert, LayoutDashboard, Settings, UserCircle2, Globe, Bell, FileText, Info, LogOut, ChevronRight, Headphones, PanelLeftClose, PanelRightOpen, Star, XCircle, Database, TicketIcon, MailQuestion, ServerOff, Link as LinkIcon } from "lucide-react";
+import {
+  Users,
+  User,
+  UserCog,
+  ShieldAlert,
+  LayoutDashboard,
+  Settings,
+  UserCircle2,
+  Globe,
+  Bell,
+  FileText,
+  Info,
+  LogOut,
+  ChevronRight,
+  Headphones,
+  PanelLeftClose,
+  PanelRightOpen,
+  Star,
+  XCircle,
+  Database,
+  Link as LinkIcon,
+  TicketIcon,
+  MailQuestion,
+  ServerOff,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -38,7 +62,7 @@ interface AdminMenuGroup {
 
 const adminMenuGroups: AdminMenuGroup[] = [
   {
-    groupTitle: "Geral",
+    groupTitle: "GERAL",
     items: [
       { title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" },
       { title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
@@ -46,7 +70,7 @@ const adminMenuGroups: AdminMenuGroup[] = [
     ],
   },
   {
-    groupTitle: "Gestão de Usuários",
+    groupTitle: "GESTÃO DE USUÁRIOS",
     items: [
       { title: "Contas de Hosts", icon: Star, link: "/admin/hosts" },
       { title: "Contas de Players", icon: User, link: "/admin/users/players" },
@@ -55,20 +79,20 @@ const adminMenuGroups: AdminMenuGroup[] = [
     ],
   },
   {
-    groupTitle: "Kako Live",
+    groupTitle: "KAKO LIVE",
     items: [
         { title: "Lista de dados", icon: Database, link: "/admin/kako-live/data-list" },
         { title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
     ]
   },
   {
-    groupTitle: "Manutenção",
+    groupTitle: "MANUTENÇÃO",
     items: [
         { title: "Status Offline", icon: ServerOff, link: "/admin/maintenance/offline" },
     ]
   },
   {
-    groupTitle: "Sobre",
+    groupTitle: "SOBRE",
     items: [
       { title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
       { title: "Política de privacidade", icon: FileText, link: "/admin/privacy-policy" },
