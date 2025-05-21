@@ -41,7 +41,7 @@ export default function AdminKakoLiveLinkTesterPage() {
 
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
-  const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
+  const [showExternalDataFilter, setShowExternalDataFilter] = useState(true); // State for new filter
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -120,13 +120,11 @@ export default function AdminKakoLiveLinkTesterPage() {
           }
 
           if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-            if ('roomId' in parsedJson && !('game' in parsedJson) && !('giftId' in parsedJson && !('roomId' in parsedJson))) { // Prioritize roomId for "Dados da Sala" unless it's clearly a game or specific gift type
+            if ('roomId' in parsedJson && !('game' in parsedJson) && !('giftId' in parsedJson && !('roomId' in parsedJson))) {
               classification = "Dados da Sala";
             } else if ('game' in parsedJson) {
               classification = "Dados de Jogo";
             } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
-              // If it has giftId AND roomId, it's likely a gift within a room, not "external data".
-              // This rule specifically targets messages that have giftId but are NOT specific to a room context via roomId.
               classification = "Dados Externos";
             }
           }
