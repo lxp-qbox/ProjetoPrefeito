@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -43,6 +43,8 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
   const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
   const [showLiveDataFilter, setShowLiveDataFilter] = useState(true);
+  const [showChatMessageFilter, setShowChatMessageFilter] = useState(true);
+
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -63,17 +65,17 @@ export default function AdminKakoLiveLinkTesterPage() {
         socketRef.current.onclose = null;
         socketRef.current.close();
       }
-      socketRef.current = null; // Ensure it's nullified before new assignment
+      socketRef.current = null; 
     }
 
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
-    setProcessedMessages(prev => prev.filter(msg => msg.type !== 'system' && msg.type !== 'error')); // Clear previous system/error messages
+    setProcessedMessages(prev => prev.filter(msg => msg.type !== 'system' && msg.type !== 'error')); 
     setErrorDetails(null);
 
     try {
       const newSocket = new WebSocket(wsUrl);
-      socketRef.current = newSocket; // Assign the new socket to the ref
+      socketRef.current = newSocket; 
 
       newSocket.onopen = () => {
         setIsConnecting(false);
@@ -121,11 +123,13 @@ export default function AdminKakoLiveLinkTesterPage() {
             if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
               if ('roomId' in parsedJson && 'mute' in parsedJson) {
                 classification = "Dados da LIVE";
+              } else if ('roomId' in parsedJson && 'text' in parsedJson) {
+                classification = "Mensagem de Chat";
               } else if ('roomId' in parsedJson) {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
                 classification = "Dados de Jogo";
-              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) {
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { // Stricter check for external
                 classification = "Dados Externos";
               }
             }
@@ -166,7 +170,6 @@ export default function AdminKakoLiveLinkTesterPage() {
         }]);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
         
-        // Clean up the specific socket instance that errored
         const currentSocketInstance = socketRef.current;
         if (currentSocketInstance && currentSocketInstance === newSocket) {
             currentSocketInstance.onopen = null;
@@ -184,7 +187,7 @@ export default function AdminKakoLiveLinkTesterPage() {
 
       newSocket.onclose = (closeEvent) => {
         setIsConnecting(false);
-        let closeMsg = `Desconectado de ${newSocket.url}.`; // Use newSocket.url as wsUrl might change
+        let closeMsg = `Desconectado de ${newSocket.url}.`; 
         if (closeEvent.code || closeEvent.reason) {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
@@ -198,7 +201,6 @@ export default function AdminKakoLiveLinkTesterPage() {
         }]);
         toast({ title: "Desconectado", description: closeMsg });
 
-        // Nullify the ref only if this is the socket currently in the ref
         if (socketRef.current === newSocket) {
           socketRef.current = null;
         }
@@ -217,7 +219,7 @@ export default function AdminKakoLiveLinkTesterPage() {
           isJson: false,
         }]);
       toast({ title: "Falha ao Conectar", description: errMsg, variant: "destructive" });
-      if (socketRef.current) { // If a socket was somehow assigned and then an error occurred
+      if (socketRef.current) { 
         socketRef.current.close();
         socketRef.current = null;
       }
@@ -226,9 +228,9 @@ export default function AdminKakoLiveLinkTesterPage() {
 
   const handleDisconnect = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.close(); // onclose handler will update status and nullify ref
+      socketRef.current.close(); 
     } else {
-      setConnectionStatus("Desconectado"); // Ensure status is updated if not already connected
+      setConnectionStatus("Desconectado"); 
       toast({ title: "Já Desconectado", description: "Nenhuma conexão ativa para desconectar." });
     }
   };
@@ -269,12 +271,10 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   useEffect(() => {
-    // Cleanup effect: runs only on component unmount
     return () => {
       if (socketRef.current) {
         if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
           console.log("WebSocket Link Tester: Closing WebSocket on component unmount.");
-          // Detach handlers to prevent them from running on a socket that's being forcibly closed
           socketRef.current.onopen = null;
           socketRef.current.onmessage = null;
           socketRef.current.onerror = null;
@@ -284,7 +284,7 @@ export default function AdminKakoLiveLinkTesterPage() {
         socketRef.current = null;
       }
     };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  }, []); 
 
   const filteredMessages = processedMessages.filter(msg => {
     if (msg.type === 'sent' || msg.type === 'system' || msg.type === 'error') {
@@ -292,6 +292,9 @@ export default function AdminKakoLiveLinkTesterPage() {
     }
     if (msg.classification === "Dados da LIVE") {
       return showLiveDataFilter;
+    }
+    if (msg.classification === "Mensagem de Chat") {
+      return showChatMessageFilter;
     }
     if (msg.classification === "Dados da Sala") {
       return showRoomDataFilter;
@@ -386,6 +389,14 @@ export default function AdminKakoLiveLinkTesterPage() {
               <Label htmlFor="showLiveDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da LIVE</Label>
             </div>
             <div className="flex items-center space-x-2">
+                <Checkbox
+                    id="showChatMessageFilter"
+                    checked={showChatMessageFilter}
+                    onCheckedChange={(checked) => setShowChatMessageFilter(Boolean(checked))}
+                />
+                <Label htmlFor="showChatMessageFilter" className="text-sm font-medium cursor-pointer">Mostrar Mensagens de Chat</Label>
+            </div>
+            <div className="flex items-center space-x-2">
               <Checkbox
                 id="showRoomDataFilter"
                 checked={showRoomDataFilter}
@@ -426,12 +437,14 @@ export default function AdminKakoLiveLinkTesterPage() {
                         {msg.classification && msg.type === 'received' && (
                             <Badge className={cn(`text-xs`, 
                                 msg.classification === "Dados da LIVE" && "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
+                                msg.classification === "Mensagem de Chat" && "bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200",
                                 msg.classification === "Dados da Sala" && "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200",
                                 msg.classification === "Dados de Jogo" && "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
                                 msg.classification === "Dados Externos" && "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
-                                !["Dados da LIVE", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
+                                !["Dados da LIVE", "Mensagem de Chat", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
                             )}>
                                 {msg.classification === "Dados da LIVE" && <RadioTower className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Mensagem de Chat" && <MessageSquare className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />}
@@ -500,3 +513,4 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
+
