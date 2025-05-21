@@ -16,7 +16,6 @@ export interface Game {
 
   generatedCards?: number;
   countdownSeconds?: number;
-  // registeredCardIds?: string[]; // Optional: To link game to specific cards in generatedBingoCards
 }
 
 export interface SupportTicket {
@@ -68,7 +67,7 @@ export interface UserProfile {
   
   showId?: string;          // User's Kako Live Show ID (e.g., "10763129") - Primary link to KakoProfile
   kakoLiveId?: string;      // User's Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Stored after linking
-  kakoLiveRoomId?: string;  // User's Kako Live Room ID for hosts
+  kakoLiveRoomId?: string;  // User's Kako Live Room ID for hosts (if they are a host)
 
   profileName?: string;      
   displayName?: string | null; 
@@ -80,7 +79,7 @@ export interface UserProfile {
   isVerified?: boolean;      
   followerCount?: number;    
   followingCount?: number;   
-  followingIds?: string[]; // Array of user IDs the current user is following
+  followingIds?: string[]; 
   photos?: string[];         
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay';
   birthDate?: string;        
@@ -117,9 +116,9 @@ export interface KakoProfile {
   gender?: number; 
   area?: string;
   school?: string;
-  showId?: string; // From Kako JSON, maps to their string ID 
+  showId?: string; 
   isLiving?: boolean; 
-  roomId?: string; // Optional, if available from the profile source
+  roomId?: string; 
   lastFetchedAt?: any; 
 }
 
@@ -132,7 +131,7 @@ export interface ChatMessage {
   timestamp: string;
   userMedalUrl?: string;
   rawData?: string;
-  displayFormatted: boolean;
+  displayFormatted: boolean; // New flag
   extractedRoomId?: string; 
   userId?: string; 
   userLevel?: number; 
@@ -150,7 +149,7 @@ export interface ConversationPreview {
   isPinned?: boolean;
 }
 
-export interface AppMessage { // For P2P Messages
+export interface AppMessage { 
   id: string;
   conversationId: string;
   senderId: string; 
@@ -174,8 +173,8 @@ export interface FirestoreConversation {
   updatedAt: any; 
 }
 
-export interface FirestoreMessage { // For P2P Messages
-  id?: string; // Message document ID
+export interface FirestoreMessage { 
+  id?: string; 
   senderId: string; 
   text: string;     
   timestamp: any;   
@@ -184,7 +183,7 @@ export interface FirestoreMessage { // For P2P Messages
 
 export interface FeedPost {
   id: string; 
-  userId?: string; // UID of the author from 'accounts' collection
+  userId?: string;
   user: UserSummary; 
   postTitle?: string;
   content: string;
@@ -200,7 +199,7 @@ export interface FeedPost {
     
 export interface UserSummary {
   name: string;
-  handle: string; // For user's role/title or @username
+  handle: string; 
   avatarUrl: string;
   dataAiHint?: string; 
 }
@@ -216,7 +215,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; // For user's description/role
+  handle: string; 
   avatarUrl: string;
   dataAiHint?: string;
 }
@@ -252,10 +251,18 @@ export interface CardUsageInstance {
   isWinner?: boolean; // Optional: if you track wins per card usage
 }
 
+export interface AwardInstance {
+  gameId: string;
+  userId: string; // UID of the player who won with this card in this game
+  timestamp: any; // Firestore Timestamp of when the award was registered
+}
+
 export interface GeneratedBingoCard {
   id: string; // Unique ID for the card document (e.g., hash or UUID)
   cardNumbers: (number | null)[][]; // The 3x9 array of numbers
+  creatorId: string; // UID of the user who generated/created this card
   createdAt: any; // Firestore Timestamp
-  generatedByIpAddress?: string; // IP address of the generator (handle privacy)
   usageHistory: CardUsageInstance[]; // Array of usage instances
+  timesAwarded: number; // How many times this card has been a winner
+  awardsHistory: AwardInstance[]; // Details of each win
 }

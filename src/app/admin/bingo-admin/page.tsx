@@ -12,10 +12,10 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, AlertTriangle
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance } from '@/types';
+import type { GeneratedBingoCard, CardUsageInstance, AwardInstance } from '@/types';
 
 interface BingoAdminMenuItem {
   id: string;
@@ -40,11 +40,15 @@ const placeholderGeneratedCards: GeneratedBingoCard[] = [
       [8, 17, null, 32, null, 53, null, 89, null],
       [null, 19, 22, null, 42, null, 55, null, 84]
     ],
+    creatorId: 'user-creator-123',
     createdAt: new Date(),
-    generatedByIpAddress: '192.168.1.101',
     usageHistory: [
       { userId: 'player123', gameId: 'game789', timestamp: new Date(), isWinner: false },
       { userId: 'player456', gameId: 'game789', timestamp: new Date(), isWinner: true },
+    ],
+    timesAwarded: 1,
+    awardsHistory: [
+      { gameId: 'game789', userId: 'player456', timestamp: new Date() }
     ]
   },
   {
@@ -54,13 +58,20 @@ const placeholderGeneratedCards: GeneratedBingoCard[] = [
       [null, 15, 25, 35, 45, null, 68, null, 82],
       [7, null, 28, null, 48, 58, null, 77, null]
     ],
+    creatorId: 'system-generator',
     createdAt: new Date(Date.now() - 86400000), // Yesterday
-    generatedByIpAddress: '203.0.113.45',
     usageHistory: [
       { userId: 'player789', gameId: 'gameABC', timestamp: new Date(), isWinner: false },
-    ]
+    ],
+    timesAwarded: 0,
+    awardsHistory: []
   }
 ];
+
+const formatCardNumbersPreview = (numbers: (number | null)[][]): string => {
+  const firstRowNumbers = numbers[0]?.filter(n => n !== null).slice(0, 3).join(', ');
+  return firstRowNumbers ? `${firstRowNumbers}...` : 'N/A';
+};
 
 
 export default function AdminBingoAdminPage() {
@@ -96,7 +107,6 @@ export default function AdminBingoAdminPage() {
     if (validTab) {
       setActiveTab(hash);
     } else {
-      // Fallback to the first item in the menu if hash is invalid or not present
       const firstItemId = bingoSpecificMenuGroups[0]?.items[0]?.id || 'bingoPartidas';
       setActiveTab(firstItemId); 
       if (pathname === '/admin/bingo-admin' && window.location.hash !== `#${firstItemId}` && window.location.hash !== '') {
@@ -192,29 +202,23 @@ export default function AdminBingoAdminPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 p-3 border border-amber-500 bg-amber-50 rounded-md">
-                    <div className="flex items-center">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 mr-2" />
-                        <p className="text-sm text-amber-700">
-                        <strong>Nota:</strong> O rastreamento de IP tem implicações de privacidade. Certifique-se de estar em conformidade com as leis aplicáveis (ex: GDPR) e de informar os usuários em sua política de privacidade.
-                        </p>
-                    </div>
-                </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>ID da Cartela</TableHead>
+                        <TableHead>Números (Início)</TableHead>
+                        <TableHead>ID do Criador</TableHead>
                         <TableHead>Data de Criação</TableHead>
-                        <TableHead>IP de Geração</TableHead>
                         <TableHead className="text-center">Usos</TableHead>
+                        <TableHead className="text-center">Premiada</TableHead>
                         <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {generatedCards.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center h-24">
+                          <TableCell colSpan={7} className="text-center h-24">
                             Nenhuma cartela gerada encontrada.
                           </TableCell>
                         </TableRow>
@@ -222,9 +226,11 @@ export default function AdminBingoAdminPage() {
                         generatedCards.map((card) => (
                           <TableRow key={card.id}>
                             <TableCell className="font-mono text-xs">{card.id}</TableCell>
+                            <TableCell className="text-xs">{formatCardNumbersPreview(card.cardNumbers)}</TableCell>
+                            <TableCell className="text-xs">{card.creatorId}</TableCell>
                             <TableCell>{card.createdAt instanceof Date ? card.createdAt.toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
-                            <TableCell>{card.generatedByIpAddress || 'N/A'}</TableCell>
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
+                            <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
                               <Button variant="outline" size="sm" className="h-7 text-xs">
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
