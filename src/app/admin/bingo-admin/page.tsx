@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save // Added Save here
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize } from '@/types';
@@ -139,7 +139,7 @@ type NewKakoPrizeFormValues = z.infer<typeof newKakoPrizeSchema>;
 export default function AdminBingoAdminPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useAuth(); // Assuming useAuth provides logout
+  const { logout } = useAuth(); 
   const { toast } = useToast();
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
@@ -225,7 +225,7 @@ export default function AdminBingoAdminPage() {
         return;
     }
     try {
-      const newPrizeData: Omit<BingoPrize, 'id'> = {
+      const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
         name: values.name,
         imageUrl: values.imageUrl || undefined,
         kakoGiftId: values.kakoGiftId || undefined,
@@ -618,7 +618,7 @@ export default function AdminBingoAdminPage() {
                                             <TableCell className="font-medium">{prize.name}</TableCell>
                                             <TableCell className="text-xs">{prize.kakoGiftId || "N/A"}</TableCell>
                                             <TableCell className="text-xs">{prize.valueDisplay || "N/A"}</TableCell>
-                                            <TableCell className="text-xs max-w-xs truncate" title={prize.description}>{prize.description || "N/A"}</TableCell>
+                                            <TableCell className="text-xs max-w-xs truncate" title={prize.description || undefined}>{prize.description || "N/A"}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
