@@ -63,7 +63,7 @@ export default function TermsPage() {
 
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
       await updateDoc(userDocRef, {
         agreedToTermsAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
