@@ -7,14 +7,14 @@ import { useAuth } from '@/hooks/use-auth';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { Home, Users, TicketIcon, MessageSquare, UserCircle2, Settings, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { UserProfile } from "@/types";
 import { db, doc, getDoc } from "@/lib/firebase";
-import { initialModuleStatuses, type SiteModule, type MinimumAccessLevel, type UserRole as AdminUserRole } from '@/app/admin/maintenance/offline/page';
+import { initialModuleStatuses, type SiteModule, type UserRole as AdminUserRole } from '@/app/admin/maintenance/offline/page';
 
 const roleHierarchy: Record<AdminUserRole, number> = {
   player: 0,
@@ -86,12 +86,13 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       return;
     }
 
-    const standaloneAuthPaths = ['/login', '/signup', '/forgot-password', '/maintenance'];
+    const standaloneAuthPaths = ['/login', '/signup', '/forgot-password'];
     const isOnboardingPage = pathname.startsWith('/onboarding');
     const isAuthPage = standaloneAuthPaths.includes(pathname);
+    const isMaintenancePage = pathname === '/maintenance';
     
-    if (isAuthPage || isOnboardingPage) {
-      setIsReadyForContent(true);
+    if (isAuthPage || isOnboardingPage || isMaintenancePage) {
+      setIsReadyForContent(true); // Standalone pages handle their own loading/content display
       return;
     }
 
@@ -117,7 +118,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       const userBaseRole = currentUser.role || 'player';
       const userAdminRole = currentUser.adminLevel;
       const userBaseLevel = roleHierarchy[userBaseRole as AdminUserRole] ?? roleHierarchy.player;
-      const userAdminLevelVal = userAdminRole ? roleHierarchy[userAdminRole as AdminUserRole] : -1; // Use -1 or some other low value if no adminLevel
+      const userAdminLevelVal = userAdminRole ? roleHierarchy[userAdminRole as AdminUserRole] : -1; 
       const effectiveUserLevel = Math.max(userBaseLevel, userAdminLevelVal);
 
       switch (moduleRule.minimumAccessLevelWhenOffline) {
@@ -126,8 +127,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         case 'admin': userHasAccess = effectiveUserLevel >= roleHierarchy.admin; break;
         case 'suporte': userHasAccess = effectiveUserLevel >= roleHierarchy.suporte; break;
         case 'host': userHasAccess = effectiveUserLevel >= roleHierarchy.host; break;
-        case 'player': userHasAccess = effectiveUserLevel === roleHierarchy.player; break;
-        default: userHasAccess = true; // Default to access if rule is malformed for safety
+        case 'player': userHasAccess = effectiveUserLevel === roleHierarchy.player; break; 
+        default: userHasAccess = true; 
       }
       
       if (!userHasAccess && pathname !== '/maintenance') {
@@ -146,17 +147,15 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const isAuthPage = standaloneAuthPaths.includes(pathname);
   const isMaintenancePage = pathname === '/maintenance';
 
-  if (authLoading || isLoadingRules) {
-    if (!isAuthPage && !isOnboardingPage && !isMaintenancePage) {
-      return (
-        <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-          <LoadingSpinner size="lg" />
-        </div>
-      );
-    }
+  if ((authLoading || isLoadingRules) && !(isAuthPage || isOnboardingPage || isMaintenancePage)) {
+    return (
+      <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
   
-  if (isAuthPage || isOnboardingPage || isMaintenancePage) {
+  if (isAuthPage || isOnboardingPage) {
     return (
       <>
         {children}
@@ -165,13 +164,32 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-  if (!isReadyForContent) {
+  // For maintenance page, show its content without the full app layout if it's meant to be isolated
+  // or within the main layout if that's preferred (current setting via standaloneAuthPaths not including /maintenance)
+  if (isMaintenancePage) {
+     // Fallback if auth context not ready, though maintenance page itself is simple
+     if (authLoading || isLoadingRules) {
+        return (
+            <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+     }
+     // If /maintenance is not standalone, wrap it with SidebarProvider to show sidebar
+     // This assumes /maintenance itself doesn't need to be fully "protected"
+     // If it IS standalone, the earlier condition (isAuthPage || isOnboardingPage || isMaintenancePage) would just render children.
+     // Based on current logic, /maintenance IS NOT standalone by default anymore
+  }
+
+  // For regular app pages (including /maintenance if not handled as standalone)
+  if (!isReadyForContent && !isAuthPage && !isOnboardingPage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
+
 
   return (
     <SidebarProvider defaultOpen={false}>
