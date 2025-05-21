@@ -328,7 +328,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                         {msg.timestamp}
                         </p>
                         {msg.classification && msg.type === 'received' && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge className="text-xs bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200">
                                 <BadgeInfo className="mr-1.5 h-3 w-3" />
                                 {msg.classification}
                             </Badge>
