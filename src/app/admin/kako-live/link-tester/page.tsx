@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox import
 
 interface ProcessedMessage {
   id: string;
@@ -20,7 +21,7 @@ interface ProcessedMessage {
   originalData: string;
   parsedData?: Record<string, any>;
   isJson: boolean;
-  classification?: string; // Added for classifying messages
+  classification?: string;
 }
 
 const generateUniqueId = () => {
@@ -36,6 +37,9 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [messageToSend, setMessageToSend] = useState<string>("");
   const { toast } = useToast();
+
+  const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
+  const [showGameDataFilter, setShowGameDataFilter] = useState(true);
 
   const handleConnect = () => {
     if (!wsUrl.trim() || (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://"))) {
@@ -109,8 +113,6 @@ export default function AdminKakoLiveLinkTesterPage() {
             parsedJson = JSON.parse(jsonStr);
             isJsonMessage = true;
           } else {
-             // If no clear JSON object boundaries, try to parse the whole string
-             // This might fail for messages with leading/trailing non-JSON text, but it's a fallback.
              parsedJson = JSON.parse(messageContentString);
              isJsonMessage = true;
           }
@@ -124,7 +126,6 @@ export default function AdminKakoLiveLinkTesterPage() {
           }
 
         } catch (e) {
-          // console.warn("Failed to parse message as JSON or classify:", e);
           isJsonMessage = false;
         }
 
@@ -222,7 +223,7 @@ export default function AdminKakoLiveLinkTesterPage() {
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         type: 'sent',
         originalData: `[ENVIADO] ${messageToSend.trim()}`,
-        isJson: false, 
+        isJson: false,
       }]);
       toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
       setMessageToSend("");
@@ -241,7 +242,6 @@ export default function AdminKakoLiveLinkTesterPage() {
   };
 
   useEffect(() => {
-    // Cleanup function to close WebSocket on component unmount
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
@@ -249,6 +249,20 @@ export default function AdminKakoLiveLinkTesterPage() {
       socketRef.current = null;
     };
   }, []);
+
+  const filteredMessages = processedMessages.filter(msg => {
+    if (msg.type === 'sent' || msg.type === 'system' || msg.type === 'error') {
+      return true; // Always show sent, system, and error messages
+    }
+    // For 'received' messages:
+    if (msg.classification === "Dados da Sala") {
+      return showRoomDataFilter;
+    }
+    if (msg.classification === "Dados de Jogo") {
+      return showGameDataFilter;
+    }
+    return true; // Show unclassified received messages by default
+  });
 
   return (
     <div className="p-6 space-y-6 h-full flex flex-col">
@@ -300,7 +314,6 @@ export default function AdminKakoLiveLinkTesterPage() {
             )}
           </div>
 
-          {/* Send Message Section */}
           <div className="mt-4 space-y-2 border-t pt-4">
             <Label htmlFor="messageToSend">Mensagem para Enviar</Label>
             <div className="flex space-x-2">
@@ -322,13 +335,31 @@ export default function AdminKakoLiveLinkTesterPage() {
             </div>
           </div>
 
+          <div className="mt-4 flex items-center space-x-4 border-t pt-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showRoomDataFilter"
+                checked={showRoomDataFilter}
+                onCheckedChange={(checked) => setShowRoomDataFilter(Boolean(checked))}
+              />
+              <Label htmlFor="showRoomDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da Sala</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showGameDataFilter"
+                checked={showGameDataFilter}
+                onCheckedChange={(checked) => setShowGameDataFilter(Boolean(checked))}
+              />
+              <Label htmlFor="showGameDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados de Jogo</Label>
+            </div>
+          </div>
 
-          <div className="mt-4 flex-grow flex flex-col min-h-0">
-            <Label htmlFor="rawMessagesArea">Mensagens Recebidas/Enviadas:</Label>
+          <div className="mt-2 flex-grow flex flex-col min-h-0">
+            <Label htmlFor="rawMessagesArea">Mensagens Recebidas/Enviadas ({filteredMessages.length} de {processedMessages.length}):</Label>
             <ScrollArea id="rawMessagesArea" className="flex-grow h-72 rounded-md border bg-muted/30 p-1 mt-1">
               <div className="p-3 space-y-3">
-                {processedMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aguardando mensagens...</p>}
-                {processedMessages.map((msg) => (
+                {filteredMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem para exibir (verifique os filtros)...</p>}
+                {filteredMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
                     <div className="flex justify-between items-center mb-1">
                         <p className="text-xs text-muted-foreground">
@@ -339,7 +370,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                             <Badge className={`text-xs ${
                                 msg.classification === "Dados da Sala" ? "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200" :
                                 msg.classification === "Dados de Jogo" ? "bg-green-100 text-green-700 border-green-200 hover:bg-green-200" :
-                                "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200" // Default badge
+                                "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
                             }`}>
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
@@ -383,8 +414,8 @@ export default function AdminKakoLiveLinkTesterPage() {
                     ) : (
                       <div>
                         <h4 className="text-sm font-semibold mb-1">
-                          {msg.type === 'sent' ? 'Dados Brutos Enviados:' : 
-                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON/Erro de Parse):' : 
+                          {msg.type === 'sent' ? 'Dados Brutos Enviados:' :
+                           msg.type === 'received' ? 'Dados Brutos Recebidos (Não JSON/Erro de Parse):' :
                            msg.type === 'system' ? 'Mensagem do Sistema:' :
                            'Mensagem de Erro:'}
                         </h4>
