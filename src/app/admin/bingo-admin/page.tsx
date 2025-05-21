@@ -9,13 +9,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance } from '@/types';
@@ -108,6 +118,7 @@ export default function AdminBingoAdminPage() {
   const [generatedCards, setGeneratedCards] = useState<GeneratedBingoCard[]>(placeholderGeneratedCards);
   const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isConfirmDeleteAllCardsDialogOpen, setIsConfirmDeleteAllCardsDialogOpen] = useState(false);
 
   useEffect(() => {
     const hash = window.location.hash.substring(1); 
@@ -140,6 +151,14 @@ export default function AdminBingoAdminPage() {
     setSelectedCardForDetails(card);
     setIsDetailModalOpen(true);
   };
+
+  const handleConfirmDeleteAllCards = () => {
+    setGeneratedCards([]);
+    // toast({ title: "Lista de Cartelas Limpa", description: "Todas as cartelas foram removidas da lista (localmente)." }); // Toast can be added if useToast is available
+    console.log("Todas as cartelas foram removidas da lista (localmente).");
+    setIsConfirmDeleteAllCardsDialogOpen(false);
+  };
+
 
   const renderBingoAdminContent = () => {
     let contentTitle = "Seção de Bingo";
@@ -215,6 +234,17 @@ export default function AdminBingoAdminPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 flex justify-end">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setIsConfirmDeleteAllCardsDialogOpen(true)}
+                    disabled={generatedCards.length === 0}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Apagar Todas as Cartelas (Local)
+                  </Button>
+                </div>
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -241,7 +271,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="font-mono text-xs">{card.id}</TableCell>
                             <TableCell className="text-xs">{formatCardNumbersPreview(card.cardNumbers)}</TableCell>
                             <TableCell className="text-xs">{card.creatorId}</TableCell>
-                            <TableCell>{card.createdAt instanceof Date ? card.createdAt.toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
+                            <TableCell>{card.createdAt instanceof Date ? format(card.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
@@ -480,7 +510,29 @@ export default function AdminBingoAdminPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={isConfirmDeleteAllCardsDialogOpen} onOpenChange={setIsConfirmDeleteAllCardsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão de Todas as Cartelas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja apagar TODAS as cartelas geradas desta lista?
+              Esta ação é apenas local e não afeta o banco de dados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmDeleteAllCardsDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteAllCards}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Apagar Tudo (Local)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
     
+
