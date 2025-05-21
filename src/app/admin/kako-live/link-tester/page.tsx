@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox import
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 interface ProcessedMessage {
   id: string;
@@ -362,7 +363,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                 {filteredMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
                     <div className="flex justify-between items-center mb-1">
-                        <p className="text-xs text-muted-foreground">
+                        <p className={cn("text-xs", (msg.type === 'system' || msg.type === 'error') ? "text-destructive" : "text-muted-foreground")}>
                         {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
                         {msg.timestamp}
                         </p>
