@@ -74,9 +74,9 @@ export default function AdminKakoLiveDataListPageContent() {
         const data = docSnap.data();
         // Ensure all required fields from KakoProfile type are present
         fetchedProfiles.push({
-          id: docSnap.id,
+          id: docSnap.id, // This assumes docSnap.id is the Kako userId/fuid
           nickname: data.nickname || "N/A",
-          avatarUrl: data.avatarUrl || "",
+          avatarUrl: data.avatar || data.avatarUrl || "", // Prioritize data.avatar
           numId: data.numId,
           level: data.level,
           gender: data.gender,
@@ -343,3 +343,5 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
+    
