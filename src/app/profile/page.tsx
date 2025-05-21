@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  ClipboardUser, DatabaseZap, Lock, CreditCard, Info
+  Clipboard, DatabaseZap, Lock, CreditCard, Info 
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO, subYears, isValid } from "date-fns";
+import { format, parseISO, subYears, isValid, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
@@ -65,7 +65,7 @@ const activityFeedItems = [
 
 const profileMenuItems = [
   { id: 'inicio', title: 'Início', icon: UserCircle2 },
-  { id: 'informacoesPessoais', title: 'Informações pessoais', icon: ClipboardUser },
+  { id: 'informacoesPessoais', title: 'Informações pessoais', icon: Clipboard },
   { id: 'dadosPrivacidade', title: 'Dados e privacidade', icon: DatabaseZap },
   { id: 'seguranca', title: 'Segurança', icon: Lock },
   { id: 'pessoasCompartilhamento', title: 'Pessoas e compartilhamento', icon: Users },
@@ -95,23 +95,18 @@ export default function ProfilePage() {
         try {
             let parsedDate: Date | null = null;
             if (typeof currentUser.birthDate === 'string') {
-              const dateParts = currentUser.birthDate.split('-');
-              if (dateParts.length === 3) {
-                  const year = parseInt(dateParts[0], 10);
-                  const month = parseInt(dateParts[1], 10) - 1;
-                  const day = parseInt(dateParts[2], 10);
-                  if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                    const tempDate = new Date(Date.UTC(year, month, day));
-                    if (isValid(tempDate)) parsedDate = tempDate;
-                  }
+              if (currentUser.birthDate.includes('-')) { // YYYY-MM-DD
+                parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
+              } else if (currentUser.birthDate.includes('/')) { // DD/MM/YYYY
+                parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
               }
-              if (!parsedDate || !isValid(parsedDate)) {
+              if (!parsedDate || !isValid(parsedDate)) { // Fallback if parsing above failed
                   const isoDate = parseISO(currentUser.birthDate);
                   if(isValid(isoDate)) parsedDate = isoDate;
               }
             } else if (currentUser.birthDate instanceof Date) {
               parsedDate = currentUser.birthDate;
-            // @ts-ignore
+            // @ts-ignore Check if it's a Firebase Timestamp
             } else if (currentUser.birthDate && typeof currentUser.birthDate.toDate === 'function') {
                 // @ts-ignore
                 parsedDate = currentUser.birthDate.toDate();
@@ -119,7 +114,7 @@ export default function ProfilePage() {
             if (parsedDate && isValid(parsedDate)) {
                  setEditableBirthDate(parsedDate);
             } else {
-                console.warn("Failed to parse birthDate from currentUser, setting to undefined. Original value:", currentUser.birthDate);
+                console.warn("Failed to parse birthDate from currentUser on profile page, setting to undefined. Original value:", currentUser.birthDate);
                 setEditableBirthDate(undefined);
             }
         } catch (error) {
@@ -188,9 +183,10 @@ export default function ProfilePage() {
   const userUniversity = currentUser?.socialLinks?.school || "Universidade de Ljubljana";
   const userLivesIn = currentUser?.country || "Não informado";
   const userFrom = currentUser?.country || "Não informado";
-  const userTimeZone = "Europe/Ljubljana";
+  const userTimeZone = "Europe/Ljubljana"; // Placeholder
   const userEmail = currentUser?.email || "Não informado";
   const userDobFormatted = editableBirthDate ? format(editableBirthDate, "dd/MM/yyyy", { locale: ptBR }) : "Não informada";
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -218,11 +214,10 @@ export default function ProfilePage() {
                 <div className="flex items-center"><Clock className="mr-2 h-4 w-4 text-primary" /> <span className="text-muted-foreground mr-1">Fuso horário:</span> {userTimeZone}</div>
               </CardContent>
             </Card>
-            {/* Placeholder Activity Feed */}
             <Card className="shadow-md">
                 <CardHeader><CardTitle className="text-lg font-semibold">Atividade Recente</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                {activityFeedItems.slice(0,3).map(item => ( // Show only a few items for overview
+                {activityFeedItems.slice(0,3).map(item => (
                     <div key={item.id} className="pb-2 border-b last:border-b-0">
                     <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 mt-1">
@@ -409,7 +404,6 @@ export default function ProfilePage() {
   return (
     <ProtectedPage>
       <div className="space-y-6">
-        {/* Profile Header */}
         <Card className="shadow-lg">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-start gap-4">
@@ -433,7 +427,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {userJobTitle}. {userWorkplace}. Atualmente com $400k/ano.
+                  {userJobTitle}. {userWorkplace}.
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                   <span className="flex items-center"><BookOpen className="mr-1.5 h-3 w-3" /> {userUniversity}</span>
@@ -446,7 +440,6 @@ export default function ProfilePage() {
         </Card>
 
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Left Sidebar Menu */}
           <nav className="md:w-72 lg:w-80 flex-shrink-0">
             <Card className="shadow-md">
               <CardContent className="p-2 space-y-1">
@@ -473,7 +466,6 @@ export default function ProfilePage() {
             </Card>
           </nav>
 
-          {/* Right Content Area */}
           <main className="flex-1 space-y-6">
             {renderContent()}
           </main>
@@ -482,5 +474,3 @@ export default function ProfilePage() {
     </ProtectedPage>
   );
 }
-
-    
