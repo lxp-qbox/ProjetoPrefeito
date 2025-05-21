@@ -29,6 +29,7 @@ import {
 import type { KakoProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
+import { db, collection, getDocs, writeBatch, doc as firestoreDoc } from "@/lib/firebase";
 
 interface StatCardProps {
   title: string;
@@ -53,68 +54,56 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
   </Card>
 );
 
-// Updated placeholder data to match the new JSON structure
-const placeholderKakoProfiles: KakoProfile[] = [
-  {
-    id: "b2f7260f233746e19ebac80d31d82908", // userId
-    nickname: "Janyᵃᵍⁿᵉˣᵘˢ✨️",
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/b2f7260f233746e19ebac80d31d82908/20250509/1746802335031.jpg/200x200", // avatar
-    level: 24,
-    numId: 1000360701,
-    gender: 2,
-    showId: "10956360",
-    isLiving: true,
-  },
-  {
-    id: "0322d2dd57e74a028a9e72c2fae1fd9a",
-    nickname: "PRESIDENTE",
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
-    level: 39,
-    numId: 1008850234,
-    isLiving: true,
-    gender: 1,
-    showId: "10763129",
-  },
-  {
-    id: "c2e7c033b41243b5b09f42aa50edf4a1",
-    nickname: "KAROL❤️WILLIAN🦊FOX",
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/c2e7c033b41243b5b09f42aa50edf4a1/20250514/1747241154907.jpg/200x200",
-    level: 22,
-    numId: 1001007128,
-    isLiving: false,
-    gender: 2,
-    showId: "10433584",
-  },
-  {
-    id: "d4e4ed8946bc40f483ca2da95164a90b",
-    nickname: "ALENE",
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/d4e4ed8946bc40f483ca2da95164a90b/20250509/1746753809206.jpg/200x200",
-    level: 21,
-    numId: 1005155088,
-    isLiving: true,
-    gender: 2,
-    showId: "10800907",
-  },
-];
-
-
 export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const [profileToDelete, setProfileToDelete] = useState<KakoProfile | null>(null);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
   const [isConfirmClearDialogOpen, setIsConfirmClearDialogOpen] = useState(false);
 
+  const fetchKakoProfiles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const profilesCollectionRef = collection(db, "kakoProfiles");
+      const querySnapshot = await getDocs(profilesCollectionRef);
+      const fetchedProfiles: KakoProfile[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        // Ensure all required fields from KakoProfile type are present
+        fetchedProfiles.push({
+          id: docSnap.id,
+          nickname: data.nickname || "N/A",
+          avatarUrl: data.avatarUrl || "",
+          numId: data.numId,
+          level: data.level,
+          gender: data.gender,
+          showId: data.showId,
+          signature: data.signature,
+          area: data.area,
+          school: data.school,
+          isLiving: data.isLiving,
+          lastFetchedAt: data.lastFetchedAt,
+        });
+      });
+      setKakoProfiles(fetchedProfiles);
+    } catch (error) {
+      console.error("Erro ao buscar perfis Kako Live:", error);
+      toast({
+        title: "Erro ao Buscar Dados",
+        description: "Não foi possível carregar os perfis do banco de dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setKakoProfiles(placeholderKakoProfiles);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchKakoProfiles();
+  }, [fetchKakoProfiles]);
 
   const handleRequestDeleteProfile = (profile: KakoProfile) => {
     setProfileToDelete(profile);
@@ -123,22 +112,54 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const handleConfirmDeleteProfile = () => {
     if (!profileToDelete) return;
+    // This would be where you delete from Firestore if each item was deletable individually
+    // For now, it just removes from local state for placeholder
     setKakoProfiles(prevProfiles => prevProfiles.filter(p => p.id !== profileToDelete.id));
     toast({
       title: "Perfil Removido (Localmente)",
-      description: `O perfil de ${profileToDelete.nickname} foi removido da lista.`,
+      description: `O perfil de ${profileToDelete.nickname} foi removido da lista. Esta ação não afetou o banco de dados.`,
     });
     setIsConfirmDeleteDialogOpen(false);
     setProfileToDelete(null);
   };
 
-  const handleConfirmClearList = () => {
-    setKakoProfiles([]); // This should clear the list
-    toast({
-      title: "Lista Zerada",
-      description: "Todos os perfis foram removidos da lista atual (nesta visualização).",
-    });
+  const handleConfirmClearList = async () => {
     setIsConfirmClearDialogOpen(false);
+    setIsDeleting(true);
+    try {
+      const profilesCollectionRef = collection(db, "kakoProfiles");
+      const querySnapshot = await getDocs(profilesCollectionRef);
+      
+      if (querySnapshot.empty) {
+        toast({
+          title: "Lista Já Vazia",
+          description: "Não há perfis Kako Live no banco de dados para excluir.",
+        });
+        setKakoProfiles([]); // Ensure UI is also empty
+        return;
+      }
+
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((doc) => {
+        batch.delete(firestoreDoc(db, "kakoProfiles", doc.id));
+      });
+      await batch.commit();
+
+      setKakoProfiles([]); // Clear local state
+      toast({
+        title: "Lista Zerada com Sucesso!",
+        description: "Todos os perfis Kako Live foram excluídos do banco de dados.",
+      });
+    } catch (error) {
+      console.error("Erro ao zerar lista de perfis Kako Live:", error);
+      toast({
+        title: "Erro ao Zerar Lista",
+        description: "Não foi possível excluir os perfis do banco de dados. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredProfiles = kakoProfiles.filter(profile =>
@@ -148,7 +169,7 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.showId && profile.showId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const onlineProfilesCount = kakoProfiles.filter(p => p.isLiving).length;
+  const onlineProfilesCount = kakoProfiles.filter(p => p.isLiving).length; // This remains indicative
 
   if (isLoading) {
     return (
@@ -164,7 +185,7 @@ export default function AdminKakoLiveDataListPageContent() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Lista de Perfis do Kako Live</h1>
-            <p className="text-sm text-muted-foreground">Visualize dados de perfis (simulado).</p>
+            <p className="text-sm text-muted-foreground">Visualize dados de perfis carregados do banco de dados.</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
@@ -177,9 +198,9 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={() => setIsConfirmClearDialogOpen(true)} className="h-10">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Zerar Lista
+              <Button variant="destructive" onClick={() => setIsConfirmClearDialogOpen(true)} className="h-10" disabled={isDeleting}>
+                {isDeleting ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                Zerar Lista (DB)
               </Button>
           </div>
         </div>
@@ -301,9 +322,9 @@ export default function AdminKakoLiveDataListPageContent() {
       <AlertDialog open={isConfirmClearDialogOpen} onOpenChange={setIsConfirmClearDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Zerar Lista</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Zerar Lista do Banco de Dados</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja remover todos os perfis da lista atual? Esta ação não pode ser desfeita para a visualização atual.
+              Você tem certeza que deseja excluir TODOS os perfis Kako Live do banco de dados? Esta ação não pode ser desfeita e afetará os dados permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -311,8 +332,10 @@ export default function AdminKakoLiveDataListPageContent() {
             <AlertDialogAction
               onClick={handleConfirmClearList}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isDeleting}
             >
-              Zerar Lista
+              {isDeleting ? <LoadingSpinner size="sm" className="mr-2"/> : null}
+              Zerar Banco de Dados
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -320,4 +343,3 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
-
