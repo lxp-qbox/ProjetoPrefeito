@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LogOut, Mail, UserCircle2, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
-  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Edit3
+  LogOut, Mail, UserCircle2, Edit3, ShieldCheck, Fingerprint, CalendarDays as LucideCalendarIcon, Save, Briefcase, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, BookOpen, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Image as ImageIcon, Settings as SettingsIcon, Check,
+  Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2 // Added Share2 here
 } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { UserProfile } from "@/types";
@@ -36,8 +37,24 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Image from "next/image";
-import Link from "next/link";
+import Image from "next/image"; // Already imported, but good to confirm
+
+// Re-define ProfileMenuItem and ProfileMenuGroup locally for this page
+interface ProfileMenuItem {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  link?: string;
+  currentValue?: string;
+  action?: () => void;
+}
+
+interface ProfileMenuGroup {
+  groupTitle?: string;
+  items: ProfileMenuItem[];
+  isBottomSection?: boolean;
+}
+
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -54,20 +71,6 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   return formatted;
 };
 
-interface ProfileMenuItem {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  link?: string;
-  currentValue?: string;
-  action?: () => void;
-}
-
-interface ProfileMenuGroup {
-  groupTitle?: string;
-  items: ProfileMenuItem[];
-  isBottomSection?: boolean;
-}
 
 export default function ProfilePage() {
   const { currentUser, logout } = useAuth();
@@ -82,7 +85,8 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<string>('profileDashboard');
+  const [activeTab, setActiveTab] = useState<string>('profileDashboard'); // Default tab
+
 
   const profileMenuGroups: ProfileMenuGroup[] = [
     {
@@ -96,23 +100,23 @@ export default function ProfilePage() {
     {
       groupTitle: "MINHA CONTA",
       items: [
-        { id: "profileInfo", title: "Informações Pessoais", icon: UserCircle2, link: "/profile#informacoesPessoais" },
-        { id: "profileSecurity", title: "Segurança da Conta", icon: Lock, link: "/profile#seguranca" },
-        { id: "profileAppearance", title: "Aparência", icon: SettingsIcon, link: "/settings" },
+        { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard, link: "/profile#informacoesPessoais" },
+        { id: "seguranca", title: "Segurança da Conta", icon: Lock, link: "/profile#seguranca" },
+        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
       ],
     },
     {
       groupTitle: "SOBRE",
       items: [
-        { id: "profileUserAgreement", title: "Contrato do usuário", icon: FileText, link: "/profile#user-agreement" },
-        { id: "profilePrivacyPolicy", title: "Política de privacidade", icon: FileText, link: "/profile#privacy-policy" },
-        { id: "profileHostAgreement", title: "Contrato de Host", icon: FileText, link: "/profile#host-agreement" },
-        { id: "profileAboutKako", title: "Sobre Kako Live", icon: Info, link: "/profile#about-kako" },
+        { id: "user-agreement", title: "Contrato do usuário", icon: FileText, link: "/profile#user-agreement" },
+        { id: "privacy-policy", title: "Política de privacidade", icon: FileText, link: "/profile#privacy-policy" },
+        { id: "host-agreement", title: "Contrato de Host", icon: FileText, link: "/profile#host-agreement" },
+        { id: "about-kako", title: "Sobre Kako Live", icon: Info, link: "/profile#about-kako" },
       ],
     },
     {
       items: [
-        { id: "profileSupport", title: "Entre em contato conosco", icon: Headphones, link: "/support" },
+        { id: "support", title: "Entre em contato conosco", icon: Headphones, link: "/support" },
       ],
       isBottomSection: true,
     },
@@ -123,17 +127,21 @@ export default function ProfilePage() {
     },
   ];
 
-
   useEffect(() => {
     const hash = window.location.hash.substring(1);
     const allItems = profileMenuGroups.flatMap(group => group.items);
     const matchingItem = allItems.find(item => item.id === hash || (item.link && item.link.endsWith(`#${hash}`)));
+    
     if (matchingItem) {
       setActiveTab(matchingItem.id);
     } else if (allItems.length > 0) {
-      setActiveTab(allItems[0].id); // Default to first item if no hash or hash doesn't match
+      // If no hash, or hash doesn't match, default to the ID of the first item of the first group
+      if (profileMenuGroups.length > 0 && profileMenuGroups[0].items.length > 0) {
+        setActiveTab(profileMenuGroups[0].items[0].id);
+      }
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount to set initial tab based on hash
 
   useEffect(() => {
     if (currentUser) {
@@ -144,24 +152,26 @@ export default function ProfilePage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
+            if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { // YYYY-MM-DD
               parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
-            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
+            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { // DD/MM/YYYY
               parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
+            // Fallback for ISO string
             if (!parsedDate || !isValid(parsedDate)) {
               const isoDate = parseISO(currentUser.birthDate);
               if (isValid(isoDate)) parsedDate = isoDate;
             }
-          } else if ((currentUser.birthDate as any)?.toDate) {
+          } else if ((currentUser.birthDate as any)?.toDate) { // Firestore Timestamp
             parsedDate = (currentUser.birthDate as any).toDate();
-          } else if (currentUser.birthDate instanceof Date) {
+          } else if (currentUser.birthDate instanceof Date) { // Already a Date object
             parsedDate = currentUser.birthDate;
           }
 
           if (parsedDate && isValid(parsedDate)) {
             setEditableBirthDate(parsedDate);
           } else {
+            console.warn("Failed to parse birthDate from currentUser:", currentUser.birthDate);
             setEditableBirthDate(undefined);
           }
         } catch (error) {
@@ -218,16 +228,18 @@ export default function ProfilePage() {
     if (item.action) {
       item.action();
     } else if (item.link) {
-      if (item.link.startsWith('/')) {
+      if (item.link.startsWith('/')) { // Check if it's an internal app link
         router.push(item.link);
-      } else if (item.link.startsWith('#')) {
-        setActiveTab(item.link.substring(1));
-        window.location.hash = item.link;
+      } else if (item.link.startsWith('#')) { // Check if it's a hash link for tab navigation
+        setActiveTab(item.id); // Use item.id for activeTab state
+        window.location.hash = item.id; // Update URL hash
       } else {
+        // Default to setting active tab by ID if no specific link pattern matched
         setActiveTab(item.id);
         window.location.hash = item.id;
       }
     } else {
+      // If no link and no action, just set the active tab
       setActiveTab(item.id);
       window.location.hash = item.id;
     }
@@ -285,7 +297,6 @@ export default function ProfilePage() {
           </div>
         );
       case 'informacoesPessoais':
-      case 'profileInfo':
         return (
           <div className="p-6">
             <Card className="shadow-md">
@@ -431,7 +442,7 @@ export default function ProfilePage() {
           </div>
         );
       default:
-        const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab || item.link === `#${activeTab}`);
+        const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
         return (
           <div className="p-6">
             <Card className="shadow-md">
@@ -440,6 +451,9 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
+                 {activeTab === 'seguranca' && <p className="mt-2 text-sm">Aqui você poderá alterar sua senha, configurar autenticação de dois fatores, etc.</p>}
+                 {activeTab === 'aparencia' && <p className="mt-2 text-sm">Esta seção irá para a página de configurações principal do aplicativo.</p>}
+                 {activeTab === 'notificacoes' && <p className="mt-2 text-sm">Gerencie suas preferências de notificação por email e push.</p>}
               </CardContent>
             </Card>
           </div>
@@ -454,7 +468,7 @@ export default function ProfilePage() {
         {/* Top Profile Header */}
         <div className="bg-card border-b">
           <div className="relative">
-            <div className="h-32 md:h-40 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative">
+            <div className="h-40 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 relative"> {/* Adjusted height */}
               <div className="absolute top-4 right-4 flex space-x-2">
                 <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
                   <Share2 className="h-4 w-4" />
@@ -465,45 +479,42 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="px-6">
-              <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-12 sm:-mt-14 relative z-10">
-                <Avatar className="h-24 w-24 md:h-28 md:w-28 border-4 border-card shadow-lg">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-14 sm:-mt-16 relative z-10"> {/* Adjusted negative margin */}
+                <Avatar className="h-28 w-28 md:h-32 md:w-32 border-4 border-card shadow-lg"> {/* Adjusted avatar size */}
                   <AvatarImage src={currentUser?.photoURL || undefined} alt={currentUser?.displayName || "Usuário"} data-ai-hint="user avatar" />
                   <AvatarFallback>{getInitials(currentUser?.displayName)}</AvatarFallback>
                 </Avatar>
-                <div className="sm:ml-6 mt-3 sm:mt-0 text-center sm:text-left flex-grow">
+                <div className="sm:ml-6 mt-4 sm:mt-0 text-center sm:text-left flex-grow">
                   <div className="flex items-center justify-center sm:justify-start">
                     <h1 className="text-2xl font-bold text-foreground">{currentUser?.profileName || currentUser?.displayName || "Usuário"}</h1>
-                    <BadgeCheck className="ml-2 h-5 w-5 text-pink-500" /> {/* Placeholder color */}
+                    {currentUser?.isVerified && <Check className="ml-2 h-5 w-5 text-pink-500" /> } {/* Placeholder for verified badge */}
                   </div>
                   <p className="text-sm text-muted-foreground">@{userHandle}</p>
+                   <p className="text-sm text-muted-foreground mt-1">{currentUser?.bio || "UX/UI Designer, 4+ anos de experiência."}</p>
                 </div>
                 <div className="mt-4 sm:mt-0 flex space-x-2">
-                  <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-6">Subscribe</Button>
-                  <Button variant="outline" className="rounded-full px-6">Editar Perfil</Button>
+                  <Button className="bg-pink-500 hover:bg-pink-600 text-white rounded-full px-4 text-sm h-9">Subscribe</Button>
+                  <Button variant="outline" className="rounded-full px-4 text-sm h-9">Editar Perfil</Button>
                 </div>
               </div>
-              <div className="mt-4 text-sm text-muted-foreground text-center sm:text-left">
-                <p className="leading-relaxed">{currentUser?.bio || "UX/UI Designer, 4+ anos de experiência."}</p>
-                <div className="flex items-center justify-center sm:justify-start space-x-4 mt-2">
+              <div className="mt-4 text-xs text-muted-foreground text-center sm:text-left pb-4"> {/* Added pb-4 */}
+                <div className="flex items-center justify-center sm:justify-start space-x-3">
                     <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" /> Yerevan, Armenia
+                        <MapPin className="h-3.5 w-3.5 mr-1" /> {currentUser?.country || "Localização não definida"}
                     </div>
                     <div className="flex items-center">
-                        <LucideCalendarIcon className="h-4 w-4 mr-1" /> Joined {joinedDateFormatted}
+                        <LucideCalendarIcon className="h-3.5 w-3.5 mr-1" /> Entrou {joinedDateFormatted}
                     </div>
                 </div>
               </div>
-            </div>
-            <div className="mt-4 border-t border-border">
-                {/* Could be used for tabs like Posts, About, Friends, Photos etc. */}
             </div>
           </div>
         </div>
 
         {/* Main Content Area: Menu + Dynamic Content */}
-        <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
+         <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
           <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto">
-            <div className="p-2 space-y-4"> {/* Reduced padding here */}
+            <div className="p-2 space-y-4">
               {profileMenuGroups.map((group, groupIndex) => {
                 const isFirstGroup = groupIndex === 0;
                 return (
@@ -515,7 +526,7 @@ export default function ProfilePage() {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = activeTab === item.id || (item.link && item.link.endsWith(activeTab) && item.link.startsWith('#'));
+                        const isActive = activeTab === item.id;
                         return (
                           <Button
                             key={item.id}
