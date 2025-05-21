@@ -25,22 +25,23 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save // Added Save here
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import NextImage from 'next/image';
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp } from "@/lib/firebase";
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL } from "@/lib/firebase";
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import { Progress } from '@/components/ui/progress';
 
 
 interface BingoAdminMenuItem {
@@ -129,6 +130,9 @@ const format75BallCardNumbersPreview = (numbers: (number | null)[][]): string =>
 const newKakoPrizeSchema = z.object({
   name: z.string().min(1, "Nome do prêmio é obrigatório."),
   imageUrl: z.string().url({ message: "URL da imagem inválida." }).optional().or(z.literal('')),
+  imageFile: z.instanceof(FileList).optional().nullable()
+    .refine(files => !files || files.length <= 1, "Apenas um arquivo de imagem é permitido.")
+    .refine(files => !files || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
   kakoGiftId: z.string().optional(),
   valueDisplay: z.string().optional(),
   description: z.string().max(200, "Descrição muito longa (máx. 200 caracteres).").optional(),
@@ -181,6 +185,7 @@ export default function AdminBingoAdminPage() {
   const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
   const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
   const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { currentUser } = useAuth();
 
   const kakoPrizeForm = useForm<NewKakoPrizeFormValues>({
@@ -188,6 +193,7 @@ export default function AdminBingoAdminPage() {
     defaultValues: {
       name: "",
       imageUrl: "",
+      imageFile: null,
       kakoGiftId: "",
       valueDisplay: "",
       description: "",
@@ -224,10 +230,49 @@ export default function AdminBingoAdminPage() {
         toast({ title: "Erro de Autenticação", description: "Você precisa estar logado para adicionar prêmios.", variant: "destructive"});
         return;
     }
+    let prizeImageUrl = values.imageUrl;
+
     try {
+      if (values.imageFile && values.imageFile.length > 0) {
+        const file = values.imageFile[0];
+        const filePath = `bingoPrizesImages/${Date.now()}-${file.name}`;
+        const fileStorageRef = storageRef(storage, filePath);
+        
+        setUploadProgress(0);
+        const uploadTask = uploadBytesResumable(fileStorageRef, file);
+
+        await new Promise<void>((resolve, reject) => {
+          uploadTask.on('state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+              console.log('Upload is ' + progress + '% done');
+            },
+            (error) => {
+              console.error("Upload failed:", error);
+              toast({ title: "Falha no Upload", description: "Não foi possível carregar a imagem.", variant: "destructive" });
+              setUploadProgress(null);
+              reject(error);
+            },
+            async () => {
+              try {
+                prizeImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                setUploadProgress(null);
+                resolve();
+              } catch (error) {
+                console.error("Failed to get download URL", error);
+                toast({ title: "Falha ao Obter URL", description: "Não foi possível obter o link da imagem.", variant: "destructive" });
+                setUploadProgress(null);
+                reject(error);
+              }
+            }
+          );
+        });
+      }
+
       const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
         name: values.name,
-        imageUrl: values.imageUrl || undefined,
+        imageUrl: prizeImageUrl || undefined,
         kakoGiftId: values.kakoGiftId || undefined,
         valueDisplay: values.valueDisplay || undefined,
         description: values.description || undefined,
@@ -246,12 +291,17 @@ export default function AdminBingoAdminPage() {
       kakoPrizeForm.reset();
       fetchKakoPrizes(); 
     } catch (error) {
-      console.error("Erro ao cadastrar prêmio Kako Live:", error);
-      toast({
-        title: "Erro ao Cadastrar",
-        description: "Não foi possível salvar o prêmio. Tente novamente.",
-        variant: "destructive",
-      });
+      // Error handling for Firestore or other parts of the process
+      if (uploadProgress === null) { // Ensure this error isn't redundant if upload failed and toasted already
+         console.error("Erro ao cadastrar prêmio Kako Live:", error);
+         toast({
+           title: "Erro ao Cadastrar",
+           description: "Não foi possível salvar o prêmio. Tente novamente.",
+           variant: "destructive",
+         });
+      }
+    } finally {
+      setUploadProgress(null); // Always reset progress if an error occurs outside upload lifecycle
     }
   };
 
@@ -519,12 +569,37 @@ export default function AdminBingoAdminPage() {
                                             </FormItem>
                                         )}
                                     />
+                                     <FormField
+                                        control={kakoPrizeForm.control}
+                                        name="imageFile"
+                                        render={({ field: { onChange, value, ...rest } }) => (
+                                            <FormItem>
+                                                <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Input 
+                                                        type="file" 
+                                                        accept="image/*"
+                                                        onChange={(e) => onChange(e.target.files)} 
+                                                        {...rest} 
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    {uploadProgress !== null && (
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Progresso do Upload:</Label>
+                                        <Progress value={uploadProgress} className="h-2" />
+                                        <p className="text-xs text-muted-foreground text-center">{Math.round(uploadProgress)}%</p>
+                                      </div>
+                                    )}
                                     <FormField
                                         control={kakoPrizeForm.control}
                                         name="imageUrl"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>URL da Imagem do Prêmio</FormLabel>
+                                                <FormLabel>OU URL da Imagem do Prêmio (Opcional)</FormLabel>
                                                 <FormControl>
                                                     <Input placeholder="https://..." {...field} />
                                                 </FormControl>
@@ -575,8 +650,8 @@ export default function AdminBingoAdminPage() {
                                         <DialogClose asChild>
                                             <Button type="button" variant="outline">Cancelar</Button>
                                         </DialogClose>
-                                        <Button type="submit" disabled={kakoPrizeForm.formState.isSubmitting}>
-                                            {kakoPrizeForm.formState.isSubmitting ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                        <Button type="submit" disabled={kakoPrizeForm.formState.isSubmitting || uploadProgress !== null}>
+                                            {(kakoPrizeForm.formState.isSubmitting || uploadProgress !== null) ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                                             Salvar Prêmio
                                         </Button>
                                     </DialogFooter>
@@ -785,7 +860,7 @@ export default function AdminBingoAdminPage() {
                                 key={`detail-card-75-${rowIndex}-${colIndex}`}
                                 className={cn(
                                   "flex items-center justify-center h-12 text-base font-medium aspect-square",
-                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary'
+                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' // Using Tailwind colors directly for FREE space
                                 )}
                               >
                                 {cell !== null ? cell : <Star className="h-5 w-5 text-yellow-600" />}

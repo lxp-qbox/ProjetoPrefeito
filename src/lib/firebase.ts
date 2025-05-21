@@ -24,6 +24,14 @@ import {
   onSnapshot, // Imported onSnapshot
   orderBy // Imported orderBy
 } from "firebase/firestore";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject as deleteFileStorage
+} from "firebase/storage";
+
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -58,6 +66,7 @@ if (typeof window !== 'undefined') {
 
 const auth: Auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 export { 
   app, 
@@ -82,5 +91,10 @@ export {
   Timestamp, // Exporting Timestamp
   addDoc, // Exporting addDoc
   onSnapshot, // Exporting onSnapshot
-  orderBy // Exporting orderBy
+  orderBy, // Exporting orderBy
+  storage, // Exporting storage
+  storageRef, // Exporting storageRef
+  uploadBytesResumable, // Exporting uploadBytesResumable
+  getDownloadURL, // Exporting getDownloadURL
+  deleteFileStorage // Exporting deleteFileStorage
 };
