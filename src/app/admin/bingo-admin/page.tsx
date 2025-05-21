@@ -70,14 +70,19 @@ export default function AdminBingoAdminPage() {
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
     {
-      groupTitle: "GESTÃO DE BINGO",
+      groupTitle: "GERENCIAMENTO DE JOGOS",
       items: [
         { id: "bingoPartidas", title: "Partidas", icon: ListChecks, link: "#bingoPartidas" },
-        { id: "bingoCartelas75", title: "Cartelas Bingo 75", icon: LayoutGrid, link: "#bingoCartelas75" },
-        { id: "bingoCartelas90", title: "Cartelas Bingo 90", icon: LayoutGrid, link: "#bingoCartelas90" },
         { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#bingoGanhadores" },
         { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bingoBolasSorteadas" },
         { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#bingoTelaSorteio" },
+      ],
+    },
+    {
+      groupTitle: "CARTELAS",
+      items: [
+        { id: "bingoCartelas75", title: "Cartelas Bingo 75", icon: LayoutGrid, link: "#bingoCartelas75" },
+        { id: "bingoCartelas90", title: "Cartelas Bingo 90", icon: LayoutGrid, link: "#bingoCartelas90" },
       ],
     },
   ];
@@ -339,6 +344,5 @@ export default function AdminBingoAdminPage() {
     </div>
   );
 }
-
 
     
