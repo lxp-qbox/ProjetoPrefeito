@@ -22,7 +22,7 @@ interface ParsedUserData {
   level?: number;
   showId?: string;
   userId?: string;
-  gender?: number; // Added gender
+  gender?: number;
 }
 interface ProcessedMessage {
   id: string;
@@ -54,6 +54,7 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [showRoomDataFilter, setShowRoomDataFilter] = useState(true);
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
   const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
+  const [showRoomGiftsFilter, setShowRoomGiftsFilter] = useState(true);
 
 
   const handleConnect = useCallback(() => {
@@ -95,7 +96,7 @@ export default function AdminKakoLiveLinkTesterPage() {
           type: 'system',
           originalData: `[SISTEMA] Conexão estabelecida com ${wsUrl}`,
           isJson: false,
-        }, ...prev.slice(0,199)]); // Keep last 200 messages
+        }, ...prev.slice(0,199)]); 
         toast({ title: "Conectado!", description: `Conexão WebSocket com ${wsUrl} estabelecida.` });
       };
 
@@ -113,7 +114,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             let parsedJson: Record<string, any> | undefined;
             let isJsonMessage = false;
             let classification: string | undefined = undefined;
-            let parsedUserData: ParsedUserData | undefined = undefined;
+            let parsedUserData: ProcessedMessage['parsedUserData'] = undefined;
 
             const firstBrace = messageContentString.indexOf('{');
             const lastBrace = messageContentString.lastIndexOf('}');
@@ -135,11 +136,13 @@ export default function AdminKakoLiveLinkTesterPage() {
                 classification = "Dados da LIVE";
               } else if ('roomId' in parsedJson && 'text' in parsedJson) {
                 classification = "Mensagem de Chat";
+              } else if ('roomId' in parsedJson && 'giftId' in parsedJson) {
+                classification = "Presentes da Sala";
               } else if ('roomId' in parsedJson) {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
                 classification = "Dados de Jogo";
-              } else if ('giftId' in parsedJson && !('roomId' in parsedJson) ) { 
+              } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) { 
                 classification = "Dados Externos";
               }
 
@@ -150,7 +153,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                   level: parsedJson.user.level,
                   showId: parsedJson.user.showId,
                   userId: parsedJson.user.userId,
-                  gender: parsedJson.user.gender, // Extract gender
+                  gender: parsedJson.user.gender,
                 };
               }
             }
@@ -318,6 +321,9 @@ export default function AdminKakoLiveLinkTesterPage() {
     if (msg.classification === "Mensagem de Chat") {
       return showChatMessageFilter;
     }
+    if (msg.classification === "Presentes da Sala") {
+      return showRoomGiftsFilter;
+    }
     if (msg.classification === "Dados da Sala") {
       return showRoomDataFilter;
     }
@@ -418,6 +424,14 @@ export default function AdminKakoLiveLinkTesterPage() {
                 />
                 <Label htmlFor="showChatMessageFilter" className="text-sm font-medium cursor-pointer">Mostrar Mensagens de Chat</Label>
             </div>
+             <div className="flex items-center space-x-2">
+                <Checkbox
+                    id="showRoomGiftsFilter"
+                    checked={showRoomGiftsFilter}
+                    onCheckedChange={(checked) => setShowRoomGiftsFilter(Boolean(checked))}
+                />
+                <Label htmlFor="showRoomGiftsFilter" className="text-sm font-medium cursor-pointer">Mostrar Presentes da Sala</Label>
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="showRoomDataFilter"
@@ -462,16 +476,18 @@ export default function AdminKakoLiveLinkTesterPage() {
                             <Badge className={cn(`text-xs`, 
                                 msg.classification === "Dados da LIVE" && "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200",
                                 msg.classification === "Mensagem de Chat" && "bg-teal-100 text-teal-700 border-teal-200 hover:bg-teal-200",
+                                msg.classification === "Presentes da Sala" && "bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200",
                                 msg.classification === "Dados da Sala" && "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200",
                                 msg.classification === "Dados de Jogo" && "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
                                 msg.classification === "Dados Externos" && "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
-                                !["Dados da LIVE", "Mensagem de Chat", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
+                                !["Dados da LIVE", "Mensagem de Chat", "Presentes da Sala", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
                             )}>
                                 {msg.classification === "Dados da LIVE" && <RadioTower className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Mensagem de Chat" && <MessageSquare className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Presentes da Sala" && <Gift className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
-                                {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />} 
                                 {msg.classification}
                             </Badge>
                         )}
@@ -482,8 +498,8 @@ export default function AdminKakoLiveLinkTesterPage() {
                         <CardHeader className="p-2 bg-primary/5">
                            <CardTitle className={cn(
                             "text-sm font-semibold flex items-center",
-                            msg.parsedUserData.gender === 1 ? "text-primary" : // Blue for gender 1
-                            msg.parsedUserData.gender === 2 ? "text-pink-500" : "text-foreground" // Pink for gender 2, default otherwise
+                            msg.parsedUserData.gender === 1 ? "text-primary" : 
+                            msg.parsedUserData.gender === 2 ? "text-pink-500" : "text-foreground" 
                           )}>
                             <Avatar className="h-8 w-8 mr-2 border">
                               <AvatarImage src={msg.parsedUserData.avatarUrl} alt={msg.parsedUserData.nickname} data-ai-hint="user avatar"/>
@@ -497,7 +513,7 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </div>
                           </CardTitle>
                           { (msg.parsedUserData.showId || msg.parsedUserData.userId) &&
-                            <CardDescription className="text-xs mt-0.5 pl-10"> {/* Added pl-10 to align with nickname */}
+                            <CardDescription className="text-xs mt-0.5 pl-10"> 
                                 {msg.parsedUserData.showId && <span>Show ID: {msg.parsedUserData.showId}</span>}
                                 {msg.parsedUserData.userId && msg.parsedUserData.showId && <span className="mx-1">|</span>}
                                 {msg.parsedUserData.userId && <span>FUID: {msg.parsedUserData.userId}</span>}
@@ -586,3 +602,6 @@ export default function AdminKakoLiveLinkTesterPage() {
     </div>
   );
 }
+
+
+    
