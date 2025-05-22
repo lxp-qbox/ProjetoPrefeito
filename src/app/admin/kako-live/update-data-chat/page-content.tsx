@@ -1,24 +1,25 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { KakoProfile, KakoGift, UserProfile } from "@/types"; // Added UserProfile
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { KakoProfile, KakoGift, UserProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from "@/lib/firebase";
-import { PlugZap, WifiOff, Info } from "lucide-react";
+import { PlugZap, WifiOff, Info, Save, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Hardcoded WebSocket URL for data ingestion
-const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; 
+const DEFAULT_WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; 
 
 interface LogEntry {
   id: string;
   timestamp: string;
   message: string;
-  type: "success" | "error" | "info" | "warning";
+  type: "success" | "error" | "info" | "warning" | "received" | "sent";
+  rawData?: string;
 }
 
 const generateUniqueId = () => {
@@ -28,6 +29,12 @@ const generateUniqueId = () => {
 export default function AdminKakoLiveUpdateDataChatPageContent() {
   const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const { currentUser } = useAuth(); // Assuming useAuth is available
+
+  const [wsUrlInput, setWsUrlInput] = useState<string>(DEFAULT_WS_URL);
+  const [savedWsUrl, setSavedWsUrl] = useState<string>("");
+  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(true);
+  const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<string>("Desconectado");
@@ -35,9 +42,37 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
   const isManuallyDisconnectingRef = useRef(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const addLog = useCallback((message: string, type: LogEntry['type']) => {
-    setLogs(prevLogs => [{ id: generateUniqueId(), timestamp: new Date().toLocaleTimeString('pt-BR'), message, type }, ...prevLogs.slice(0, 199)]); // Keep last 200 logs
+  const configDocRef = doc(db, "app_settings", "live_data_config");
+
+  const addLog = useCallback((message: string, type: LogEntry['type'], rawData?: string) => {
+    setLogs(prevLogs => [{ id: generateUniqueId(), timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), message, type, rawData }, ...prevLogs.slice(0, 199)]);
   }, []);
+
+  useEffect(() => {
+    const fetchWsUrlConfig = async () => {
+      setIsLoadingConfig(true);
+      try {
+        const docSnap = await getDoc(configDocRef);
+        if (docSnap.exists() && docSnap.data()?.chatWebSocketUrl) {
+          const url = docSnap.data()?.chatWebSocketUrl as string;
+          setSavedWsUrl(url);
+          setWsUrlInput(url);
+          addLog(`URL do WebSocket carregada: ${url}`, "info");
+        } else {
+          addLog(`Nenhuma URL do WebSocket configurada. Usando padrão: ${DEFAULT_WS_URL}`, "info");
+          setWsUrlInput(DEFAULT_WS_URL); // Set to default if not found
+        }
+      } catch (error) {
+        console.error("Erro ao carregar URL do WebSocket:", error);
+        addLog("Falha ao carregar configuração da URL do WebSocket.", "error");
+        setWsUrlInput(DEFAULT_WS_URL); // Fallback to default on error
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+    fetchWsUrlConfig();
+  }, [addLog, configDocRef]);
+
 
   const upsertKakoProfileToFirestore = async (profileData: Partial<KakoProfile> & { id: string }) => {
     if (!profileData.id) {
@@ -51,7 +86,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       const dataToSave: Partial<KakoProfile> & { lastFetchedAt: any } = {
         id: profileData.id,
         nickname: profileData.nickname,
-        avatarUrl: profileData.avatarUrl,
+        avatarUrl: profileData.avatarUrl, // Ensure this maps from 'avatar' if that's the source field name
         level: profileData.level,
         numId: profileData.numId,
         showId: profileData.showId,
@@ -65,7 +100,6 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       };
 
       Object.keys(dataToSave).forEach(key => dataToSave[key as keyof typeof dataToSave] === undefined && delete dataToSave[key as keyof typeof dataToSave]);
-
 
       if (docSnap.exists()) {
         const existingData = docSnap.data() as KakoProfile;
@@ -110,31 +144,26 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     try {
       const docSnap = await getDoc(giftDocRef);
       if (!docSnap.exists()) {
-        // Gift doesn't exist, create it even with partial info
         const newGiftToSave: KakoGift = {
           id: giftId,
           name: giftDataSource.name || `Presente Desconhecido (ID: ${giftId})`,
-          imageUrl: giftDataSource.imageUrl || `https://placehold.co/48x48.png?text=${giftId}`, // Placeholder image
+          imageUrl: giftDataSource.imageUrl || `https://placehold.co/48x48.png?text=${giftId}`,
           diamond: giftDataSource.diamond === undefined ? null : giftDataSource.diamond,
-          display: giftDataSource.name && giftDataSource.imageUrl ? true : false, // Only display by default if we have full info
+          display: !!(giftDataSource.name && giftDataSource.imageUrl),
           createdAt: serverTimestamp(),
-          dataAiHint: giftDataSource.name ? giftDataSource.name.toLowerCase().split(" ")[0] : "gift icon"
+          updatedAt: serverTimestamp(),
+          dataAiHint: giftDataSource.name ? giftDataSource.name.toLowerCase().split(" ")[0].replace(/[^a-z0-9]/gi, '') : "gift icon"
         };
         await setDoc(giftDocRef, newGiftToSave);
-        if (giftDataSource.name && giftDataSource.imageUrl) {
-            addLog(`Novo presente '${newGiftToSave.name}' (ID: ${giftId}) salvo no Firestore a partir do chat.`, "success");
-        } else {
-            addLog(`Novo presente (ID: ${giftId}) salvo com informações parciais. Edite em 'Lista de Presentes'.`, "warning");
-        }
+        addLog(`Novo presente '${newGiftToSave.name}' (ID: ${giftId}) ${newGiftToSave.display ? 'salvo com detalhes.' : 'salvo com info parcial.'}`, newGiftToSave.display ? "success" : "warning");
       } else {
-        // Gift exists. Optionally update if more info comes from WS, or just update a 'lastSeenInChatAt' timestamp.
-        // For now, we only create if it doesn't exist to avoid overwriting admin-edited data.
         const existingData = docSnap.data() as KakoGift;
         const updates: Partial<KakoGift> = {};
         let hasChanges = false;
 
         if (giftDataSource.name && giftDataSource.name !== existingData.name && existingData.name.startsWith("Presente Desconhecido")) {
           updates.name = giftDataSource.name;
+          updates.dataAiHint = giftDataSource.name.toLowerCase().split(" ")[0].replace(/[^a-z0-9]/gi, '');
           hasChanges = true;
         }
         if (giftDataSource.imageUrl && giftDataSource.imageUrl !== existingData.imageUrl && existingData.imageUrl.startsWith("https://placehold.co")) {
@@ -145,7 +174,6 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
           updates.diamond = giftDataSource.diamond;
           hasChanges = true;
         }
-        
         if (hasChanges) {
           updates.updatedAt = serverTimestamp();
           await updateDoc(giftDocRef, updates);
@@ -158,29 +186,38 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     }
   };
 
-
   const connectWebSocket = useCallback(() => {
-    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
-      addLog("Já conectado ou conectando ao WebSocket.", "info");
+    const urlToConnect = wsUrlInput.trim();
+    if (!urlToConnect || (!urlToConnect.startsWith("ws://") && !urlToConnect.startsWith("wss://"))) {
+      toast({ title: "URL Inválida", description: "Por favor, insira uma URL WebSocket válida (ws:// ou wss://).", variant: "destructive" });
+      setConnectionStatus("URL Inválida");
       return;
     }
-    isManuallyDisconnectingRef.current = false;
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
 
-    setConnectionStatus(`Conectando a ${WS_URL}...`);
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+        addLog(`Fechando conexão existente com ${socketRef.current.url} para reconectar.`, "info");
+        isManuallyDisconnectingRef.current = true; // Temporarily set to prevent auto-reconnect for this specific action
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+        socketRef.current.onopen = null;
+        socketRef.current.onmessage = null;
+        socketRef.current.onerror = null;
+        socketRef.current.onclose = null;
+        socketRef.current.close();
+        socketRef.current = null;
+    }
+    
+    isManuallyDisconnectingRef.current = false;
+    setConnectionStatus(`Conectando a ${urlToConnect}...`);
     setErrorDetails(null);
-    addLog(`Tentando conectar a ${WS_URL}...`, "info");
+    addLog(`Tentando conectar a ${urlToConnect}...`, "info");
 
     try {
-      const newSocket = new WebSocket(WS_URL);
+      const newSocket = new WebSocket(urlToConnect);
       socketRef.current = newSocket;
 
       newSocket.onopen = () => {
-        setConnectionStatus(`Conectado a ${WS_URL}`);
-        addLog(`Conexão com ${WS_URL} estabelecida.`, "success");
+        setConnectionStatus(`Conectado a: ${newSocket.url}`);
+        addLog(`Conexão estabelecida com ${newSocket.url}`, "success");
       };
 
       newSocket.onmessage = async (event) => {
@@ -199,12 +236,13 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
           if (firstBrace !== -1 && lastBrace > firstBrace) {
             const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
             const parsedJson = JSON.parse(jsonStr);
+            
+            addLog(`Mensagem recebida: ${jsonStr.substring(0, 150)}${jsonStr.length > 150 ? '...' : ''}`, "received", jsonStr);
 
-            // Process User Data (sender, anchor, etc.)
             const processUser = async (userData: any, isAnchor: boolean = false, currentRoomId?: string) => {
               if (userData && userData.userId) {
                 const profileDataToUpsert: Partial<KakoProfile> & { id: string } = {
-                  id: userData.userId, // FUID
+                  id: userData.userId,
                   nickname: userData.nickname || "N/A",
                   avatarUrl: userData.avatar || userData.avatarUrl || "",
                   level: userData.level,
@@ -212,8 +250,8 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
                   showId: userData.showId || "",
                   gender: userData.gender,
                   signature: userData.signature,
-                  isLiving: isAnchor ? userData.isLiving : undefined, // Only set isLiving if it's the anchor
-                  roomId: isAnchor ? currentRoomId : undefined, // Only set roomId if it's the anchor
+                  isLiving: isAnchor ? userData.isLiving : undefined,
+                  roomId: isAnchor ? currentRoomId : undefined,
                 };
                 await upsertKakoProfileToFirestore(profileDataToUpsert);
               }
@@ -222,10 +260,8 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
             if (parsedJson.user) await processUser(parsedJson.user, false, parsedJson.roomId);
             if (parsedJson.anchor) await processUser(parsedJson.anchor, true, parsedJson.roomId);
             
-            // Process Gift Data
             if (parsedJson.giftId) {
-                const giftDetailsSource = parsedJson.gift || parsedJson; // Try top level if 'gift' object not present
-                
+                const giftDetailsSource = parsedJson.gift || parsedJson;
                 await upsertKakoGiftData({
                     id: parsedJson.giftId.toString(),
                     name: giftDetailsSource.name || giftDetailsSource.giftName,
@@ -233,15 +269,12 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
                     diamond: giftDetailsSource.diamond === undefined ? giftDetailsSource.giftDiamondValue : giftDetailsSource.diamond,
                 });
             }
-
-            addLog(`${jsonStr.substring(0, 150)}${jsonStr.length > 150 ? '...' : ''}`, "info");
-
           } else {
-            addLog(`Dados brutos (não JSON): ${messageContentString.substring(0,150)}${messageContentString.length > 150 ? '...' : ''}`, "info");
+            addLog(`Dados brutos (não JSON): ${messageContentString.substring(0,150)}${messageContentString.length > 150 ? '...' : ''}`, "received", messageContentString);
           }
         } catch (e) {
           console.error("Erro ao processar mensagem WebSocket:", e, "Dados brutos:", messageContentString);
-          addLog(`Erro ao processar mensagem: ${e instanceof Error ? e.message : String(e)}. Dados: ${messageContentString.substring(0,100)}...`, "error");
+          addLog(`Erro ao processar mensagem: ${e instanceof Error ? e.message : String(e)}. Dados: ${messageContentString.substring(0,100)}...`, "error", messageContentString);
         }
       };
 
@@ -250,6 +283,11 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
         addLog(errorMsg, "error");
+        if (socketRef.current === newSocket) { // Ensure it's the current socket
+            newSocket.onopen = null; newSocket.onmessage = null; newSocket.onerror = null; newSocket.onclose = null;
+            if(newSocket.readyState === WebSocket.OPEN || newSocket.readyState === WebSocket.CONNECTING) newSocket.close();
+            socketRef.current = null;
+        }
       };
 
       newSocket.onclose = (closeEvent) => {
@@ -272,13 +310,15 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
             }
         }
       };
+
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
       setConnectionStatus("Erro ao Iniciar Conexão");
       setErrorDetails(errMsg);
       addLog(`Falha ao Conectar WebSocket: ${errMsg}`, "error");
+      if(socketRef.current) { socketRef.current.close(); socketRef.current = null; }
     }
-  }, [addLog]); // Removed isManuallyDisconnectingRef as it's a ref
+  }, [wsUrlInput, toast, addLog]);
 
   const disconnectManually = useCallback(() => {
     isManuallyDisconnectingRef.current = true; 
@@ -293,20 +333,41 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       socketRef.current.onerror = null;
       socketRef.current.onclose = null; 
       socketRef.current.close();
-      // Setting to null is handled by onclose
+      socketRef.current = null;
+      setConnectionStatus("Desconectado");
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
-      setConnectionStatus("Desconectado");
+      setConnectionStatus("Desconectado"); // Ensure status is updated even if no active socket
     }
   }, [addLog]);
 
+  const handleSaveWsUrl = async () => {
+      const urlToSave = wsUrlInput.trim();
+      if (!urlToSave || (!urlToSave.startsWith("ws://") && !urlToSave.startsWith("wss://"))) {
+        toast({ title: "URL Inválida", description: "Por favor, insira uma URL WebSocket válida.", variant: "destructive" });
+        return;
+      }
+      setIsSavingConfig(true);
+      try {
+        await setDoc(configDocRef, { chatWebSocketUrl: urlToSave, lastUpdatedAt: serverTimestamp() }, { merge: true });
+        setSavedWsUrl(urlToSave);
+        toast({ title: "URL Salva", description: "A URL do WebSocket foi salva com sucesso." });
+        addLog(`URL do WebSocket salva: ${urlToSave}`, "success");
+      } catch (error) {
+        console.error("Erro ao salvar URL do WebSocket:", error);
+        toast({ title: "Erro ao Salvar URL", description: "Não foi possível salvar a URL.", variant: "destructive" });
+        addLog("Falha ao salvar a URL do WebSocket.", "error");
+      } finally {
+        setIsSavingConfig(false);
+      }
+    };
 
   useEffect(() => {
-    connectWebSocket(); 
+    // No auto-connect on mount, user clicks button
     return () => {
       disconnectManually();
     };
-  }, [connectWebSocket, disconnectManually]); 
+  }, [disconnectManually]); 
 
   return (
     <div className="space-y-6 h-full flex flex-col p-6">
@@ -314,20 +375,41 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         <CardHeader>
           <CardTitle>Atualizar Dados em Tempo Real (Via Chat)</CardTitle>
           <CardDescription>
-            Conecta-se ao WebSocket do Kako Live para capturar informações de usuários e presentes em tempo real e salvá-las/atualizá-las no Firestore.
-            <br />
-            URL do WebSocket: <code className="bg-muted px-1 rounded-sm text-xs">{WS_URL}</code>
+            Conecte-se ao WebSocket do Kako Live para capturar informações de usuários e presentes em tempo real e salvá-las/atualizá-las no Firestore.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="wsUrlInput">URL do WebSocket para Coleta de Dados</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="wsUrlInput"
+                value={wsUrlInput}
+                onChange={(e) => setWsUrlInput(e.target.value)}
+                placeholder="wss://exemplo.com/socket"
+                disabled={isLoadingConfig}
+              />
+              <Button onClick={handleSaveWsUrl} disabled={isSavingConfig || isLoadingConfig || wsUrlInput.trim() === savedWsUrl}>
+                {isSavingConfig ? <LoadingSpinner size="sm" /> : <Save className="mr-2 h-4 w-4" />}
+                Salvar URL
+              </Button>
+            </div>
+            {isLoadingConfig && <p className="text-xs text-muted-foreground">Carregando URL salva...</p>}
+            {savedWsUrl && <p className="text-xs text-muted-foreground">URL Salva: {savedWsUrl}</p>}
+          </div>
+
           <div className="flex items-center gap-2">
-            <Button onClick={connectWebSocket} disabled={socketRef.current?.readyState === WebSocket.OPEN || socketRef.current?.readyState === WebSocket.CONNECTING}>
+            <Button onClick={connectWebSocket} disabled={!wsUrlInput.trim() || isLoadingConfig || (socketRef.current?.readyState === WebSocket.OPEN && socketRef.current?.url === wsUrlInput.trim())}>
               <PlugZap className="mr-2 h-4 w-4"/> 
-              {socketRef.current?.readyState === WebSocket.CONNECTING ? "Conectando..." : (socketRef.current?.readyState === WebSocket.OPEN ? 'Conectado' : 'Conectar ao Chat')}
+              {socketRef.current?.readyState === WebSocket.CONNECTING ? "Conectando..." : 
+               (socketRef.current?.readyState === WebSocket.OPEN && socketRef.current?.url === wsUrlInput.trim()) ? 'Reconectar' : 'Conectar ao Chat'}
             </Button>
             <Button variant="outline" onClick={disconnectManually} disabled={!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED}>
               <WifiOff className="mr-2 h-4 w-4" />
-              Desconectar Manualmente
+              Desconectar
+            </Button>
+            <Button variant="outline" onClick={() => setLogs([])} disabled={logs.length === 0}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Limpar Logs
             </Button>
           </div>
           <p className="text-sm p-2 bg-muted rounded-md">
@@ -349,9 +431,9 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Info className="mr-2 h-5 w-5 text-primary" />
-            Logs de Atividade
+            Logs de Atividade do WebSocket e Banco de Dados
           </CardTitle>
-          <CardDescription>Mostrando os últimos 200 logs de salvamento/atualização e mensagens brutas.</CardDescription>
+          <CardDescription>Mostrando os últimos {logs.length} logs.</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow p-0">
           <ScrollArea className="h-full">
@@ -364,9 +446,17 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
                     log.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' :
                     log.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' :
                     log.type === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-                    'bg-blue-50 border-blue-200 text-blue-700' // info
+                    log.type === 'received' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                    log.type === 'sent' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                    'bg-gray-50 border-gray-200 text-gray-700' // info
                   }`}>
                     <span className="font-semibold">{log.timestamp}:</span> {log.message}
+                    {log.rawData && (
+                        <details className="mt-1">
+                            <summary className="cursor-pointer text-xs hover:underline">Ver dados brutos</summary>
+                            <pre className="mt-1 p-1.5 bg-black/5 rounded text-xs overflow-x-auto whitespace-pre-wrap break-all">{log.rawData}</pre>
+                        </details>
+                    )}
                   </div>
                 ))
               )}
@@ -377,5 +467,3 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     </div>
   );
 }
-
-    
