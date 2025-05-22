@@ -4,15 +4,15 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { KakoProfile } from "@/types";
+import type { KakoProfile, KakoGift } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "@/lib/firebase";
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from "@/lib/firebase";
 import { PlugZap, WifiOff, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Hardcoded WebSocket URL for data ingestion
-const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; // Example Room ID for data gathering
+const WS_URL = "wss://h5-ws.kako.live/ws/v1?roomId=67b9ed5fa4e716a084a23765"; 
 
 interface LogEntry {
   id: string;
@@ -40,30 +40,36 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     setLogs(prevLogs => [{ id: generateUniqueId(), timestamp: new Date().toLocaleTimeString('pt-BR'), message, type }, ...prevLogs.slice(0, 99)]);
   }, []);
 
-  const upsertKakoProfileToFirestore = async (profileData: Omit<KakoProfile, 'lastFetchedAt'> & { id: string }) => {
+  const upsertKakoProfileToFirestore = async (profileData: Omit<KakoProfile, 'lastFetchedAt' | 'id'> & { id: string }) => {
     if (!profileData.id) {
-      console.error("Cannot upsert profile without an ID", profileData);
-      addLog(`Erro: Tentativa de salvar perfil sem ID: ${profileData.nickname || 'Desconhecido'}`, "error");
+      console.error("Cannot upsert profile without an ID (FUID)", profileData);
+      addLog(`Erro: Tentativa de salvar perfil Kako sem ID (FUID): ${profileData.nickname || 'Desconhecido'}`, "error");
       return;
     }
-    const profileDocRef = doc(db, "kakoProfiles", profileData.id);
+    const profileDocRef = doc(db, "kakoProfiles", profileData.id); // FUID is the document ID
     try {
       const docSnap = await getDoc(profileDocRef);
-      const dataToSave: KakoProfile = {
-        id: profileData.id,
+      const dataToSave: Partial<KakoProfile> & { lastFetchedAt: any } = {
+        id: profileData.id, // Store FUID as 'id' field as well for querying if needed, though doc ID is primary
         nickname: profileData.nickname,
-        avatarUrl: profileData.avatarUrl, // Assuming 'avatarUrl' is what KakoProfile type expects
+        avatarUrl: profileData.avatarUrl,
         level: profileData.level,
         numId: profileData.numId,
         showId: profileData.showId,
         gender: profileData.gender,
+        // Add other fields like signature, area, school, isLiving, roomId if they are reliably present in WebSocket user objects
+        signature: profileData.signature,
+        area: profileData.area,
+        school: profileData.school,
+        isLiving: profileData.isLiving,
+        roomId: profileData.roomId,
         lastFetchedAt: serverTimestamp(),
       };
 
       if (docSnap.exists()) {
         const existingData = docSnap.data() as KakoProfile;
         let hasChanges = false;
-        const updates: Partial<KakoProfile> = { lastFetchedAt: serverTimestamp() };
+        const updates: Partial<KakoProfile> & { lastFetchedAt: any } = { lastFetchedAt: serverTimestamp() };
 
         if (profileData.nickname !== existingData.nickname) { updates.nickname = profileData.nickname; hasChanges = true; }
         if (profileData.avatarUrl !== existingData.avatarUrl) { updates.avatarUrl = profileData.avatarUrl; hasChanges = true; }
@@ -71,23 +77,64 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         if (profileData.showId !== existingData.showId) { updates.showId = profileData.showId; hasChanges = true; }
         if (profileData.numId !== existingData.numId) { updates.numId = profileData.numId; hasChanges = true; }
         if (profileData.gender !== existingData.gender) { updates.gender = profileData.gender; hasChanges = true; }
+        if (profileData.signature !== existingData.signature) { updates.signature = profileData.signature; hasChanges = true; }
+        if (profileData.isLiving !== existingData.isLiving) { updates.isLiving = profileData.isLiving; hasChanges = true; }
+        if (profileData.roomId !== existingData.roomId) { updates.roomId = profileData.roomId; hasChanges = true; }
         
         if (hasChanges) {
           await updateDoc(profileDocRef, updates);
-          addLog(`Perfil de ${profileData.nickname} atualizado no Firestore.`, "success");
+          addLog(`Perfil Kako de ${profileData.nickname} (ShowID: ${profileData.showId || 'N/A'}) atualizado no Firestore.`, "success");
         } else {
            await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() });
-           // addLog(`Perfil de ${profileData.nickname} visto novamente. 'lastFetchedAt' atualizado.`, "info"); // Can be noisy
+           // addLog(`Perfil Kako de ${profileData.nickname} visto novamente. 'lastFetchedAt' atualizado.`, "info");
         }
       } else {
-        await setDoc(profileDocRef, dataToSave);
-        addLog(`Novo perfil de ${profileData.nickname} salvo no Firestore.`, "success");
+        await setDoc(profileDocRef, { ...dataToSave, createdAt: serverTimestamp() }); // Add createdAt for new profiles
+        addLog(`Novo perfil Kako de ${profileData.nickname} (ShowID: ${profileData.showId || 'N/A'}) salvo no Firestore.`, "success");
       }
     } catch (error) {
       console.error("Erro ao salvar/atualizar perfil Kako no Firestore:", error);
       addLog(`Erro no Firestore ao salvar/atualizar ${profileData.nickname}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, "error");
     }
   };
+
+  const upsertKakoGiftData = async (giftDataSource: {id: string, name?: string, imageUrl?: string, diamond?: number | null}) => {
+    if (!giftDataSource.id) {
+        addLog("Tentativa de salvar presente sem ID.", "error");
+        return;
+    }
+    const giftId = giftDataSource.id.toString();
+    const giftDocRef = doc(db, "kakoGifts", giftId);
+
+    try {
+        const docSnap = await getDoc(giftDocRef);
+        if (!docSnap.exists()) {
+            // Only create if name and imageUrl are present from the event
+            if (giftDataSource.name && giftDataSource.imageUrl) {
+                const newGiftToSave: KakoGift = {
+                    id: giftId,
+                    name: giftDataSource.name,
+                    imageUrl: giftDataSource.imageUrl,
+                    diamond: giftDataSource.diamond === undefined ? null : giftDataSource.diamond,
+                    display: true, // Default to displayable
+                    createdAt: serverTimestamp(),
+                };
+                await setDoc(giftDocRef, newGiftToSave);
+                addLog(`Novo presente '${giftDataSource.name}' (ID: ${giftId}) salvo no Firestore a partir do chat.`, "success");
+            } else {
+                addLog(`Presente ID ${giftId} visto no chat, mas não cadastrado e sem informações (nome/imagem) para cadastro automático.`, "info");
+            }
+        } else {
+             // Optionally, update a 'lastSeenInChatAt' timestamp or check if other details changed
+             // For now, we just log it was seen and exists.
+            //  addLog(`Presente ID ${giftId} ('${docSnap.data().name}') visto no chat, já existe no DB.`, "info");
+        }
+    } catch (error) {
+        console.error(`Erro ao processar presente ID ${giftId} no Firestore:`, error);
+        addLog(`Erro no Firestore ao processar presente ID ${giftId}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, "error");
+    }
+  };
+
 
   const connectWebSocket = useCallback(() => {
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
@@ -132,25 +179,61 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
             const jsonStr = messageContentString.substring(firstBrace, lastBrace + 1);
             const parsedJson = JSON.parse(jsonStr);
 
+            // Process User Data (sender, anchor, etc.)
             if (parsedJson.user && parsedJson.user.userId) {
               const userData = parsedJson.user;
-              const newProfileData = {
-                id: userData.userId,
+              const profileDataToUpsert: Omit<KakoProfile, 'lastFetchedAt'> & { id: string } = {
+                id: userData.userId, // FUID
                 nickname: userData.nickname || "N/A",
                 avatarUrl: userData.avatar || userData.avatarUrl || "",
                 level: userData.level,
                 numId: userData.numId,
-                showId: userData.showId,
+                showId: userData.showId || "",
                 gender: userData.gender,
+                signature: userData.signature,
+                // area, school, isLiving, roomId might also be in `user` or `anchor` objects
               };
-              await upsertKakoProfileToFirestore(newProfileData);
+              await upsertKakoProfileToFirestore(profileDataToUpsert);
             }
-             // You can add more specific parsing for other message types if needed
-             // e.g., if (parsedJson.anchor && ...) for host updates
+            if (parsedJson.anchor && parsedJson.anchor.userId) {
+                 const anchorData = parsedJson.anchor;
+                 const profileDataToUpsert: Omit<KakoProfile, 'lastFetchedAt'> & { id: string } = {
+                    id: anchorData.userId,
+                    nickname: anchorData.nickname || "N/A",
+                    avatarUrl: anchorData.avatar || anchorData.avatarUrl || "",
+                    level: anchorData.level,
+                    numId: anchorData.numId,
+                    showId: anchorData.showId || "",
+                    gender: anchorData.gender,
+                    isLiving: anchorData.isLiving,
+                    roomId: parsedJson.roomId, // Room ID from top level, anchor is in this room
+                 };
+                 await upsertKakoProfileToFirestore(profileDataToUpsert);
+            }
+            
+            // Process Gift Data
+            if (parsedJson.giftId) {
+                // Attempt to extract gift details from the event.
+                // This structure is HYPOTHETICAL and needs to be confirmed from actual WebSocket gift events.
+                const giftDetailsSource = parsedJson.gift || parsedJson.giftDetails || parsedJson;
+                
+                await upsertKakoGiftData({
+                    id: parsedJson.giftId.toString(),
+                    name: giftDetailsSource.name || giftDetailsSource.giftName, // Try different possible field names
+                    imageUrl: giftDetailsSource.imageUrl || giftDetailsSource.giftIcon,
+                    diamond: giftDetailsSource.diamond === undefined ? giftDetailsSource.giftDiamondValue : giftDetailsSource.diamond,
+                });
+            }
+
+            addLog(`Mensagem recebida: ${jsonStr.substring(0, 150)}${jsonStr.length > 150 ? '...' : ''}`, "info");
+
+          } else {
+            // Not JSON or not a full JSON object, log as raw
+            addLog(`Dados brutos recebidos: ${messageContentString.substring(0,150)}${messageContentString.length > 150 ? '...' : ''}`, "info");
           }
         } catch (e) {
           console.error("Erro ao processar mensagem WebSocket:", e, "Dados brutos:", messageContentString);
-          addLog(`Erro ao processar mensagem WebSocket: ${e instanceof Error ? e.message : String(e)}`, "error");
+          addLog(`Erro ao processar mensagem WebSocket: ${e instanceof Error ? e.message : String(e)}. Dados: ${messageContentString.substring(0,100)}...`, "error");
         }
       };
 
@@ -189,8 +272,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       setErrorDetails(errMsg);
       addLog(`Falha ao Conectar WebSocket: ${errMsg}`, "error");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addLog]); // Added addLog to dependencies
+  }, [addLog]); 
 
   const disconnectManually = useCallback(() => {
     isManuallyDisconnectingRef.current = true; 
@@ -205,21 +287,18 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       socketRef.current.onerror = null;
       socketRef.current.onclose = null; 
       socketRef.current.close();
-      // socketRef.current = null; // onclose handler will set this
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
     }
   }, [addLog]);
 
 
-  // Auto-connect on mount
   useEffect(() => {
     connectWebSocket(); 
     return () => {
       disconnectManually();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // connectWebSocket and disconnectManually are stable due to useCallback
+  }, [connectWebSocket, disconnectManually]); 
 
   return (
     <div className="space-y-6 h-full flex flex-col p-6">
@@ -227,7 +306,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         <CardHeader>
           <CardTitle>Atualizar Dados em Tempo Real (Via Chat)</CardTitle>
           <CardDescription>
-            Esta página conecta-se ao WebSocket do Kako Live para capturar informações de usuários em tempo real e salvá-las/atualizá-las no Firestore.
+            Esta página conecta-se ao WebSocket do Kako Live para capturar informações de usuários e presentes em tempo real e salvá-las/atualizá-las no Firestore.
             <br />
             URL do WebSocket: <code className="bg-muted px-1 rounded-sm text-xs">{WS_URL}</code>
           </CardDescription>
@@ -240,7 +319,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
             </Button>
             <Button variant="outline" onClick={disconnectManually} disabled={!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED}>
               <WifiOff className="mr-2 h-4 w-4" />
-              Desconectar
+              Desconectar Manualmente
             </Button>
           </div>
           <p className="text-sm p-2 bg-muted rounded-md">
@@ -264,7 +343,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
             <Info className="mr-2 h-5 w-5 text-primary" />
             Logs de Atividade
           </CardTitle>
-          <CardDescription>Mostrando os últimos 100 logs de salvamento/atualização de perfis e status da conexão.</CardDescription>
+          <CardDescription>Mostrando os últimos 100 logs de salvamento/atualização de perfis, presentes e status da conexão.</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow p-0">
           <ScrollArea className="h-full">
@@ -289,3 +368,4 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     </div>
   );
 }
+

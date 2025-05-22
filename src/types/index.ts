@@ -11,6 +11,9 @@ export interface Game {
   prizeCashAmount?: number; 
   prizeDescription: string; 
 
+  bingoRoomId?: string; // ID of the selected BingoRoomSetting
+  bingoRoomName?: string; // Denormalized name of the room
+
   startTime: any; 
   actualStartTime?: any; 
   endTime?: any; 
@@ -88,13 +91,13 @@ export interface UserProfile {
   role?: 'player' | 'host'; 
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
-  showId?: string; // User-facing Kako Show ID          
+  showId?: string;        
   kakoLiveId?: string; // FUID from Kako, technical key if profile is linked
 
-  profileName?: string; // App's internal name, fallback or synced from Kako nickname    
+  profileName?: string;     
   displayName?: string | null; 
-  photoURL?: string | null; // App's internal avatar, fallback or synced from Kako avatar  
-  level?: number; // Synced from KakoProfile if linked
+  photoURL?: string | null;  
+  level?: number; // Populated dynamically from linked KakoProfile via AuthContext
   
   bio?: string;              
   isVerified?: boolean;      
@@ -103,7 +106,7 @@ export interface UserProfile {
   followingIds?: string[]; 
   photos?: string[];         
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay';
-  birthDate?: string; // Stored as "yyyy-MM-dd" string        
+  birthDate?: string;       
   country?: string;
   phoneNumber?: string;
   hostStatus?: 'approved' | 'pending_review' | 'banned'; 
@@ -143,12 +146,12 @@ export interface KakoProfile {
 }
 
 export interface KakoGift {
-  id: string; 
+  id: string; // This should be the giftId from Kako, and used as the document ID in Firestore
   name: string; 
   imageUrl: string; 
   diamond?: number | null; 
-  display?: boolean; 
-  createdAt?: any;
+  display?: boolean; // If it should be generally available/shown in your app's prize lists
+  createdAt?: any; // Firestore Timestamp when it was first added to your DB
   dataAiHint?: string;
 }
 
@@ -165,33 +168,9 @@ export interface ChatMessage {
   gender?: number;
 }
 
-export interface ConversationPreview {
-  id: string;
-  userId: string; 
-  userName: string;
-  userAvatar: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount?: number;
-  isOnline?: boolean;
-  isPinned?: boolean;
-}
-
-export interface AppMessage { 
-  id: string; 
-  conversationId: string;
-  senderId: string; 
-  senderName: string;
-  senderAvatar?: string | null; 
-  text: string;
-  timestamp: any; 
-  isCurrentUser?: boolean; 
-  status?: 'sent' | 'delivered' | 'read'; 
-}
-
 export interface FirestoreConversation {
   id?: string; 
-  participants: string[]; 
+  participants: string[]; // Array of UIDs
   participantNames: { [uid: string]: string }; 
   participantAvatars: { [uid: string]: string | null }; 
   lastMessageText?: string;
@@ -336,7 +315,7 @@ export interface BingoBallSetting {
   ballNumber: number;
   imageUrl?: string;
   imageStoragePath?: string;
-  locutorAudios?: { // Changed from audioUrl and audioStoragePath
+  locutorAudios?: { 
     [locutorId: string]: {
       audioUrl: string;
       audioStoragePath: string;
