@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, RefreshCw, WalletCards as WalletCardsIcon } from 'lucide-react'; 
+import { Diamond, RefreshCw, WalletCards as WalletCardsIcon } from 'lucide-react'; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import type { UserWallet } from '@/types';
@@ -13,6 +13,18 @@ import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const formatDiamonds = (amount: number): string => {
+  if (amount >= 1000000) {
+    // Format to one decimal place, remove .0 if it's a whole number
+    return (amount / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+  if (amount >= 1000) {
+    // Format to one decimal place, remove .0 if it's a whole number
+    return (amount / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  }
+  return amount.toLocaleString('pt-BR'); // Use locale string for numbers less than 1000
+};
 
 export default function AdminWalletsListPage() {
   const [wallets, setWallets] = useState<UserWallet[]>([]);
@@ -24,7 +36,6 @@ export default function AdminWalletsListPage() {
     setIsLoading(true);
     try {
       const walletsCollectionRef = collection(db, "userWallets");
-      // Order by kakoId for consistent listing, or lastUpdatedAt if preferred
       const q = query(walletsCollectionRef, orderBy("kakoId", "asc")); 
       const querySnapshot = await getDocs(q);
       const fetchedWallets: UserWallet[] = [];
@@ -39,7 +50,7 @@ export default function AdminWalletsListPage() {
       });
       setWallets(fetchedWallets);
       setLastFetched(new Date());
-      if(fetchedWallets.length === 0) {
+      if(fetchedWallets.length === 0 && !isLoading) { // Check isLoading to avoid toast on initial empty state before load
         toast({ title: "Nenhuma Carteira Encontrada", description: "Não há carteiras cadastradas no banco de dados." });
       }
     } catch (error) {
@@ -48,11 +59,12 @@ export default function AdminWalletsListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, isLoading]); // Added isLoading to dependency to refine empty state toast
 
   useEffect(() => {
     fetchWallets();
-  }, [fetchWallets]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Fetch only on mount
 
   return (
     <div className="p-6 space-y-6 h-full flex flex-col">
@@ -107,8 +119,8 @@ export default function AdminWalletsListPage() {
                       <TableRow key={wallet.id || wallet.kakoId} className="hover:bg-muted/20">
                         <TableCell className="font-mono text-xs">{wallet.kakoId}</TableCell>
                         <TableCell className="text-right font-semibold text-primary">
-                          <DollarSign className="inline-block mr-1 h-4 w-4 text-yellow-500" />
-                          {wallet.diamonds.toLocaleString('pt-BR')}
+                          <Diamond className="inline-block mr-1.5 h-4 w-4 text-yellow-500" />
+                          {formatDiamonds(wallet.diamonds)}
                         </TableCell>
                         <TableCell className="text-right text-xs text-muted-foreground">
                           {wallet.lastUpdatedAt ? formatDistanceToNow(new Date(wallet.lastUpdatedAt), { addSuffix: true, locale: ptBR }) : 'N/A'}
