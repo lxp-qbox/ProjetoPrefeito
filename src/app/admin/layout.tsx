@@ -1,6 +1,7 @@
 
 "use client";
 
+import React from "react"; // Added React import
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,8 @@ import {
   BarChart3,  
   PlusCircle, 
   ListChecks, 
-  Settings as SettingsIconLucide
+  Settings as SettingsIconLucide,
+  Gift as GiftIconLucide
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -41,10 +43,6 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from 'react';
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-// Page content components are imported here for conditional rendering
-import AdminHostsPageContent from "./hosts/page-content";
-// Removed direct import for AdminBingoAdminPage as it's handled by {children} now
 
 interface AdminMenuItem {
   id: string;
@@ -67,7 +65,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>(pathname);
+  const [activeTab, setActiveTab] = useState<string>(pathname); // Used to manage active state
 
   useEffect(() => {
     setActiveTab(pathname);
@@ -96,6 +94,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       groupTitle: "KAKO LIVE",
       items: [
           { id: "kakoDataList", title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
+          { id: "kakoGiftsList", title: "Lista de Presentes", icon: GiftIconLucide, link: "/admin/kako-live/gifts"},
           { id: "kakoUpdateDataChat", title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" },
           { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
       ]
@@ -141,7 +140,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       item.action();
     } else if (item.link) {
       router.push(item.link);
-      setActiveTab(item.link);
+      // setActiveTab is updated by useEffect watching pathname
     }
   };
 
@@ -162,9 +161,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </ProtectedPage>
     );
   }
-  
-  // If the path is specifically /admin/bingo-admin, render only its children.
-  // This allows /admin/bingo-admin/page.tsx to define its own full-page layout.
+
+  // If the path is specifically /admin/bingo-admin, render only its children to allow it to have its own full-page layout with internal menu.
   if (pathname === '/admin/bingo-admin') {
     return (
       <ProtectedPage>
@@ -199,7 +197,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     )}
                     <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                       {group.items.map((item) => {
-                        const isActive = activeTab === item.link || (item.id === "dashboard" && (pathname === "/admin" || pathname === "/admin/hosts")); 
+                        const isActive = activeTab === item.link || (item.link === "/admin" && pathname === "/admin/hosts");
                         
                         return (
                           <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
@@ -222,7 +220,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                         <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
                                         {!isCollapsed && item.title}
                                     </div>
-                                    {!isCollapsed && !item.action && item.id !== 'logout' ? (
+                                    {!isCollapsed && !item.action && item.link !== "/support" ? (
                                       <div className="flex items-center ml-auto">
                                         {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
