@@ -1,17 +1,17 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Save, Settings2 as Settings2Icon } from 'lucide-react'; // Renamed to avoid conflict
+import { Save, Settings2 as Settings2Icon } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import type { WalletConfig } from '@/types';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function AdminWalletsConfigPage() {
@@ -25,27 +25,29 @@ export default function AdminWalletsConfigPage() {
 
   const configDocRef = doc(db, "app_settings", "wallet_config");
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      setIsLoading(true);
-      try {
-        const docSnap = await getDoc(configDocRef);
-        if (docSnap.exists()) {
-          setConfig(docSnap.data() as WalletConfig);
-        } else {
-          // If no config exists, save initial defaults
-          await setDoc(configDocRef, { ...config, lastUpdatedAt: serverTimestamp() });
-        }
-      } catch (error) {
-        console.error("Erro ao carregar configuração da carteira:", error);
-        toast({ title: "Erro ao Carregar", description: "Não foi possível carregar as configurações.", variant: "destructive" });
-      } finally {
-        setIsLoading(false);
+  const fetchConfig = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const docSnap = await getDoc(configDocRef);
+      if (docSnap.exists()) {
+        setConfig(docSnap.data() as WalletConfig);
+      } else {
+        // If no config exists, save initial defaults to Firestore
+        await setDoc(configDocRef, { ...config, lastUpdatedAt: serverTimestamp() });
+        toast({ title: "Configuração Inicial", description: "Configurações padrão da carteira foram salvas."});
       }
-    };
+    } catch (error) {
+      console.error("Erro ao carregar configuração da carteira:", error);
+      toast({ title: "Erro ao Carregar", description: "Não foi possível carregar as configurações. Usando padrões.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [configDocRef, toast, config]); // Added config to dependencies to ensure defaults are saved if not present
+
+  useEffect(() => {
     fetchConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Fetch config only on mount
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
@@ -122,8 +124,9 @@ export default function AdminWalletsConfigPage() {
         </CardFooter>
       </Card>
        <div className="mt-auto pt-6 text-xs text-muted-foreground">
-        <p><strong>Nota:</strong> A lógica real para adicionar diamantes automaticamente com base nessas configurações precisaria ser implementada em um backend (por exemplo, Firebase Cloud Functions) que processa eventos de presentes.</p>
+        <p><strong>Nota:</strong> A lógica real para adicionar diamantes automaticamente com base nessas configurações precisaria ser implementada em um backend (por exemplo, Firebase Cloud Functions) que processa eventos de presentes e consulta estas configurações.</p>
       </div>
     </div>
   );
 }
+
