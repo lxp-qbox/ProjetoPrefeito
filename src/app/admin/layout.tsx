@@ -6,9 +6,6 @@ import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
-  Users,
-  User,
-  UserCog,
   ShieldAlert,
   LayoutDashboard,
   Settings as SettingsIconLucide, // Renamed to avoid conflict
@@ -23,35 +20,24 @@ import {
   PanelLeftClose,
   PanelRightOpen,
   Star,
+  User,
+  UserCog,
   XCircle,
   Database,
   Link as LinkIcon,
-  Ticket as TicketIcon,
   RefreshCw,
   MailQuestion,
+  Ticket as TicketIcon,
   ServerOff,
-  WalletCards, // Added WalletCards
-  Settings2 // Added Settings2
+  WalletCards, 
+  Settings2,
+  Gift // Added Gift
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import AdminHostsPageContent from "./hosts/page-content";
-import AdminPlayersPageContent from "./users/players/page-content";
-import AdminAdminsPageContent from "./users/admin/page-content";
-import AdminBansPage from "./actions/bans/page";
-import AdminKakoLiveDataListPageContent from "./kako-live/data-list/page-content";
-import AdminKakoLiveUpdateDataChatPageContent from "./kako-live/update-data-chat/page-content";
-import AdminKakoLiveLinkTesterPage from "./kako-live/link-tester/page";
-import AdminKakoLiveGiftsPageContent from "./kako-live/gifts/page-content";
-import AdminMaintenanceOfflinePage from "./maintenance/offline/page";
-
-// Import new wallet pages
-import AdminWalletsListPage from "./wallets/list/page";
-import AdminWalletsConfigPage from "./wallets/config/page";
-
 
 interface AdminMenuItem {
   id: string;
@@ -102,13 +88,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       groupTitle: "KAKO LIVE",
       items: [
         { id: "kakoDataList", title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
-        { id: "kakoGiftsList", title: "Lista de Presentes", icon: GiftIconLucide, link: "/admin/kako-live/gifts"},
+        { id: "kakoGiftsList", title: "Lista de Presentes", icon: Gift, link: "/admin/kako-live/gifts"}, // Corrected to Gift
         { id: "kakoUpdateDataChat", title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" },
         { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
       ]
     },
     {
-      groupTitle: "CARTEIRAS", // New Group
+      groupTitle: "CARTEIRAS",
       items: [
         { id: "walletsList", title: "Listar Carteiras", icon: WalletCards, link: "/admin/wallets/list" },
         { id: "walletsConfig", title: "Configurar Carteira", icon: Settings2, link: "/admin/wallets/config" },
@@ -153,11 +139,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const handleMenuClick = (item: AdminMenuItem) => {
     if (item.action) {
       item.action();
-    } else if (item.link && !item.link.startsWith("/admin#")) { // Don't change activeLink for placeholder hash links
+    } else if (item.link && !item.link.startsWith("/admin#")) {
       router.push(item.link);
-      setActiveLink(item.link);
     } else if (item.link && item.link.startsWith("/admin#")) {
-      // Handle in-page section links if needed, or just do nothing for placeholders
       console.log("Placeholder link clicked:", item.link);
     }
   };
@@ -179,7 +163,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
   
-  // Special handling for /admin/bingo-admin to be full page
   if (pathname === '/admin/bingo-admin') {
     return (
       <ProtectedPage>
@@ -189,6 +172,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </ProtectedPage>
     );
   }
+
 
   return (
     <ProtectedPage>
@@ -224,7 +208,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 "w-full text-left h-auto text-sm font-normal rounded-md transition-all duration-300 ease-in-out",
                                 isActive
                                   ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                                  : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
+                                  : "text-card-foreground hover:bg-card/80 bg-card shadow-sm hover:text-card-foreground",
                                 isCollapsed
                                   ? "flex items-center justify-center p-3 h-14"
                                   : "justify-between py-3 px-3" 
