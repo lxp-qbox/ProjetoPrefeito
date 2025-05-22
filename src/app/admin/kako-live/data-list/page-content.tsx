@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown, Link as LinkIconLucide } from "lucide-react";
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown, Link as LinkIconLucide, Database } from "lucide-react";
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -37,10 +37,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { KakoProfile } from "@/types";
+import type { KakoProfile, UserProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { format, formatDistanceToNow } from "date-fns"; // Added formatDistanceToNow
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { db, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, orderBy, deleteDoc } from "@/lib/firebase";
 
@@ -83,7 +83,7 @@ export default function AdminKakoLiveDataListPageContent() {
   const [selectedProfileForDetails, setSelectedProfileForDetails] = useState<KakoProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const [linkedAccountsCount, setLinkedAccountsCount] = useState<number | string>('...');
+  const [linkedAccountMap, setLinkedAccountMap] = useState<Map<string, { accountUid: string, profileName?: string }>>(new Map());
   const [isLoadingLinkedAccounts, setIsLoadingLinkedAccounts] = useState(true);
   const [lastProfilesFetchTimestamp, setLastProfilesFetchTimestamp] = useState<Date | null>(null);
 
@@ -102,7 +102,7 @@ export default function AdminKakoLiveDataListPageContent() {
           avatarUrl: data.avatar || data.avatarUrl || "", 
           level: data.level,
           numId: data.numId,
-          showId: data.showId || "", // Ensure showId is handled
+          showId: data.showId || "",
           gender: data.gender,
           signature: data.signature,
           area: data.area,
@@ -113,7 +113,7 @@ export default function AdminKakoLiveDataListPageContent() {
         });
       });
       setKakoProfiles(fetchedProfiles);
-      setLastProfilesFetchTimestamp(new Date()); // Set timestamp after successful fetch
+      setLastProfilesFetchTimestamp(new Date());
     } catch (error) {
       console.error("Erro ao buscar perfis Kako do Firestore:", error);
       toast({ title: "Erro ao Carregar Perfis", description: "Não foi possível carregar a lista de perfis do banco de dados.", variant: "destructive" });
@@ -122,17 +122,23 @@ export default function AdminKakoLiveDataListPageContent() {
     }
   }, [toast]);
 
-  const fetchLinkedAccountsCount = useCallback(async () => {
+  const fetchLinkedAccountMap = useCallback(async () => {
     setIsLoadingLinkedAccounts(true);
     try {
       const accountsRef = collection(db, "accounts");
       const q = query(accountsRef, where("showId", "!=", "")); 
       const querySnapshot = await getDocs(q);
-      setLinkedAccountsCount(querySnapshot.size);
+      const newMap = new Map<string, { accountUid: string, profileName?: string }>();
+      querySnapshot.forEach((docSnap) => {
+        const accountData = docSnap.data() as UserProfile;
+        if(accountData.showId) {
+          newMap.set(accountData.showId, { accountUid: docSnap.id, profileName: accountData.profileName || accountData.displayName });
+        }
+      });
+      setLinkedAccountMap(newMap);
     } catch (error) {
-      console.error("Erro ao buscar contagem de contas vinculadas:", error);
-      setLinkedAccountsCount("Erro");
-      toast({ title: "Erro ao Carregar Contagem", description: "Não foi possível carregar o total de contas vinculadas.", variant: "destructive" });
+      console.error("Erro ao buscar mapa de contas vinculadas:", error);
+      toast({ title: "Erro ao Carregar Vinculações", description: "Não foi possível carregar o mapa de contas vinculadas.", variant: "destructive" });
     } finally {
       setIsLoadingLinkedAccounts(false);
     }
@@ -140,8 +146,8 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const refreshAllData = useCallback(() => {
     fetchKakoProfilesFromDB();
-    fetchLinkedAccountsCount();
-  }, [fetchKakoProfilesFromDB, fetchLinkedAccountsCount]);
+    fetchLinkedAccountMap();
+  }, [fetchKakoProfilesFromDB, fetchLinkedAccountMap]);
 
   useEffect(() => {
     refreshAllData();
@@ -164,7 +170,7 @@ export default function AdminKakoLiveDataListPageContent() {
       });
       await batch.commit();
       setKakoProfiles([]); 
-      setLastProfilesFetchTimestamp(new Date()); // Update timestamp after clearing
+      setLastProfilesFetchTimestamp(new Date());
       toast({
         title: "Perfis Apagados do DB",
         description: "Todos os perfis foram apagados da coleção 'kakoProfiles' no Firestore.",
@@ -185,11 +191,11 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const handleConfirmDeleteSingleProfile = async () => {
     if (!profileToDelete) return;
-    setIsDeletingProfilesDB(true); // Reuse for single delete loading state
+    setIsDeletingProfilesDB(true); 
     try {
       await deleteDoc(doc(db, "kakoProfiles", profileToDelete.id));
       setKakoProfiles(prev => prev.filter(p => p.id !== profileToDelete!.id));
-      setLastProfilesFetchTimestamp(new Date()); // Update timestamp
+      setLastProfilesFetchTimestamp(new Date());
       toast({ title: "Perfil Removido", description: `Perfil de ${profileToDelete.nickname} removido do Firestore.` });
     } catch (error) {
       console.error("Erro ao remover perfil do Firestore:", error);
@@ -214,7 +220,7 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.numId && profile.numId.toString().includes(searchTerm)) 
   );
   
-  const displayLoadingProfiles = isLoadingProfiles || isLoadingLinkedAccounts;
+  const displayLoading = isLoadingProfiles || isLoadingLinkedAccounts;
 
 
   return (
@@ -251,8 +257,8 @@ export default function AdminKakoLiveDataListPageContent() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard title="Total de Perfis (DB)" count={isLoadingProfiles ? '...' : kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
-          <StatCard title="Total de Perfis Vinculados" count={isLoadingLinkedAccounts ? '...' : linkedAccountsCount} icon={LinkIconLucide} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
+          <StatCard title="Total de Perfis (DB)" count={isLoadingProfiles ? '...' : kakoProfiles.length} icon={Database} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Perfis Vinculados" count={isLoadingLinkedAccounts ? '...' : linkedAccountMap.size} icon={LinkIconLucide} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
         </div>
 
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
@@ -262,7 +268,7 @@ export default function AdminKakoLiveDataListPageContent() {
           </CardHeader>
           <CardContent className="flex-grow p-0">
             <div className="overflow-x-auto h-full">
-              {displayLoadingProfiles ? (
+              {displayLoading ? (
                 <div className="flex justify-center items-center h-full">
                   <LoadingSpinner size="lg" />
                   <p className="ml-2 text-muted-foreground">Carregando dados...</p>
@@ -275,67 +281,81 @@ export default function AdminKakoLiveDataListPageContent() {
                     <TableHead className="min-w-[200px]">NICKNAME / SHOW ID</TableHead>
                     <TableHead>NÍVEL</TableHead>
                     <TableHead>USER ID (FUID)</TableHead>
+                    <TableHead>VINCULADO A</TableHead>
                     <TableHead className="text-right w-[200px]">AÇÕES</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProfiles.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         Nenhum perfil encontrado no banco de dados.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProfiles.map((profile) => (
-                      <TableRow key={profile.id} className="hover:bg-muted/20 transition-colors">
-                        <TableCell className="px-4">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={profile.avatarUrl || undefined} alt={profile.nickname} data-ai-hint="user avatar" />
-                            <AvatarFallback>
-                                {profile.nickname ? profile.nickname.substring(0,2).toUpperCase() : <UserCircle2 />}
-                            </AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                            <div>
-                              <span className="text-foreground">{profile.nickname}</span>
-                              {profile.showId && <div className="text-xs text-muted-foreground">Show ID: {profile.showId}</div>}
+                    filteredProfiles.map((profile) => {
+                      const linkedAccount = profile.showId ? linkedAccountMap.get(profile.showId) : undefined;
+                      return (
+                        <TableRow key={profile.id} className="hover:bg-muted/20 transition-colors">
+                          <TableCell className="px-4">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={profile.avatarUrl || undefined} alt={profile.nickname} data-ai-hint="user avatar" />
+                              <AvatarFallback>
+                                  {profile.nickname ? profile.nickname.substring(0,2).toUpperCase() : <UserCircle2 />}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                              <div>
+                                <span className="text-foreground">{profile.nickname}</span>
+                                {profile.showId && <div className="text-xs text-muted-foreground">Show ID: {profile.showId}</div>}
+                              </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              Nível {profile.level || "N/A"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground font-mono">{profile.id}</TableCell>
+                          <TableCell>
+                            {linkedAccount ? (
+                              <Badge variant="default" className="text-xs bg-green-500/10 text-green-700 border-green-500/20">
+                                Sim
+                                {linkedAccount.profileName && <span className="ml-1 font-normal">({linkedAccount.profileName})</span>}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Não</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                               <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
+                                  <Eye className="mr-1.5 h-3 w-3" /> Detalhes
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                                    Ações <ChevronDown className="ml-1.5 h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onSelect={() => toast({ title: "Sincronizar Dados", description: "Funcionalidade em desenvolvimento."})}>
+                                    Sincronizar Dados
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                      onClick={() => handleRequestDeleteSingleProfile(profile)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Remover do DB
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            Nível {profile.level || "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono">{profile.id}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                             <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => handleShowDetails(profile)}>
-                                <Eye className="mr-1.5 h-3 w-3" /> Detalhes
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                                  Ações <ChevronDown className="ml-1.5 h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => toast({ title: "Sincronizar Dados", description: "Funcionalidade em desenvolvimento."})}>
-                                  Sincronizar Dados
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                                    onClick={() => handleRequestDeleteSingleProfile(profile)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Remover do DB
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -489,3 +509,4 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
