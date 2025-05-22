@@ -39,10 +39,11 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label"; // Added Label import
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL } from "@/lib/firebase";
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp } from "@/lib/firebase"; // Added Timestamp
 import LoadingSpinner from '@/components/ui/loading-spinner';
-import { Progress } from '@/components/ui/progress';
 
 
 interface BingoAdminMenuItem {
@@ -893,7 +894,7 @@ export default function AdminBingoAdminPage() {
                           <div
                             key={`detail-card-90-${rowIndex}-${colIndex}`}
                             className={cn(
-                              "flex items-center justify-center h-12 text-base font-semibold", // Updated font to semibold
+                              "flex items-center justify-center h-12 text-lg font-semibold", 
                               cell === null ? 'bg-primary/10' : 'bg-card text-primary'
                             )}
                           >
@@ -921,7 +922,7 @@ export default function AdminBingoAdminPage() {
                               <div
                                 key={`detail-card-75-${rowIndex}-${colIndex}`}
                                 className={cn(
-                                  "flex items-center justify-center h-12 text-base font-semibold", // Updated font to semibold
+                                  "flex items-center justify-center h-12 text-lg font-semibold", 
                                   cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' 
                                 )}
                               >
