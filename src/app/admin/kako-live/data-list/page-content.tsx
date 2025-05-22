@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown } from "lucide-react";
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown, Link as LinkIconLucide } from "lucide-react"; // Added LinkIconLucide
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -42,7 +42,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { db, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc } from "@/lib/firebase";
+import { db, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, orderBy } from "@/lib/firebase";
 
 
 interface StatCardProps {
@@ -77,12 +77,14 @@ export default function AdminKakoLiveDataListPageContent() {
   
   const [isConfirmClearProfilesDBDialogOpen, setIsConfirmClearProfilesDBDialogOpen] = useState(false); 
   const [isDeletingProfilesDB, setIsDeletingProfilesDB] = useState(false);
-  const [profileToDelete, setProfileToDelete] = useState<KakoProfile | null>(null); // For single profile local removal
+  const [profileToDelete, setProfileToDelete] = useState<KakoProfile | null>(null);
   const [isConfirmDeleteSingleProfileDialogOpen, setIsConfirmDeleteSingleProfileDialogOpen] = useState(false);
-
 
   const [selectedProfileForDetails, setSelectedProfileForDetails] = useState<KakoProfile | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  const [linkedAccountsCount, setLinkedAccountsCount] = useState<number | string>('...');
+  const [isLoadingLinkedAccounts, setIsLoadingLinkedAccounts] = useState(true);
 
   const fetchKakoProfilesFromDB = useCallback(async () => {
     setIsLoadingProfiles(true);
@@ -118,9 +120,30 @@ export default function AdminKakoLiveDataListPageContent() {
     }
   }, [toast]);
 
-  useEffect(() => {
+  const fetchLinkedAccountsCount = useCallback(async () => {
+    setIsLoadingLinkedAccounts(true);
+    try {
+      const accountsRef = collection(db, "accounts");
+      const q = query(accountsRef, where("showId", "!=", "")); // Count accounts with a non-empty showId
+      const querySnapshot = await getDocs(q);
+      setLinkedAccountsCount(querySnapshot.size);
+    } catch (error) {
+      console.error("Erro ao buscar contagem de contas vinculadas:", error);
+      setLinkedAccountsCount("Erro");
+      toast({ title: "Erro ao Carregar Contagem", description: "Não foi possível carregar o total de contas vinculadas.", variant: "destructive" });
+    } finally {
+      setIsLoadingLinkedAccounts(false);
+    }
+  }, [toast]);
+
+  const refreshAllData = useCallback(() => {
     fetchKakoProfilesFromDB();
-  }, [fetchKakoProfilesFromDB]);
+    fetchLinkedAccountsCount();
+  }, [fetchKakoProfilesFromDB, fetchLinkedAccountsCount]);
+
+  useEffect(() => {
+    refreshAllData();
+  }, [refreshAllData]);
 
 
   const handleConfirmClearProfilesDB = async () => {
@@ -159,7 +182,7 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const handleConfirmDeleteSingleProfile = async () => {
     if (!profileToDelete) return;
-    setIsDeletingProfilesDB(true); // Can reuse this for spinner
+    setIsDeletingProfilesDB(true); 
     try {
       await deleteDoc(doc(db, "kakoProfiles", profileToDelete.id));
       setKakoProfiles(prev => prev.filter(p => p.id !== profileToDelete!.id));
@@ -187,7 +210,7 @@ export default function AdminKakoLiveDataListPageContent() {
     (profile.numId && profile.numId.toString().includes(searchTerm)) 
   );
   
-  const displayLoadingProfiles = isLoadingProfiles;
+  const displayLoadingProfiles = isLoadingProfiles || isLoadingLinkedAccounts;
 
 
   return (
@@ -209,7 +232,7 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={fetchKakoProfilesFromDB} className="h-10" disabled={isLoadingProfiles}>
+              <Button variant="outline" onClick={refreshAllData} className="h-10" disabled={isLoadingProfiles || isLoadingLinkedAccounts}>
                  <RefreshCw className="mr-2 h-4 w-4" />
                 Atualizar Lista
               </Button>
@@ -222,19 +245,20 @@ export default function AdminKakoLiveDataListPageContent() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatCard title="Total de Perfis (DB)" count={isLoadingProfiles ? '...' : kakoProfiles.length} icon={Users} bgColorClass="bg-sky-500/10" textColorClass="text-sky-500" />
+          <StatCard title="Total de Perfis Vinculados" count={isLoadingLinkedAccounts ? '...' : linkedAccountsCount} icon={LinkIconLucide} bgColorClass="bg-green-500/10" textColorClass="text-green-500" />
         </div>
 
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Lista de Perfis do Kako Live (Salvos)</CardTitle>
-            <CardDescription>Perfis identificados e salvos no Firestore.</CardDescription>
+            <CardDescription>Perfis identificados e salvos na coleção 'kakoProfiles' do Firestore.</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow p-0">
             <div className="overflow-x-auto h-full">
               {displayLoadingProfiles ? (
                 <div className="flex justify-center items-center h-full">
                   <LoadingSpinner size="lg" />
-                  <p className="ml-2 text-muted-foreground">Carregando perfis do banco de dados...</p>
+                  <p className="ml-2 text-muted-foreground">Carregando dados...</p>
                 </div>
               ) : (
               <Table>
@@ -457,3 +481,6 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
+
+
+    
