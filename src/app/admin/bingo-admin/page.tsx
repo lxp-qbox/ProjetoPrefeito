@@ -55,7 +55,7 @@ import {
   orderBy, 
   addDoc, 
   getDocs, 
-  getDoc, // Ensure getDoc is imported
+  getDoc, 
   serverTimestamp, 
   storage, 
   storageRef, 
@@ -194,7 +194,7 @@ const newGameSchema = z.object({
 });
 type NewGameFormValues = z.infer<typeof newGameSchema>;
 
-const initialGameEventAudioSettings: Omit<AudioSetting, 'audioUrl' | 'fileName' | 'storagePath' | 'uploadedAt' | 'keyword' | 'associatedGiftId' | 'associatedGiftName'>[] = [
+const initialGameEventAudioSettings: Omit<AudioSetting, 'audioUrl' | 'fileName' | 'storagePath' | 'uploadedAt' | 'keyword' | 'associatedGiftId' | 'associatedGiftName' | 'createdBy'>[] = [
   { id: 'audioInicioPartida', type: 'gameEvent', displayName: 'Início da Partida' },
   { id: 'audioPausada', type: 'gameEvent', displayName: 'Partida Pausada' },
   { id: 'audioContinuando', type: 'gameEvent', displayName: 'Partida Continuando' },
@@ -214,8 +214,8 @@ type InteractionAudioFormValues = z.infer<typeof interactionAudioSchema>;
 
 const ballAssetSchema = z.object({
     assetFile: z.instanceof(FileList).refine(files => files?.length === 1, "Um arquivo é obrigatório.")
-                   .refine(files => !files?.[0] || files?.[0]?.size <= 2 * 1024 * 1024, "Arquivo muito grande (máx 2MB).") // Check if file exists before size
-                   .refine(files => !files?.[0] || (files?.[0]?.type.startsWith("image/") || files?.[0]?.type.startsWith("audio/")), "O arquivo deve ser uma imagem ou áudio."), // Check if file exists before type
+                   .refine(files => !files?.[0] || files?.[0]?.size <= 2 * 1024 * 1024, "Arquivo muito grande (máx 2MB).") 
+                   .refine(files => !files?.[0] || (files?.[0]?.type.startsWith("image/") || files?.[0]?.type.startsWith("audio/")), "O arquivo deve ser uma imagem ou áudio."), 
 });
 type BallAssetFormValues = z.infer<typeof ballAssetSchema>;
 
@@ -279,14 +279,13 @@ export default function AdminBingoAdminPage() {
     if (audioPlayer) {
       audioPlayer.pause();
       audioPlayer.currentTime = 0;
-      // setAudioPlayer(null); // Do not nullify, we want to reuse if possible or ensure cleanup on end/new play
       if (currentPlayingAudioId === audioId && audioId) { 
         setCurrentPlayingAudioId(null);
         return;
       }
     }
     if (audioUrl && audioId) {
-      const newPlayer = audioPlayer || new Audio(); // Reuse or create new
+      const newPlayer = audioPlayer || new Audio(); 
       newPlayer.src = audioUrl;
       newPlayer.play().catch(e => console.error("Error playing audio:", e));
       setAudioPlayer(newPlayer);
@@ -294,7 +293,7 @@ export default function AdminBingoAdminPage() {
       
       const onEndOrPause = () => {
         if (newPlayer.paused || newPlayer.ended) {
-             if (currentPlayingAudioId === audioId) { // Only clear if it's still the one meant to be playing
+             if (currentPlayingAudioId === audioId) { 
                 setCurrentPlayingAudioId(null);
              }
         }
@@ -310,8 +309,6 @@ export default function AdminBingoAdminPage() {
     return () => {
       if (audioPlayer) {
         audioPlayer.pause();
-        // audioPlayer.src = ''; // Detach src
-        // setAudioPlayer(null); // Clear from state on unmount
       }
     };
   }, [audioPlayer]);
@@ -656,24 +653,14 @@ export default function AdminBingoAdminPage() {
 
     const storagePathToRemove = assetType === 'image' ? ballSetting.imageStoragePath : ballSetting.audioStoragePath;
     
-    const fieldsToClear: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
-    if (assetType === 'image') {
-        fieldsToClear.imageUrl = undefined; 
-        fieldsToClear.imageStoragePath = undefined;
-    } else {
-        fieldsToClear.audioUrl = undefined;
-        fieldsToClear.audioStoragePath = undefined;
-    }
-
     try {
         if (storagePathToRemove) {
             await deleteFileStorage(storageRef(storage, storagePathToRemove));
         }
         const docRef = doc(db, "bingoBallConfigurations", ballNumber.toString());
-        // Use updateDoc and construct an object to delete fields
         const updateData: Record<string, any> = { lastUpdatedAt: serverTimestamp() };
         if (assetType === 'image') {
-            updateData.imageUrl = null; // Firestore interprets null as delete in merge, or use deleteField()
+            updateData.imageUrl = null; 
             updateData.imageStoragePath = null;
         } else {
             updateData.audioUrl = null;
@@ -818,9 +805,9 @@ export default function AdminBingoAdminPage() {
     setIsUploadingAudio(true);
     setAudioUploadProgress(0);
 
-    const isInteractionAudio = currentAudioSettingToEdit?.type === 'interaction' || isAddInteractionAudioDialogOpen;
+    const isInteractionAudio = !!data;
     const fileToUpload = isInteractionAudio ? data?.audioFile?.[0] : selectedAudioFile;
-    const audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
+    let audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
     
     if (!fileToUpload) {
         toast({ title: "Nenhum Arquivo Selecionado", description: "Por favor, selecione um arquivo de áudio.", variant: "destructive" });
@@ -828,7 +815,7 @@ export default function AdminBingoAdminPage() {
         setAudioUploadProgress(null);
         return;
     }
-     if (!audioDisplayNameForToast && isInteractionAudio) {
+     if (!audioDisplayNameForToast && isInteractionAudio) { // If currentAudioSettingToEdit is null for interaction, name is needed
         toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o áudio de interação.", variant: "destructive" });
         setIsUploadingAudio(false);
         setAudioUploadProgress(null);
@@ -841,7 +828,7 @@ export default function AdminBingoAdminPage() {
     let firestoreDocId: string | undefined = undefined;
     let oldStoragePathToDelete: string | undefined = undefined;
     
-    let audioDataToSave: Partial<AudioSetting> & { uploadedAt?: any; type: 'gameEvent' | 'interaction'; displayName?: string; id?: string };
+    let audioDataToSave: Partial<AudioSetting> & { uploadedAt?: any; type: 'gameEvent' | 'interaction'; displayName?: string; id?: string, createdBy?: string };
 
 
     if (isInteractionAudio && data) {
@@ -868,10 +855,11 @@ export default function AdminBingoAdminPage() {
         firestoreDocId = currentAudioSettingToEdit.id;
         newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
         oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
+        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; // Ensure toast name is correct
         audioDataToSave = {
-            id: currentAudioSettingToEdit.id, // Used as Firestore doc ID
+            id: currentAudioSettingToEdit.id,
             type: 'gameEvent',
-            displayName: currentAudioSettingToEdit.displayName, // This is the eventName for gameEvent type
+            displayName: currentAudioSettingToEdit.displayName, 
             audioUrl: '',
             fileName: sanitizedSelectedFileName,
             storagePath: newStoragePath,
@@ -907,14 +895,14 @@ export default function AdminBingoAdminPage() {
         audioDataToSave.storagePath = newStoragePath; 
 
         if (isInteractionAudio) {
-            if (firestoreDocId) { // Editing existing interaction audio
+            if (firestoreDocId) { 
                  await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
                  setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
-            } else { // Adding new interaction audio
+            } else { 
                 const docRef = await addDoc(collection(db, firestoreCollectionName), audioDataToSave);
                 setInteractionAudioSettings(prev => [{...audioDataToSave, id: docRef.id, uploadedAt: new Date()} as AudioSetting, ...prev ]);
             }
-        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { // Game Event Audio
+        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { 
             await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
              setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
         }
@@ -1800,13 +1788,14 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                   </div>
               </CardContent>
             </Card>
-             {/* Dialog for Ball Asset Upload */}
             <Dialog open={isUploadBallAssetDialogOpen} onOpenChange={(open) => {
                 setIsUploadBallAssetDialogOpen(open);
                 if (!open) {
                     ballAssetForm.reset();
                     setSelectedBallAssetFile(null);
                     if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+                    setCurrentBallEditing(null);
+                    setAssetTypeToUpload(null);
                 }
             }}>
                 <DialogContent className="sm:max-w-md">
@@ -1823,7 +1812,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                              <FormField
                                 control={ballAssetForm.control}
                                 name="assetFile"
-                                render={({ field }) => ( // field contains onChange, onBlur, value, name, ref
+                                render={({ field }) => ( 
                                 <FormItem>
                                     <FormLabel>Arquivo</FormLabel>
                                     <FormControl>
@@ -1854,14 +1843,14 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                 setSelectedBallAssetFile(null);
                                             }
                                         }}
-                                        ref={el => { // Combine RHF ref with local ref
-                                            field.ref(el); // RHF's ref
+                                        ref={el => { 
+                                            field.ref(el); 
                                             if (ballAssetFileInputRef && typeof ballAssetFileInputRef === 'object') {
                                                 ballAssetFileInputRef.current = el;
                                             }
                                         }}
-                                        name={field.name} // Use RHF's name
-                                        onBlur={field.onBlur} // Use RHF's onBlur
+                                        name={field.name} 
+                                        onBlur={field.onBlur} 
                                     />
                                     </FormControl>
                                     <FormMessage />
@@ -1879,7 +1868,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
                                 <Button type="submit" disabled={isUploadingBallAsset || !ballAssetForm.formState.isValid || !selectedBallAssetFile}>
                                     {isUploadingBallAsset ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                                    Salvar Asset
+                                    Enviar
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -1917,7 +1906,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 {currentPlayingAudioId === audioEvent.id ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
                             </Button>
                         )}
-                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenUploadAudioDialog(audioEvent)}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenUploadAudioDialog(audioEvent, false)}>
                            <UploadCloud className="mr-1.5 h-3 w-3" /> Upload
                         </Button>
                          {audioEvent.storagePath && (
@@ -1940,7 +1929,6 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     if (audioFileInputRef.current) audioFileInputRef.current.value = "";
                     interactionAudioForm.reset();
                 } else {
-                     // If opening the dialog and it's for an existing interaction audio, populate the form
                     if (isAddInteractionAudioDialogOpen && currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'interaction') {
                         interactionAudioForm.reset({
                             displayName: currentAudioSettingToEdit.displayName,
@@ -1948,7 +1936,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             associatedGiftId: currentAudioSettingToEdit.associatedGiftId || "",
                             audioFile: undefined
                         });
-                    } else if (isAddInteractionAudioDialogOpen && !currentAudioSettingToEdit) { // New interaction audio
+                    } else if (isAddInteractionAudioDialogOpen && !currentAudioSettingToEdit) { 
                         interactionAudioForm.reset();
                     }
                 }
@@ -1990,7 +1978,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                     </FormItem>
                                 )}/>
                                 <FormField control={interactionAudioForm.control} name="audioFile"
-                                  render={({ field }) => ( // field has onChange, onBlur, value, name, ref
+                                  render={({ field: { onChange: rhfOnChange, value, name: rhfName, ref: rhfRef, ...rhfRest } }) => (
                                   <FormItem>
                                       <FormLabel>Arquivo de Áudio (máx 2MB)</FormLabel>
                                       <FormControl>
@@ -2001,30 +1989,29 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                 if (files && files.length > 0) {
                                                     if (files[0].size > 2 * 1024 * 1024) {
                                                         interactionAudioForm.setError("audioFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
-                                                        field.onChange(null); 
-                                                        setSelectedAudioFile(null);
+                                                        rhfOnChange(null); 
                                                     } else if (!files[0].type.startsWith("audio/")) {
                                                         interactionAudioForm.setError("audioFile", { type: "manual", message: "O arquivo deve ser um áudio."});
-                                                        field.onChange(null);
-                                                        setSelectedAudioFile(null);
+                                                        rhfOnChange(null);
                                                     } else {
                                                         interactionAudioForm.clearErrors("audioFile");
-                                                        field.onChange(files); 
-                                                        setSelectedAudioFile(files[0]);
+                                                        rhfOnChange(files); 
                                                     }
                                                 } else {
-                                                    field.onChange(null);
-                                                    setSelectedAudioFile(null);
+                                                    rhfOnChange(null);
                                                 }
+                                                handleAudioFileSelect(e); // For setting selectedAudioFile if still needed elsewhere
                                             }}
-                                            ref={el => { // RHF ref + local ref
-                                                field.ref(el);
+                                            ref={el => { 
+                                                if (typeof rhfRef === 'function') rhfRef(el);
+                                                // @ts-ignore
+                                                else if (rhfRef) rhfRef.current = el;
                                                 if (audioFileInputRef && typeof audioFileInputRef === 'object') {
                                                   audioFileInputRef.current = el;
                                                 }
                                             }}
-                                            name={field.name}
-                                            onBlur={field.onBlur}
+                                            name={rhfName}
+                                            {...rhfRest}
                                           />
                                       </FormControl>
                                       <FormMessage />
@@ -2043,7 +2030,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                             (!interactionAudioForm.getValues('audioFile')?.[0] && !(currentAudioSettingToEdit?.type === 'interaction' && currentAudioSettingToEdit?.audioUrl))
                                         }
                                     >
-                                        {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
+                                        {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar Áudio
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -2064,7 +2051,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                     type="submit" 
                                     disabled={isUploadingAudio || (!selectedAudioFile && !currentAudioSettingToEdit?.audioUrl) }
                                 >
-                                    {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
+                                    {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar Áudio
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -2392,5 +2379,3 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
   );
 }
 
-
-    
