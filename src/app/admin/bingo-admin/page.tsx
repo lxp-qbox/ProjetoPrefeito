@@ -40,9 +40,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label"; // Added Label import
+import { Label } from "@/components/ui/label"; 
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp } from "@/lib/firebase"; // Added Timestamp
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp } from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 
@@ -183,7 +183,6 @@ export default function AdminBingoAdminPage() {
   const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
   const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
 
-  // State for Kako Prizes
   const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
   const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
   const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
@@ -293,8 +292,7 @@ export default function AdminBingoAdminPage() {
       kakoPrizeForm.reset();
       fetchKakoPrizes(); 
     } catch (error) {
-      // Error handling for Firestore or other parts of the process
-      if (uploadProgress === null) { // Ensure this error isn't redundant if upload failed and toasted already
+      if (uploadProgress === null) { 
          console.error("Erro ao cadastrar prêmio Kako Live:", error);
          toast({
            title: "Erro ao Cadastrar",
@@ -303,7 +301,7 @@ export default function AdminBingoAdminPage() {
          });
       }
     } finally {
-      setUploadProgress(null); // Always reset progress if an error occurs outside upload lifecycle
+      setUploadProgress(null); 
     }
   };
 
@@ -361,7 +359,6 @@ export default function AdminBingoAdminPage() {
       case 'bingoPartidas':
         return (
           <div className="space-y-6 p-6 bg-background h-full">
-            <h1 className="text-2xl font-semibold text-foreground">Administração de Bingo</h1>
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -787,26 +784,26 @@ export default function AdminBingoAdminPage() {
       default:
         return (
             <div className="space-y-6 p-6 bg-background h-full">
-              <h1 className="text-2xl font-semibold text-foreground">Administração de Bingo (Padrão)</h1>
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <TicketIcon className="mr-2 h-6 w-6 text-primary" />
-                    Gerenciamento de Partidas e Configurações de Bingo
+                    {bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.title || "Gerenciamento de Bingo"}
                   </CardTitle>
                   <CardDescription>
-                    Visualização padrão. Selecione uma opção no menu.
+                    Selecione uma opção no menu para ver mais detalhes ou gerenciar aspectos específicos do bingo.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p>Selecione uma opção específica no menu para ver mais detalhes.</p>
+                  <p>Bem-vindo à administração de bingo. Escolha uma seção no menu lateral.</p>
                 </CardContent>
               </Card>
             </div>
           );
     }
 
-    // Generic placeholder for other sections
+    // This generic placeholder is unlikely to be hit due to the default case above now rendering a more useful default.
+    // However, keeping it as a fallback.
     return (
       <div className="p-6 bg-background h-full">
         <Card className="shadow-lg">
@@ -884,7 +881,6 @@ export default function AdminBingoAdminPage() {
             <ScrollArea className="max-h-[calc(80vh-100px)] pr-4">
               <div className="space-y-6 py-4">
                 
-                {/* Visual Card Grid - Specific to 90-ball card structure */}
                 {selectedCardForDetails.cardNumbers.length === 3 && selectedCardForDetails.cardNumbers[0].length === 9 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (90 Bolas)</h3>
@@ -905,7 +901,6 @@ export default function AdminBingoAdminPage() {
                     </div>
                   </div>
                 )}
-                 {/* Visual Card Grid - Specific to 75-ball card structure */}
                  {selectedCardForDetails.cardNumbers.length === 5 && selectedCardForDetails.cardNumbers[0].length === 5 && (
                     <div>
                         <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (75 Bolas)</h3>
@@ -935,7 +930,6 @@ export default function AdminBingoAdminPage() {
                  )}
 
 
-                {/* Basic Information */}
                 <Card>
                   <CardHeader><CardTitle className="text-md">Informações Básicas</CardTitle></CardHeader>
                   <CardContent className="text-sm space-y-2">
@@ -945,7 +939,6 @@ export default function AdminBingoAdminPage() {
                   </CardContent>
                 </Card>
 
-                {/* Usage History */}
                 <Card>
                   <CardHeader><CardTitle className="text-md">Histórico de Uso ({selectedCardForDetails.usageHistory.length})</CardTitle></CardHeader>
                   <CardContent>
@@ -978,7 +971,6 @@ export default function AdminBingoAdminPage() {
                   </CardContent>
                 </Card>
 
-                {/* Awards History */}
                 <Card>
                   <CardHeader><CardTitle className="text-md">Histórico de Prêmios ({selectedCardForDetails.awardsHistory.length})</CardTitle></CardHeader>
                   <CardContent>

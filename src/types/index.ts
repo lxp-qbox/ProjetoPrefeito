@@ -1,22 +1,49 @@
 
 export interface Game {
-  id: string;
+  id?: string; // Firestore document ID
   title: string;
-  startTime: Date; 
-  status: 'Upcoming' | 'Live' | 'Ended' | 'Aberta'; 
-  hostedBy?: string;
-  description?: string; 
-  prize?: string;
+  status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada'; // Planned, Active, Paused, Ended, Cancelled
+  bingoType: '75-ball' | '90-ball';
+  cardPrice?: number; // Price per card, 0 for free
   
-  participants?: number;
-  winners?: string; 
-  additionalInfo?: string; 
-  startTimeDisplay?: string; 
-  endTimeDisplay?: string; 
+  // Option 1: Embed simplified prize info or link to complex prize objects
+  prizeDescription?: string; // Simple text description of main prize(s)
+  prizeIds?: string[]; // Array of IDs linking to a 'bingoPrizes' collection
 
-  generatedCards?: number;
-  countdownSeconds?: number;
+  startTime: any; // Firestore Timestamp for scheduled start
+  actualStartTime?: any; // Firestore Timestamp for when it actually started
+  endTime?: any; // Firestore Timestamp for when it ended or was cancelled
+
+  // Statistics - These might be aggregated or calculated
+  participantsCount?: number; // Number of unique players who joined
+  cardsSold?: number;
+  totalRevenue?: number; // Calculated from cardsSold * cardPrice
+
+  // Game State - Specific to an active game instance
+  drawnBalls?: number[]; // Array of balls drawn in order
+  lastDrawnBall?: number | null;
+  gamePatternToWin?: string; // For 75-ball bingo, e.g., "LINE", "FULL_HOUSE", "X_PATTERN"
+  // winningConditions?: any; // Could be complex object defining win patterns
+
+  // Winners
+  winners?: GameWinner[];
+
+  // Admin fields
+  createdBy?: string; // UID of admin who created it
+  createdAt: any; // Firestore Timestamp
+  updatedAt: any; // Firestore Timestamp
+  notes?: string; // Admin notes
 }
+
+export interface GameWinner {
+  userId: string; // UID of the winning user
+  userName?: string; // Denormalized for display
+  prizeId?: string; // ID of the prize won (links to BingoPrize collection)
+  prizeDescription?: string; // Denormalized prize description
+  claimedAt?: any; // Timestamp
+  winningCardId?: string; // ID of the card that won
+}
+
 
 export interface SupportTicket {
   subject: string;
@@ -65,13 +92,13 @@ export interface UserProfile {
   role?: 'player' | 'host'; 
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
-  showId?: string;          // Kako Live user-facing Show ID (e.g., "10763129") - Key link
-  kakoLiveId?: string;      // Kako Live FUID (technical ID from Kako, e.g., "0322d2dd...") - Synced if profile linked
+  showId?: string;          
+  kakoLiveId?: string;     
 
-  profileName?: string;      // App's primary display name
-  displayName?: string | null; // Usually from Firebase Auth initially
-  photoURL?: string | null;    // App's primary avatar URL
-  level?: number;            // Populated from linked KakoProfile
+  profileName?: string;      
+  displayName?: string | null; 
+  photoURL?: string | null;    
+  level?: number;            
   
   profileHeader?: string;    
   bio?: string;              
@@ -106,27 +133,29 @@ export interface UserProfile {
 }
 
 export interface KakoProfile { 
-  id: string; // Kako Live userId (FUID) - THIS IS THE DOCUMENT ID in 'kakoProfiles'
+  id: string; 
   numId?: number; 
   nickname: string;
-  avatarUrl: string; // Mapped from 'avatar'
+  avatarUrl: string; 
   level?: number;
   signature?: string; 
-  gender?: number; // 1 for male, 2 for female (based on example)
+  gender?: number; 
   area?: string;
   school?: string;
-  showId: string; // The user-facing searchable ID from Kako
+  showId: string; 
   isLiving?: boolean; 
   roomId?: string; 
   lastFetchedAt?: any; 
 }
 
 export interface KakoGift {
-  id: string; // From Kako API: gifts[x].id (converted to string)
-  name: string; // From Kako API: gifts[x].name
-  imageUrl: string; // From Kako API: gifts[x].imageUrl
-  diamond?: number; // Optional: from Kako API: gifts[x].diamond
-  display?: boolean; // Optional: from Kako API: gifts[x].display
+  id: string; 
+  name: string; 
+  imageUrl: string; 
+  diamond?: number | null; 
+  display?: boolean; 
+  createdAt?: any;
+  dataAiHint?: string;
 }
 
 
@@ -251,7 +280,6 @@ export interface SiteModule {
 export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
 export type MinimumAccessLevel = UserRole | 'nobody';
 
-// --- Bingo Specific Types ---
 
 export interface CardUsageInstance {
   userId: string; 
@@ -277,23 +305,23 @@ export interface GeneratedBingoCard {
 }
 
 export interface BingoPrize {
-  id?: string; // Firestore document ID, optional if using addDoc
+  id?: string; 
   name: string; 
   description?: string; 
   type: 'kako_virtual' | 'cash' | 'physical_item' | 'other'; 
   imageUrl?: string; 
-  valueDisplay?: string; // e.g., "R$50,00" or "1000 Moedas"
+  valueDisplay?: string; 
   
-  kakoGiftId?: string; // Specific ID from Kako Live's gift system
-  kakoGiftName?: string; // Optional: Name of the gift in Kako's system
-  kakoGiftImageUrl?: string; // Optional: Image URL from Kako's system
+  kakoGiftId?: string; 
+  kakoGiftName?: string; 
+  kakoGiftImageUrl?: string; 
 
   isActive: boolean; 
-  quantityAvailable?: number | null; // null for unlimited
+  quantityAvailable?: number | null; 
   
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
-  createdBy?: string; // UID of admin who created it
+  createdAt: any; 
+  updatedAt: any; 
+  createdBy?: string; 
 }
 
 export interface SidebarNavItem {
@@ -308,3 +336,4 @@ export interface SidebarNavItem {
 }
 
 export type SidebarFooterItem = SidebarNavItem; 
+
