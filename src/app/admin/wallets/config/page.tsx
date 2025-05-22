@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Save, Settings2 as Settings2Icon, RadioTower, ExternalLink, Info } from 'lucide-react';
+import { Save, Settings2 as Settings2Icon, RadioTower, Info } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import type { WalletConfig } from '@/types';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'; // Removed Timestamp as it's not directly used here.
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -40,16 +40,24 @@ export default function AdminWalletsConfigPage() {
           enableDonationsToHostWalletsForLinkedRooms: data.enableDonationsToHostWalletsForLinkedRooms ?? false,
         });
       } else {
+        // If no config exists, save the initial default config
         await setDoc(configDocRef, { ...config, lastUpdatedAt: serverTimestamp() });
         toast({ title: "Configuração Inicial", description: "Configurações padrão da carteira foram salvas."});
       }
     } catch (error) {
       console.error("Erro ao carregar configuração da carteira:", error);
       toast({ title: "Erro ao Carregar", description: "Não foi possível carregar as configurações. Usando padrões.", variant: "destructive" });
+      // Keep default config on error
+      setConfig({
+        autoAddDiamondsOnGift: false,
+        autoAddThreshold: 10,
+        enableDonationsToHostWalletsForLinkedRooms: false,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [configDocRef, config, toast]); // Added config to dependencies of fetchConfig
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configDocRef]); // Removed 'config' from deps to prevent loop on initial save
 
   useEffect(() => {
     fetchConfig();
@@ -131,17 +139,17 @@ export default function AdminWalletsConfigPage() {
             />
             <div className="flex-1 space-y-1">
               <Label htmlFor="enableDonationsToHostWallets" className="text-sm font-medium cursor-pointer">
-                Habilitar Doações para Carteiras de Hosts com Salas Vinculadas
+                Habilitar Doações para Carteiras de Hosts com RoomID Configurado
               </Label>
               <p className="text-xs text-muted-foreground">
-                Se ativo, doações (presentes convertidos em diamantes) feitas em lives de hosts que possuem um RoomID cadastrado em &quot;Salas de Bingo&quot; serão creditadas nas carteiras desses hosts.
+                Se ativo, doações (presentes convertidos em diamantes) feitas em lives de hosts que possuem um RoomID Kako Live configurado em seu perfil de usuário ('accounts') serão creditadas nas carteiras desses hosts.
               </p>
             </div>
           </div>
 
         </CardContent>
         <CardFooter className="border-t pt-6">
-          <Button onClick={handleSaveConfig} disabled={isSaving}>
+          <Button onClick={handleSaveConfig} disabled={isSaving || isLoading}>
             {isSaving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar Configurações
           </Button>
@@ -157,12 +165,13 @@ export default function AdminWalletsConfigPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Para que o sistema identifique corretamente as lives dos hosts e possa processar doações para suas carteiras (se a opção acima estiver habilitada),
-            os RoomIDs das salas de transmissão desses hosts devem estar cadastrados e ativos na seção &quot;Salas de Bingo&quot;.
+            Para que o sistema identifique corretamente as lives dos hosts (e para que a opção de doação acima funcione se habilitada),
+            os RoomIDs das salas de transmissão desses hosts devem estar cadastrados em seus respectivos perfis de usuário na plataforma.
+            A seção "Salas de Bingo" no menu "Bingo Admin" é para gerenciar salas específicas para os jogos de bingo do seu site, não necessariamente os RoomIDs de transmissão dos hosts para doações.
           </p>
           <Button variant="outline" asChild>
             <Link href="/admin/bingo-admin#bingoSalas">
-              <RadioTower className="mr-2 h-4 w-4" /> Ir para Salas de Bingo
+              <RadioTower className="mr-2 h-4 w-4" /> Ir para Gerenciar Salas de Bingo
             </Link>
           </Button>
         </CardContent>
@@ -183,4 +192,3 @@ export default function AdminWalletsConfigPage() {
     </div>
   );
 }
-
