@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown, Link as LinkIconLucide } from "lucide-react"; // Added LinkIconLucide
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, ChevronDown, Link as LinkIconLucide } from "lucide-react";
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -40,9 +40,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { KakoProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns"; // Added formatDistanceToNow
 import { ptBR } from "date-fns/locale";
-import { db, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, orderBy } from "@/lib/firebase";
+import { db, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, orderBy, deleteDoc } from "@/lib/firebase";
 
 
 interface StatCardProps {
@@ -85,6 +85,7 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const [linkedAccountsCount, setLinkedAccountsCount] = useState<number | string>('...');
   const [isLoadingLinkedAccounts, setIsLoadingLinkedAccounts] = useState(true);
+  const [lastProfilesFetchTimestamp, setLastProfilesFetchTimestamp] = useState<Date | null>(null);
 
   const fetchKakoProfilesFromDB = useCallback(async () => {
     setIsLoadingProfiles(true);
@@ -101,7 +102,7 @@ export default function AdminKakoLiveDataListPageContent() {
           avatarUrl: data.avatar || data.avatarUrl || "", 
           level: data.level,
           numId: data.numId,
-          showId: data.showId,
+          showId: data.showId || "", // Ensure showId is handled
           gender: data.gender,
           signature: data.signature,
           area: data.area,
@@ -112,6 +113,7 @@ export default function AdminKakoLiveDataListPageContent() {
         });
       });
       setKakoProfiles(fetchedProfiles);
+      setLastProfilesFetchTimestamp(new Date()); // Set timestamp after successful fetch
     } catch (error) {
       console.error("Erro ao buscar perfis Kako do Firestore:", error);
       toast({ title: "Erro ao Carregar Perfis", description: "Não foi possível carregar a lista de perfis do banco de dados.", variant: "destructive" });
@@ -162,6 +164,7 @@ export default function AdminKakoLiveDataListPageContent() {
       });
       await batch.commit();
       setKakoProfiles([]); 
+      setLastProfilesFetchTimestamp(new Date()); // Update timestamp after clearing
       toast({
         title: "Perfis Apagados do DB",
         description: "Todos os perfis foram apagados da coleção 'kakoProfiles' no Firestore.",
@@ -182,10 +185,11 @@ export default function AdminKakoLiveDataListPageContent() {
 
   const handleConfirmDeleteSingleProfile = async () => {
     if (!profileToDelete) return;
-    setIsDeletingProfilesDB(true); 
+    setIsDeletingProfilesDB(true); // Reuse for single delete loading state
     try {
       await deleteDoc(doc(db, "kakoProfiles", profileToDelete.id));
       setKakoProfiles(prev => prev.filter(p => p.id !== profileToDelete!.id));
+      setLastProfilesFetchTimestamp(new Date()); // Update timestamp
       toast({ title: "Perfil Removido", description: `Perfil de ${profileToDelete.nickname} removido do Firestore.` });
     } catch (error) {
       console.error("Erro ao remover perfil do Firestore:", error);
@@ -218,8 +222,12 @@ export default function AdminKakoLiveDataListPageContent() {
       <div className="space-y-6 h-full flex flex-col p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Perfis Kako Live (do Banco de Dados)</h1>
-            <p className="text-sm text-muted-foreground">Perfis Kako Live salvos no Firestore.</p>
+            <h1 className="text-2xl font-semibold text-foreground">Perfis Kako Live</h1>
+            {lastProfilesFetchTimestamp && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Lista de perfil atualizada {formatDistanceToNow(lastProfilesFetchTimestamp, { addSuffix: true, locale: ptBR })}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               <div className="relative flex-grow sm:flex-grow-0 sm:min-w-[280px]">
@@ -232,6 +240,9 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+               <Button variant="outline" size="icon" onClick={refreshAllData} className="h-10 w-10" title="Atualizar Dados">
+                 <RefreshCw className="h-4 w-4" />
+              </Button>
               <Button variant="destructive" onClick={() => setIsConfirmClearProfilesDBDialogOpen(true)} className="h-10" disabled={isDeletingProfilesDB || kakoProfiles.length === 0}>
                  {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
                 Zerar DB (Perfis)
@@ -312,6 +323,7 @@ export default function AdminKakoLiveDataListPageContent() {
                                 <DropdownMenuItem onSelect={() => toast({ title: "Sincronizar Dados", description: "Funcionalidade em desenvolvimento."})}>
                                   Sincronizar Dados
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                     onClick={() => handleRequestDeleteSingleProfile(profile)}
@@ -477,6 +489,3 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
-
-
-    
