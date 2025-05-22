@@ -26,7 +26,7 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIcon, Edit2,
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIconLucide, Edit2,
   UploadCloud, Music2, Image as ImageIconLucide
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -46,7 +46,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, ref as storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 
@@ -654,7 +654,7 @@ export default function AdminBingoAdminPage() {
                                         ) : (
                                             <span>Escolha uma data</span>
                                         )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        <CalendarIconLucide className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
                                     </FormControl>
                                     </PopoverTrigger>
@@ -1259,13 +1259,16 @@ export default function AdminBingoAdminPage() {
           </div>
         );
       default:
+        // Fallback content, ensuring it's wrapped in a similar structure
+        // to avoid layout shifts if a tab doesn't have specific content yet.
+        const currentItem = bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab);
         return (
             <div className="space-y-6 p-6 bg-background h-full">
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <TicketIcon className="mr-2 h-6 w-6 text-primary" />
-                    {bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.title || "Gerenciamento de Bingo"}
+                    {currentItem ? <currentItem.icon className="mr-2 h-6 w-6 text-primary" /> : <TicketIcon className="mr-2 h-6 w-6 text-primary" />}
+                    {currentItem?.title || "Gerenciamento de Bingo"}
                   </CardTitle>
                   <CardDescription>
                     Selecione uma opção no menu para ver mais detalhes ou gerenciar aspectos específicos do bingo.
@@ -1512,3 +1515,7 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
+
+    
+
+    
