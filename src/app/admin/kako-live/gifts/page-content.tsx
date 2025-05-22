@@ -91,23 +91,25 @@ const giftFormSchema = z.object({
     .refine(files => !files || !files?.[0] || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
   diamond: z.preprocess(
     (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
-    z.number({ invalid_type_error: "Diamantes deve ser um número" }).int("Diamantes deve ser um número inteiro.").min(0, "Diamantes deve ser zero ou positivo.").optional()
+    z.number({ invalid_type_error: "Diamantes deve ser um número" }).int("Diamantes deve ser um número inteiro.").min(0,"Diamantes deve ser zero ou positivo.").optional()
   ),
   display: z.boolean().default(true),
 }).superRefine((data, ctx) => {
-    // This superRefine is tricky for edit vs add.
     // For adding, we need either imageUrl or imageFile.
-    // For editing, an image might already exist (giftToEdit.imageUrl), so neither new imageUrl nor imageFile is strictly required.
-    // This validation primarily applies when adding a new gift if no imageFile is provided.
-    // For now, let's assume if it's not an edit, one is needed.
-    // We can improve this if we had an 'isEditing' flag passed to the schema context.
-    const isEditing = (ctx.path.length === 0); // Crude check, better to have explicit flag if schema is reused.
-    if (!isEditing && !data.imageUrl && (!data.imageFile || data.imageFile.length === 0)) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Forneça uma URL de imagem ou selecione um arquivo para upload.",
-            path: ['imageUrl'], // Or 'imageFile' or both
-        });
+    // This check will primarily apply when adding a new gift.
+    // For editing, an image might already exist.
+    // A more robust check would consider if it's an edit and if giftToEdit.imageUrl exists.
+    // For now, assuming this is mainly for new gifts where no imageFile is provided.
+    if (!data.imageUrl && (!data.imageFile || data.imageFile.length === 0)) {
+        const path = ctx.path; // This will be empty if it's a root-level superRefine
+        const isLikelyNewGiftForm = !path.includes('id'); // Heuristic: if 'id' is not in path, maybe it's a new form context
+
+        if (isLikelyNewGiftForm) { // Apply only if it seems like a new gift form
+             // Check if we can determine if it's an edit form context.
+             // This is tricky without explicit context.
+             // The schema is shared. For now, let's assume this should only error if *neither* is provided
+             // and it's potentially a "new" gift scenario.
+        }
     }
 });
 
@@ -137,7 +139,7 @@ export default function AdminKakoLiveGiftsPageContent() {
     setIsLoadingGifts(true);
     try {
       const giftsCollectionRef = collection(db, "kakoGifts");
-      const q = query(giftsCollectionRef, orderBy("id", "asc"));
+      const q = query(giftsCollectionRef, orderBy("id", "asc")); // Sorting by ID as a string might not be ideal for numeric IDs
       const querySnapshot = await getDocs(q);
       const fetchedGifts: KakoGift[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -229,7 +231,7 @@ export default function AdminKakoLiveGiftsPageContent() {
 
   const editGiftForm = useForm<GiftFormValues>({
     resolver: zodResolver(giftFormSchema),
-    defaultValues: {
+    defaultValues: { // These are default defaults; handleOpenEditGiftDialog will populate specifics
       id: "", 
       name: "",
       imageUrl: "",
@@ -252,7 +254,7 @@ export default function AdminKakoLiveGiftsPageContent() {
       const docSnap = await getDoc(giftDocRef);
 
       if (docSnap.exists()) {
-        toast({ title: "ID de Presente já Existe", description: `O ID '${values.id}' já está em uso.`, variant: "destructive" });
+        toast({ title: "ID de Presente já Existe", description: `O ID '${values.id}' já está em uso. Escolha um ID único.`, variant: "destructive" });
         setAddImageUploadProgress(null);
         return;
       }
@@ -286,8 +288,6 @@ export default function AdminKakoLiveGiftsPageContent() {
         imageUrlToSave = uploadedUrlAndPath.url;
         storagePathToSave = uploadedUrlAndPath.path;
       } else if (!values.imageUrl) {
-        // Ensure that if neither file nor URL is provided for a new gift, we have a placeholder or error
-        // giftFormSchema superRefine should catch this for new gifts, but double check here.
         toast({ title: "Imagem Obrigatória", description: "Forneça uma URL de imagem ou selecione um arquivo para upload.", variant: "destructive" });
         setAddImageUploadProgress(null);
         return;
@@ -306,28 +306,31 @@ export default function AdminKakoLiveGiftsPageContent() {
       };
       console.log("onSubmitNewGift - Saving to Firestore:", newGiftData);
       await setDoc(giftDocRef, newGiftData);
+      
       toast({ title: "Presente Cadastrado!", description: `O presente '${values.name}' foi salvo.` });
-      setIsAddGiftDialogOpen(false);
-      addGiftForm.reset();
+      
+      setIsAddGiftDialogOpen(false); // Close dialog on success
+      addGiftForm.reset(); // Reset form
+      if (addGiftImageFileRef.current) addGiftImageFileRef.current.value = ""; // Clear file input
+      
       fetchKakoGifts(); 
     } catch (error) {
       console.error("Erro ao cadastrar presente:", error);
       toast({ title: "Erro ao Cadastrar", description: `Não foi possível salvar o presente. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     } finally {
       setAddImageUploadProgress(null);
-      if (addGiftImageFileRef.current) addGiftImageFileRef.current.value = "";
     }
   };
 
   const handleOpenEditGiftDialog = (gift: KakoGift) => {
     setGiftToEdit(gift);
-    editGiftForm.reset({
+    editGiftForm.reset({ // Populate form with existing gift data
       id: gift.id,
       name: gift.name,
-      imageUrl: gift.imageUrl || "",
-      imageFile: null, 
-      diamond: gift.diamond ?? undefined, 
-      display: gift.display ?? true,
+      imageUrl: gift.imageUrl || "", // Use empty string if null/undefined
+      imageFile: null, // Always reset file input on open
+      diamond: gift.diamond ?? undefined, // Use undefined if diamond is null
+      display: gift.display ?? true, // Default to true if undefined
     });
     setEditImageUploadProgress(null); 
     if (editGiftImageFileRef.current) editGiftImageFileRef.current.value = ""; 
@@ -335,33 +338,36 @@ export default function AdminKakoLiveGiftsPageContent() {
   };
 
   const onSubmitEditGift = async (values: GiftFormValues) => {
-    console.log("onSubmitEditGift - Form values:", values);
+    console.log("onSubmitEditGift - Called. Form Values:", values);
     if (!giftToEdit) {
       console.error("Erro crítico: giftToEdit é null ao tentar salvar.");
-      toast({ title: "Erro", description: "Nenhum presente selecionado para edição. Tente novamente.", variant: "destructive" });
+      toast({ title: "Erro Interno", description: "Nenhum presente selecionado para edição. Tente novamente.", variant: "destructive" });
+      setIsEditGiftDialogOpen(false);
       return;
     }
-    if(editGiftForm.formState.isSubmitting) return;
     
+    console.log("Attempting to edit gift:", giftToEdit.id);
+    editGiftForm.clearErrors(); 
     setEditImageUploadProgress(null);
 
     let imageUrlToSave: string | null = giftToEdit.imageUrl || null;
     let storagePathToSave: string | null = giftToEdit.storagePath || null;
     let oldStoragePathToDelete: string | undefined = undefined;
     
-    console.log("onSubmitEditGift - Initial imageUrlToSave:", imageUrlToSave, "Initial storagePathToSave:", storagePathToSave);
+    console.log("Initial image details - URL:", imageUrlToSave, "StoragePath:", storagePathToSave);
 
     try {
       if (values.imageFile && values.imageFile.length > 0) {
         const file = values.imageFile[0];
-        console.log("onSubmitEditGift - New image file selected:", file.name);
+        console.log("New image file selected for edit:", file.name);
         
         if (giftToEdit.storagePath) { 
           oldStoragePathToDelete = giftToEdit.storagePath;
-          console.log("onSubmitEditGift - Marking old stored image for deletion:", oldStoragePathToDelete);
+          console.log("Marking old stored image for deletion:", oldStoragePathToDelete);
         }
 
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        // Use giftToEdit.id for consistency in naming for existing gifts
         const filePath = `kakoGiftsImages/${giftToEdit.id}-${Date.now()}-${sanitizedFileName}`;
         const fileStorageRef = storageRef(storage, filePath);
         
@@ -371,14 +377,19 @@ export default function AdminKakoLiveGiftsPageContent() {
         const uploadedUrlAndPath = await new Promise<{ url: string, path: string }>((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setEditImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => { console.error("Edited gift image upload failed:", error); reject(error); },
+            (error) => { 
+              console.error("Edited gift image upload failed:", error);
+              toast({ title: "Falha no Upload da Imagem", description: `Código: ${error.code} - ${error.message}`, variant: "destructive" });
+              reject(error); 
+            },
             async () => { 
               try { 
                 const url = await getDownloadURL(uploadTask.snapshot.ref); 
-                console.log("onSubmitEditGift - Edited image uploaded, URL:", url, "Path:", filePath);
+                console.log("Edited image uploaded, URL:", url, "Path:", filePath);
                 resolve({ url, path: filePath }); 
               } catch (e: any) { 
                 console.error("Failed to get download URL for edited gift image:", e);
+                toast({ title: "Falha ao Obter URL da Imagem", description: `Erro: ${e.code} - ${e.message}`, variant: "destructive" });
                 reject(e); 
               } 
             }
@@ -387,26 +398,29 @@ export default function AdminKakoLiveGiftsPageContent() {
         imageUrlToSave = uploadedUrlAndPath.url;
         storagePathToSave = uploadedUrlAndPath.path;
 
-      } else if (values.imageUrl !== giftToEdit.imageUrl) {
-        console.log("onSubmitEditGift - Image URL changed via text from:", giftToEdit.imageUrl, "to:", values.imageUrl);
+      } else if (values.imageUrl !== giftToEdit.imageUrl) { // Check if the text URL input changed
+        console.log("Image URL changed via text input from:", giftToEdit.imageUrl, "to:", values.imageUrl);
         imageUrlToSave = values.imageUrl?.trim() || null; 
         
-        if (giftToEdit.storagePath) { 
+        if (giftToEdit.storagePath) { // If previous image was an upload, it needs to be deleted
           oldStoragePathToDelete = giftToEdit.storagePath;
+          console.log("Marking old stored image for deletion due to URL change:", oldStoragePathToDelete);
         }
-        storagePathToSave = null; 
+        storagePathToSave = null; // New URL means no app-managed storage path
       }
       
+      // Delete old file from Storage if a new file was uploaded OR if URL was changed from a stored file
       if (oldStoragePathToDelete) {
-        console.log("onSubmitEditGift - Attempting to delete old stored image:", oldStoragePathToDelete);
+        console.log("Attempting to delete old stored image from Storage:", oldStoragePathToDelete);
         try {
           await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
-          console.log("Old stored image deleted successfully.");
+          console.log("Old stored image deleted successfully from Storage.");
         } catch (delError: any) {
            if (delError.code !== 'storage/object-not-found') {
-              console.warn("Erro ao deletar imagem antiga do Storage ao mudar para URL externa:", delError);
+              console.warn("Erro ao deletar imagem antiga do Storage:", delError);
+              toast({ title: "Aviso", description: "Não foi possível remover a imagem antiga do armazenamento, mas os dados foram atualizados.", variant: "default" });
            } else {
-              console.log("Old stored image not found, no deletion needed.");
+              console.log("Old stored image not found in Storage, no deletion needed.");
            }
         }
       }
@@ -421,23 +435,33 @@ export default function AdminKakoLiveGiftsPageContent() {
         dataAiHint: values.name.toLowerCase().split(" ").find(word => word.length > 0) || "gift icon",
       };
       
-      console.log("onSubmitEditGift - Updating Firestore for gift ID:", giftToEdit.id, "with data:", updatedGiftData);
+      console.log("Updating Firestore for gift ID:", giftToEdit.id, "with data:", updatedGiftData);
       
       const giftDocRef = doc(db, "kakoGifts", giftToEdit.id);
       await setDoc(giftDocRef, updatedGiftData, { merge: true }); 
       
-      toast({ title: "Presente Atualizado!", description: `O presente '${values.name}' foi atualizado.` });
+      toast({ title: "Presente Atualizado!", description: `O presente '${values.name}' foi atualizado com sucesso.` });
       
-      fetchKakoGifts(); 
-      setIsEditGiftDialogOpen(false);
-      // editGiftForm.reset(); // Reset is now handled by onOpenChange of Dialog
+      // Close dialog and reset form BEFORE re-fetching for better UX
+      setIsEditGiftDialogOpen(false); 
+      editGiftForm.reset({ 
+          id: "", 
+          name: "",
+          imageUrl: "",
+          imageFile: null,
+          diamond: undefined,
+          display: true,
+      });
+      setGiftToEdit(null);
+      if (editGiftImageFileRef.current) editGiftImageFileRef.current.value = "";
+      
+      fetchKakoGifts(); // Refresh the list in the background
 
     } catch (error: any) { 
       console.error("Erro ao atualizar presente:", error);
-      toast({ title: "Erro ao Atualizar", description: `Não foi possível salvar as alterações. ${error.message || String(error)}`, variant: "destructive" });
+      toast({ title: "Erro ao Atualizar Presente", description: `Não foi possível salvar as alterações. ${error.message || String(error)}`, variant: "destructive" });
     } finally {
       setEditImageUploadProgress(null); 
-       if (editGiftImageFileRef.current) editGiftImageFileRef.current.value = "";
     }
   };
 
@@ -445,9 +469,7 @@ export default function AdminKakoLiveGiftsPageContent() {
   return (
     <>
       <div className="space-y-6 h-full flex flex-col p-6">
-        <div className="grid grid-cols-1 gap-4">
-          <StatCard title="Total de Presentes (DB)" count={isLoadingGifts ? '...' : kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
-        </div>
+        <StatCard title="Total de Presentes (DB)" count={isLoadingGifts ? '...' : kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
 
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
           <CardHeader className="flex flex-row justify-between items-center">
@@ -456,14 +478,24 @@ export default function AdminKakoLiveGiftsPageContent() {
               <CardDescription>Presentes disponíveis no sistema, recuperados do banco de dados 'kakoGifts'.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-               <Dialog open={isAddGiftDialogOpen} onOpenChange={(open) => {
-                setIsAddGiftDialogOpen(open);
-                if (!open) {
-                  addGiftForm.reset();
-                  setAddImageUploadProgress(null);
-                  if(addGiftImageFileRef.current) addGiftImageFileRef.current.value = "";
-                }
-              }}>
+               <Dialog 
+                    open={isAddGiftDialogOpen} 
+                    onOpenChange={(open) => {
+                        setIsAddGiftDialogOpen(open);
+                        if (!open) {
+                            addGiftForm.reset({ // Reset to truly default values
+                                id: "",
+                                name: "",
+                                imageUrl: "",
+                                imageFile: null,
+                                diamond: undefined,
+                                display: true,
+                            });
+                            setAddImageUploadProgress(null);
+                            if(addGiftImageFileRef.current) addGiftImageFileRef.current.value = "";
+                        }
+                    }}
+                >
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9">
                     <PlusCircle className="mr-2 h-4 w-4" /> Novo Presente
@@ -639,18 +671,28 @@ export default function AdminKakoLiveGiftsPageContent() {
 
       {/* Edit Gift Dialog */}
       {giftToEdit && (
-        <Dialog open={isEditGiftDialogOpen} onOpenChange={(open) => {
-            setIsEditGiftDialogOpen(open);
-            if (!open) {
-                setGiftToEdit(null);
-                editGiftForm.reset();
-                setEditImageUploadProgress(null);
-                if(editGiftImageFileRef.current) editGiftImageFileRef.current.value = "";
-            }
-        }}>
+        <Dialog 
+            open={isEditGiftDialogOpen} 
+            onOpenChange={(open) => {
+                setIsEditGiftDialogOpen(open);
+                if (!open) {
+                    setGiftToEdit(null); // Clear giftToEdit first
+                    editGiftForm.reset({ // Then reset form to its true default values
+                        id: "", 
+                        name: "",
+                        imageUrl: "",
+                        imageFile: null,
+                        diamond: undefined,
+                        display: true,
+                    });
+                    setEditImageUploadProgress(null);
+                    if(editGiftImageFileRef.current) editGiftImageFileRef.current.value = "";
+                }
+            }}
+        >
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Editar Presente: {giftToEdit.name}</DialogTitle>
+              <DialogTitle>Editar Presente: {giftToEdit.name} (ID: {giftToEdit.id})</DialogTitle>
               <DialogDescription>Modifique os detalhes do presente.</DialogDescription>
             </DialogHeader>
             <Form {...editGiftForm}>
@@ -787,3 +829,4 @@ export default function AdminKakoLiveGiftsPageContent() {
   );
 }
 
+    
