@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Crown, LogIn, LogOut, UserCircle2, Gamepad2, LifeBuoy, TicketIcon, Maximize, Minimize, Bell, Search as SearchIcon, Diamond } from "lucide-react"; // Added Diamond
+import { Crown, LogIn, LogOut, UserCircle2, Gamepad2, LifeBuoy, TicketIcon, Maximize, Minimize, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard } from "lucide-react"; // Added Diamond, Settings, LayoutDashboard
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -16,9 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import React, { useState, useEffect } from "react"; // Added React for Fragment
+import React, { useState, useEffect } from "react"; 
 import { Input } from "@/components/ui/input";
-import { LayoutDashboard, Settings } from "lucide-react"; // Ensure LayoutDashboard and Settings are imported
 
 const formatDiamonds = (amount: number | undefined | null): string => {
   if (amount === undefined || amount === null) return "0";
@@ -35,7 +34,7 @@ const formatDiamonds = (amount: number | undefined | null): string => {
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
-  const { isMobile, state: desktopSidebarState, setOpen: setDesktopSidebarOpen, setOpenMobile } = useSidebar();
+  const { isMobile, open: isDesktopSidebarOpen, setOpen: setDesktopSidebarOpen, setOpenMobile } = useSidebar();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -68,7 +67,7 @@ export default function Header() {
     if (isMobile) {
       setOpenMobile(true);
     } else {
-      setDesktopSidebarOpen(desktopSidebarState === 'collapsed');
+      setDesktopSidebarOpen(!isDesktopSidebarOpen);
     }
   };
 
@@ -109,7 +108,7 @@ export default function Header() {
 
         <nav className="flex items-center gap-1 md:gap-2">
           {isMobile && (
-            <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-muted-foreground hover:text-primary">
+            <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-muted-foreground hover:text-primary h-9 w-9">
               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               <span className="sr-only">{isFullscreen ? "Sair da Tela Cheia" : "Entrar em Tela Cheia"}</span>
             </Button>
@@ -185,7 +184,7 @@ export default function Header() {
                   </React.Fragment>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
+                <DropdownMenuItem onClick={logout}> {/* Corrected: Use logout from useAuth hook */}
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair
                 </DropdownMenuItem>
