@@ -19,7 +19,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleComponent,
+  AlertDialogTitle as AlertDialogTitleComponent, 
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, BingoPrize, Game, AudioSetting, BingoBallSetting, UserProfile, BingoRoomSetting } from '@/types';
+import type { GeneratedBingoCard, BingoPrize, Game, AudioSetting, BingoBallSetting, UserProfile, BingoRoomSetting, BingoBallLocutorAudio } from '@/types';
 import { format, parse, setHours, setMinutes, isValid, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useForm, Controller } from "react-hook-form";
@@ -47,28 +47,28 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import {
-  db,
-  collection,
-  query,
-  where,
-  orderBy,
-  addDoc,
-  getDocs,
-  getDoc,
-  serverTimestamp,
-  storage,
-  storageRef,
-  uploadBytesResumable,
-  getDownloadURL,
-  Timestamp,
-  doc,
+import { 
+  db, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  addDoc, 
+  getDocs, 
+  getDoc, 
+  serverTimestamp, 
+  storage, 
+  storageRef, 
+  uploadBytesResumable, 
+  getDownloadURL, 
+  Timestamp, 
+  doc, 
   updateDoc,
   setDoc,
   deleteDoc,
   deleteFileStorage,
-  deleteField,
-  writeBatch,
+  deleteField, // Import deleteField
+  writeBatch, // Import writeBatch
 } from "@/lib/firebase";
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -125,6 +125,7 @@ type NewKakoPrizeFormValues = z.infer<typeof newKakoPrizeSchema>;
 const newGameSchema = z.object({
   title: z.string().min(3, "Título deve ter pelo menos 3 caracteres.").max(100, "Título muito longo (máx. 100 caracteres)."),
   bingoType: z.enum(['75-ball', '90-ball'], { required_error: "Selecione o tipo de bingo." }),
+  bingoRoomId: z.string().min(1, "Selecione uma sala de bingo."),
   cardPrice: z.preprocess(
     (val) => (val === "" || val === null || val === undefined) ? 0 : parseFloat(String(val)),
     z.number({ invalid_type_error: "Preço deve ser um número" }).min(0, "Preço deve ser zero ou maior.").optional().default(0)
@@ -135,7 +136,7 @@ const newGameSchema = z.object({
     (val) => (val === "" || val === null || val === undefined) ? undefined : parseFloat(String(val)),
     z.number({ invalid_type_error: "Valor deve ser um número" }).min(0, "Valor deve ser positivo.").optional()
   ),
-  prizeDescription: z.string().min(1, "Descrição do prêmio é obrigatória.").max(250, "Descrição muito longa (máx. 250 caracteres)."),
+  prizeDescription: z.string().max(250, "Descrição muito longa (máx. 250 caracteres)."),
   startTimeDate: z.date({ required_error: "Data de início é obrigatória." }),
   startTimeString: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Hora inválida. Use HH:MM.").min(1, "Hora de início é obrigatória."),
   notes: z.string().max(500, "Notas muito longas (máx. 500 caracteres).").optional(),
@@ -147,11 +148,11 @@ const newGameSchema = z.object({
       path: ['prizeKakoVirtualId'],
     });
   }
-  if (data.prizeType === 'cash' && (data.prizeCashAmount === undefined || data.prizeCashAmount < 0) && !data.prizeDescription) {
+  if (data.prizeType === 'cash' && (data.prizeCashAmount === undefined || data.prizeCashAmount <= 0) && !data.prizeDescription) {
      ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Informe o valor do prêmio em dinheiro ou uma descrição.",
-      path: ['prizeCashAmount'],
+      message: "Informe o valor do prêmio em dinheiro (maior que zero) ou uma descrição.",
+      path: ['prizeCashAmount'], // Or prizeDescription, or both as a general message
     });
   }
    if (data.prizeType === 'other' && !data.prizeDescription) {
@@ -188,25 +189,24 @@ const newBingoRoomSchema = z.object({
 type NewBingoRoomFormValues = z.infer<typeof newBingoRoomSchema>;
 
 
-// Helper function to generate a single 90-ball card
 const generateSingle90BallCardNumbers = (): (number | null)[][] => {
   const card: (number | null)[][] = Array(3).fill(null).map(() => Array(9).fill(null));
-  const numbersOnCard = new Set<number>(); // Tracks numbers for THIS card
+  const numbersOnCard = new Set<number>(); 
 
   const getRandomNumberForColumn = (colIndex: number): number => {
     let num;
     let min, max_range_size;
-    if (colIndex === 0) { min = 1; max_range_size = 9; } // 1-9
-    else if (colIndex === 8) { min = 80; max_range_size = 11; } // 80-90
-    else { min = colIndex * 10; max_range_size = 10; } // e.g., 10-19 for col 1, 20-29 for col 2
+    if (colIndex === 0) { min = 1; max_range_size = 9; } 
+    else if (colIndex === 8) { min = 80; max_range_size = 11; } 
+    else { min = colIndex * 10; max_range_size = 10; } 
 
     let attempts = 0;
     do {
       num = min + Math.floor(Math.random() * max_range_size);
       attempts++;
       if (attempts > 100) { 
-        console.warn(`High attempts for col ${colIndex}, min ${min}, range ${max_range_size}, current numbers:`, Array.from(numbersOnCard));
-        throw new Error(`Could not generate unique number for column ${colIndex} after 100 attempts.`);
+        console.warn(`Alta contagem de tentativas para col ${colIndex}, min ${min}, range ${max_range_size}, números atuais:`, Array.from(numbersOnCard));
+        throw new Error(`Não foi possível gerar número único para a coluna ${colIndex} após 100 tentativas.`);
       }
     } while (numbersOnCard.has(num));
 
@@ -290,6 +290,9 @@ export default function AdminBingoAdminPage() {
   const [isCreateGameDialogOpen, setIsCreateGameDialogOpen] = useState(false);
   const [availableKakoPrizesForGameForm, setAvailableKakoPrizesForGameForm] = useState<BingoPrize[]>([]);
   const [isLoadingKakoPrizesForGameForm, setIsLoadingKakoPrizesForGameForm] = useState(false);
+  const [availableBingoRooms, setAvailableBingoRooms] = useState<BingoRoomSetting[]>([]);
+  const [isLoadingBingoRoomsForGameForm, setIsLoadingBingoRoomsForGameForm] = useState(false);
+
 
   const [gameEventAudioSettings, setGameEventAudioSettings] = useState<AudioSetting[]>(
     initialGameEventAudioSettings.map(s => ({ ...s, type: 'gameEvent', eventName: s.displayName } as AudioSetting))
@@ -403,6 +406,7 @@ export default function AdminBingoAdminPage() {
     defaultValues: {
       title: "",
       bingoType: undefined,
+      bingoRoomId: "",
       cardPrice: 0,
       prizeType: undefined,
       prizeKakoVirtualId: "",
@@ -607,20 +611,21 @@ export default function AdminBingoAdminPage() {
     }
   }, [toast, kakoPrizes, availableKakoPrizesForGameForm]);
 
-  const fetchBingoBallSettings = useCallback(async () => {
+ const fetchBingoBallSettings = useCallback(async () => {
     setIsLoadingBallSettings(true);
     const settingsPromises = Array.from({ length: 90 }, (_, i) => i + 1).map(async (ballNum) => {
         const docRef = doc(db, "bingoBallConfigurations", ballNum.toString());
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-             const data = docSnap.data();
+            const data = docSnap.data();
             return {
                 ballNumber: ballNum,
                 ...data,
+                locutorAudios: data.locutorAudios || {}, // Ensure locutorAudios is an object
                 lastUpdatedAt: data.lastUpdatedAt instanceof Timestamp ? data.lastUpdatedAt.toDate() : (data.lastUpdatedAt ? new Date(data.lastUpdatedAt) : undefined)
             } as BingoBallSetting;
         }
-        return { ballNumber: ballNum } as BingoBallSetting;
+        return { ballNumber: ballNum, locutorAudios: {} } as BingoBallSetting; // Default with empty locutorAudios
     });
     try {
         const fetchedSettings = await Promise.all(settingsPromises);
@@ -633,8 +638,11 @@ export default function AdminBingoAdminPage() {
     }
   }, [toast]);
 
-  const fetchBingoRoomSettings = useCallback(async () => {
-    setIsLoadingBingoRooms(true);
+
+  const fetchBingoRoomSettings = useCallback(async (forGameForm: boolean = false) => {
+    if(forGameForm) setIsLoadingBingoRoomsForGameForm(true);
+    else setIsLoadingBingoRooms(true);
+
     try {
       const roomsCollectionRef = collection(db, "bingoRoomSettings");
       const q = query(roomsCollectionRef, orderBy("addedAt", "desc"));
@@ -649,12 +657,19 @@ export default function AdminBingoAdminPage() {
           lastCheckedAt: data.lastCheckedAt instanceof Timestamp ? data.lastCheckedAt.toDate() : (data.lastCheckedAt ? new Date(data.lastCheckedAt) : undefined),
         } as BingoRoomSetting);
       });
-      setBingoRoomSettings(fetchedRooms);
+
+      if(forGameForm) {
+        setAvailableBingoRooms(fetchedRooms.filter(room => room.isActive));
+      } else {
+        setBingoRoomSettings(fetchedRooms);
+      }
+
     } catch (error) {
       console.error("Erro ao buscar configurações de salas de bingo:", error);
       toast({ title: "Erro ao Carregar Salas", description: "Não foi possível buscar as configurações das salas.", variant: "destructive" });
     } finally {
-      setIsLoadingBingoRooms(false);
+      if(forGameForm) setIsLoadingBingoRoomsForGameForm(false);
+      else setIsLoadingBingoRooms(false);
     }
   }, [toast]);
 
@@ -663,19 +678,22 @@ export default function AdminBingoAdminPage() {
       fetchKakoPrizes(false);
     }
     if (activeTab === 'bingoPartidas' || activeTab === 'bingoAudiosInteracao') {
-      fetchKakoPrizes(true);
+      fetchKakoPrizes(true); // For game form and interaction audio gift association
     }
-    if (activeTab === 'bingoPartidas') fetchBingoGames();
+    if (activeTab === 'bingoPartidas') {
+      fetchBingoGames();
+      fetchBingoRoomSettings(true); // For game form room selection
+    }
     if (activeTab === 'bingoCartelas90') fetchGenerated90BallCards();
     if (activeTab === 'bingoCartelas75') fetchGenerated75BallCards();
     if (activeTab === 'bingoAudiosPartida') fetchGameEventAudios();
     if (activeTab === 'bingoAudiosInteracao') fetchInteractionAudios();
     if (activeTab === 'bingoBolasConfig') fetchBingoBallSettings();
-    if (activeTab === 'bingoSalas') fetchBingoRoomSettings();
+    if (activeTab === 'bingoSalas') fetchBingoRoomSettings(false);
 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]); // Removed specific fetch functions from dependencies as they are useCallback memoized
+  }, [activeTab]); 
 
   const handleGenerateCards = async (count: number) => {
     if (!currentUser?.uid) {
@@ -769,7 +787,7 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-  const handleOpenBallAssetDialog = (ball: BingoBallSetting, assetType: 'image' | 'audio') => {
+ const handleOpenBallAssetDialog = (ball: BingoBallSetting, assetType: 'image' | 'audio') => {
     ballAssetForm.reset();
     setSelectedBallAssetFile(null);
     if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
@@ -779,76 +797,105 @@ export default function AdminBingoAdminPage() {
   };
 
  const onSubmitBallAsset = async (data: BallAssetFormValues) => {
-      if (!currentBallEditing || !assetTypeToUpload || !data.assetFile || data.assetFile.length === 0) {
-          toast({ title: "Erro", description: "Informações incompletas para upload.", variant: "destructive" });
-          return;
-      }
-      const fileToUpload = data.assetFile[0];
-      setIsUploadingBallAsset(true);
-      setBallAssetUploadProgress(0);
+    console.log("onSubmitBallAsset called with data:", data);
+    if (!currentBallEditing || !assetTypeToUpload || !data.assetFile || data.assetFile.length === 0) {
+        toast({ title: "Erro", description: "Informações incompletas para upload.", variant: "destructive" });
+        return;
+    }
+    const fileToUpload = data.assetFile[0];
+    console.log("File to upload:", fileToUpload.name, "Type:", fileToUpload.type);
 
-      const sanitizedFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const fileExtension = fileToUpload.name.substring(fileToUpload.name.lastIndexOf('.') + 1).toLowerCase();
-      const standardizedFileName = `${currentBallEditing.ballNumber}.${fileExtension}`;
-      const newStoragePath = `bingoBalls/${currentBallEditing.ballNumber}/${assetTypeToUpload}/${standardizedFileName}`;
+    setIsUploadingBallAsset(true);
+    setBallAssetUploadProgress(0);
 
-      let oldStoragePathToDelete: string | undefined = undefined;
-      if (assetTypeToUpload === 'image') oldStoragePathToDelete = currentBallEditing.imageStoragePath;
-      else if (assetTypeToUpload === 'audio') oldStoragePathToDelete = currentBallEditing.locutorAudios?.['Padrão']?.audioStoragePath; // Assuming 'Padrão' locutor
+    const fileExtension = fileToUpload.name.substring(fileToUpload.name.lastIndexOf('.') + 1).toLowerCase();
+    const standardizedFileName = `${currentBallEditing.ballNumber}.${fileExtension}`;
+    // Use selectedLocutor here when differentiating locutor audios
+    const newStoragePath = `bingoBalls/${currentBallEditing.ballNumber}/${assetTypeToUpload}/${standardizedFileName}`; 
+    console.log("New storage path:", newStoragePath);
 
-      if (oldStoragePathToDelete) {
-          try {
-              await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
-          } catch (delError: any) {
-              if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar asset antigo:", delError);
-          }
-      }
+    let oldStoragePathToDelete: string | undefined = undefined;
+    if (assetTypeToUpload === 'image') {
+      oldStoragePathToDelete = currentBallEditing.imageStoragePath;
+    } else if (assetTypeToUpload === 'audio' && currentBallEditing.locutorAudios) {
+      // For now, assume default locutor or specific logic to get current locutor's path
+      oldStoragePathToDelete = currentBallEditing.locutorAudios['Padrão']?.audioStoragePath; 
+    }
+    console.log("Old storage path to delete:", oldStoragePathToDelete);
 
-      try {
-          const fileStorageRef = storageRef(storage, newStoragePath);
-          const uploadTask = uploadBytesResumable(fileStorageRef, fileToUpload);
+    if (oldStoragePathToDelete) {
+        try {
+            await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+            console.log("Old asset deleted:", oldStoragePathToDelete);
+        } catch (delError: any) {
+            if (delError.code !== 'storage/object-not-found') {
+                console.warn("Erro ao deletar asset antigo:", delError);
+            } else {
+                console.log("Old asset not found, no deletion needed.");
+            }
+        }
+    }
 
-          const downloadURL = await new Promise<string>((resolve, reject) => {
-              uploadTask.on('state_changed',
-                  (snapshot) => setBallAssetUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                  (error) => reject(error),
-                  async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { reject(e); } }
-              );
-          });
+    try {
+        const fileStorageRef = storageRef(storage, newStoragePath);
+        const uploadTask = uploadBytesResumable(fileStorageRef, fileToUpload);
 
-          const assetDataToSave: Partial<BingoBallSetting> & { lastUpdatedAt: any } = { lastUpdatedAt: serverTimestamp() };
-          if (assetTypeToUpload === 'image') {
-              assetDataToSave.imageUrl = downloadURL;
-              assetDataToSave.imageStoragePath = newStoragePath;
-          } else { // audio
-              assetDataToSave.locutorAudios = {
-                  ...(currentBallEditing.locutorAudios || {}),
-                  ['Padrão']: { // Assuming 'Padrão' as default locutor
-                      audioUrl: downloadURL,
-                      audioStoragePath: newStoragePath,
-                      fileName: standardizedFileName,
-                      uploadedAt: serverTimestamp(),
-                  }
-              };
-          }
+        const downloadURL = await new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => setBallAssetUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                (error) => { console.error("Upload error:", error); reject(error); },
+                async () => { 
+                  try { 
+                    const url = await getDownloadURL(uploadTask.snapshot.ref); 
+                    console.log("Upload success, URL:", url);
+                    resolve(url); 
+                  } catch (e) { 
+                    console.error("Get DL URL error:", e); 
+                    reject(e); 
+                  } 
+                }
+            );
+        });
 
-          const docRef = doc(db, "bingoBallConfigurations", currentBallEditing.ballNumber.toString());
-          await setDoc(docRef, { ballNumber: currentBallEditing.ballNumber, ...assetDataToSave }, { merge: true });
+        const assetDataToSave: Partial<BingoBallSetting> & { lastUpdatedAt: any } = { lastUpdatedAt: serverTimestamp() };
+        if (assetTypeToUpload === 'image') {
+            assetDataToSave.imageUrl = downloadURL;
+            assetDataToSave.imageStoragePath = newStoragePath;
+        } else { 
+            // Ensure locutorAudios map exists before trying to assign to a key
+            const existingLocutorAudios = currentBallEditing.locutorAudios || {};
+            assetDataToSave.locutorAudios = {
+                ...existingLocutorAudios,
+                ['Padrão']: { 
+                    audioUrl: downloadURL,
+                    audioStoragePath: newStoragePath,
+                    fileName: standardizedFileName,
+                    uploadedAt: serverTimestamp(),
+                }
+            };
+        }
 
-          setBingoBallSettings(prev => prev.map(b =>
-              b.ballNumber === currentBallEditing!.ballNumber ? { ...b, ...assetDataToSave, lastUpdatedAt: new Date() } : b
-          ));
+        console.log("Data to save to Firestore:", assetDataToSave);
+        const docRef = doc(db, "bingoBallConfigurations", currentBallEditing.ballNumber.toString());
+        await setDoc(docRef, { ballNumber: currentBallEditing.ballNumber, ...assetDataToSave }, { merge: true });
 
-          toast({ title: "Asset Salvo!", description: `${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para bola ${currentBallEditing.ballNumber} salvo.` });
-          setIsUploadBallAssetDialogOpen(false);
-      } catch (error: any) {
-          console.error("Erro ao salvar asset da bola:", error);
-          toast({ title: "Erro ao Salvar Asset", description: error.message || "Erro desconhecido.", variant: "destructive" });
-      } finally {
-          setIsUploadingBallAsset(false);
-          setBallAssetUploadProgress(null);
-      }
+        setBingoBallSettings(prev => prev.map(b =>
+            b.ballNumber === currentBallEditing!.ballNumber ? { ...b, ...assetDataToSave, lastUpdatedAt: new Date() } : b
+        ));
+
+        toast({ title: "Asset Salvo!", description: `${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para bola ${currentBallEditing.ballNumber} salvo.` });
+        setIsUploadBallAssetDialogOpen(false);
+    } catch (error: any) {
+        console.error("Erro ao salvar asset da bola:", error);
+        toast({ title: "Erro ao Salvar Asset", description: `${error.message || "Erro desconhecido."} Código: ${error.code || 'N/A'}`, variant: "destructive" });
+    } finally {
+        setIsUploadingBallAsset(false);
+        setBallAssetUploadProgress(null);
+        setSelectedBallAssetFile(null);
+        if(ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+    }
   };
+
 
   const handleRemoveBallAsset = async (ballNumber: number, assetType: 'image' | 'audio', locutorId: string = 'Padrão') => {
     if (!currentUser?.uid) return;
@@ -858,8 +905,8 @@ export default function AdminBingoAdminPage() {
     let storagePathToRemove: string | undefined = undefined;
     if (assetType === 'image') {
         storagePathToRemove = ballSetting.imageStoragePath;
-    } else if (assetType === 'audio') {
-        storagePathToRemove = ballSetting.locutorAudios?.[locutorId]?.audioStoragePath;
+    } else if (assetType === 'audio' && ballSetting.locutorAudios) { // Check if locutorAudios exists
+        storagePathToRemove = ballSetting.locutorAudios[locutorId]?.audioStoragePath;
     }
 
     try {
@@ -876,7 +923,13 @@ export default function AdminBingoAdminPage() {
             const updatedLocutorAudios = { ...ballSetting.locutorAudios };
             delete updatedLocutorAudios[locutorId];
             updateData.locutorAudios = Object.keys(updatedLocutorAudios).length > 0 ? updatedLocutorAudios : deleteField() as unknown as undefined;
+        } else if (assetType === 'audio' && !ballSetting.locutorAudios?.[locutorId]) {
+            // If trying to remove audio for a locutor that doesn't exist or for a ball with no locutorAudios map
+            console.warn(`No audio found for locutor ${locutorId} on ball ${ballNumber} to remove.`);
+            // We still might want to ensure the DB reflects this (e.g., if somehow a storagePath was there without DB entry)
+            // or just proceed to update the local state. For now, this just means no DB field to delete specifically.
         }
+        
         await updateDoc(docRef, updateData);
 
         setBingoBallSettings(prev => prev.map(b => {
@@ -918,10 +971,14 @@ export default function AdminBingoAdminPage() {
       return;
     }
 
+    const selectedRoom = availableBingoRooms.find(room => room.id === values.bingoRoomId);
+
     try {
       const newGameData: Omit<Game, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, startTime: any } = {
         title: values.title,
         bingoType: values.bingoType,
+        bingoRoomId: values.bingoRoomId,
+        bingoRoomName: selectedRoom?.description || selectedRoom?.roomId,
         cardPrice: values.cardPrice || 0,
         prizeType: values.prizeType,
         prizeKakoVirtualId: values.prizeType === 'kako_virtual' ? values.prizeKakoVirtualId : undefined,
@@ -976,14 +1033,13 @@ export default function AdminBingoAdminPage() {
           uploadTask.on('state_changed',
             (snapshot) => setPrizeImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
             (error) => { console.error("Upload failed:", error); reject(error); },
-            async () => { try { const url = await getDownloadURL(uploadTask.snapshot.ref); resolve({ url, path: filePath }); } catch (error) { console.error("Failed to get download URL", error); reject(error); } }
+            async () => { try { const url = await getDownloadURL(uploadTask.snapshot.ref); resolve({ url, path: filePath }); } catch (error: any) { console.error("Failed to get download URL", error); reject(error); } }
           );
         });
         prizeImageUrl = uploadedUrlAndPath.url;
         storagePath = uploadedUrlAndPath.path;
       } else if (!values.imageUrl) {
-         // toast({ title: "Informação Faltando", description: "Forneça uma URL da imagem ou um arquivo para upload.", variant: "destructive"});
-         // return; // Keep this commented if image is truly optional
+         // Image is optional, so we don't require it.
       }
 
       const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'| 'createdBy'> & { createdAt: any, updatedAt: any, storagePath?: string, createdBy: string } = {
@@ -1014,6 +1070,7 @@ export default function AdminBingoAdminPage() {
   };
 
   const handleSaveAudio = async (data?: InteractionAudioFormValues) => {
+    console.log("handleSaveAudio called. Data:", data, "currentAudioSettingToEdit:", currentAudioSettingToEdit, "selectedAudioFile:", selectedAudioFile);
     if (!currentUser?.uid) {
         toast({ title: "Erro de Autenticação", variant: "destructive"});
         return;
@@ -1022,17 +1079,48 @@ export default function AdminBingoAdminPage() {
     setIsUploadingAudio(true);
     setAudioUploadProgress(0);
 
-    const isInteractionAudio = !!data || (currentAudioSettingToEdit?.type === 'interaction');
-    const fileToUpload = isInteractionAudio ? data?.audioFile?.[0] : selectedAudioFile;
-    let audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
+    const isInteractionAudioNewOrEdit = !!data || (currentAudioSettingToEdit?.type === 'interaction');
+    const fileToUpload = isInteractionAudioNewOrEdit ? data?.audioFile?.[0] : selectedAudioFile;
+    let audioDisplayNameForToast = isInteractionAudioNewOrEdit ? data?.displayName : currentAudioSettingToEdit?.displayName;
+
+    console.log("Is Interaction Audio (New or Edit):", isInteractionAudioNewOrEdit);
+    console.log("File to upload:", fileToUpload?.name);
 
     if (!fileToUpload) {
+        // Allow saving metadata for interaction audio if file is already uploaded (editing without changing file)
+        if (isInteractionAudioNewOrEdit && currentAudioSettingToEdit?.audioUrl && data) {
+            console.log("Editing interaction audio metadata without changing file for:", currentAudioSettingToEdit.id);
+             try {
+                const docRef = doc(db, "bingoInteractionAudios", currentAudioSettingToEdit.id!);
+                const updatedMetadata = {
+                    displayName: data.displayName,
+                    keyword: data.keyword,
+                    associatedGiftId: data.associatedGiftId || deleteField(),
+                    associatedGiftName: data.associatedGiftId ? (availableKakoPrizesForGameForm.find(p=>p.id === data.associatedGiftId)?.name || deleteField()) : deleteField(),
+                    uploadedAt: serverTimestamp(), // Or keep original uploadedAt if not changing file
+                };
+                await updateDoc(docRef, updatedMetadata);
+                toast({ title: "Metadados do Áudio Atualizados!", description: `Informações do áudio '${data.displayName}' atualizadas.` });
+                fetchInteractionAudios();
+                setIsAddInteractionAudioDialogOpen(false);
+                interactionAudioForm.reset();
+                setCurrentAudioSettingToEdit(null);
+            } catch (metaError: any) {
+                console.error("Erro ao atualizar metadados do áudio de interação:", metaError);
+                toast({ title: "Erro ao Atualizar Metadados", description: metaError.message || "Erro desconhecido.", variant: "destructive" });
+            } finally {
+                setIsUploadingAudio(false);
+            }
+            return;
+        }
+
+
         toast({ title: "Nenhum Arquivo Selecionado", description: "Por favor, selecione um arquivo de áudio.", variant: "destructive" });
         setIsUploadingAudio(false);
         setAudioUploadProgress(null);
         return;
     }
-     if (!audioDisplayNameForToast && isInteractionAudio && !currentAudioSettingToEdit) {
+     if (!audioDisplayNameForToast && isInteractionAudioNewOrEdit && !currentAudioSettingToEdit) {
         toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o novo áudio de interação.", variant: "destructive" });
         setIsUploadingAudio(false);
         setAudioUploadProgress(null);
@@ -1048,31 +1136,34 @@ export default function AdminBingoAdminPage() {
     let audioDataToSave: Partial<AudioSetting> & { uploadedAt?: any; type: 'gameEvent' | 'interaction'; displayName?: string; id?: string, createdBy?: string, eventName?: string };
 
 
-    if (isInteractionAudio && data) {
+    if (isInteractionAudioNewOrEdit && data) { // Handles both new and edit for interaction audio
+        console.log("Processing Interaction Audio (New or Edit)");
         firestoreCollectionName = 'bingoInteractionAudios';
         newStoragePath = `bingoAudios/interaction/${Date.now()}_${sanitizedSelectedFileName}`;
-        firestoreDocId = currentAudioSettingToEdit?.id; // If editing
+        firestoreDocId = currentAudioSettingToEdit?.id; 
         oldStoragePathToDelete = currentAudioSettingToEdit?.storagePath;
         audioDataToSave = {
             displayName: data.displayName,
             keyword: data.keyword,
             associatedGiftId: data.associatedGiftId || undefined,
-            audioUrl: '', // To be filled by upload
+            audioUrl: '', 
             fileName: sanitizedSelectedFileName,
-            storagePath: newStoragePath, // To be used by upload and then saved
+            storagePath: newStoragePath, 
             type: 'interaction',
             uploadedAt: serverTimestamp(),
             createdBy: currentUser.uid,
         };
         const prize = availableKakoPrizesForGameForm.find(p => p.id === data.associatedGiftId);
         if (prize) audioDataToSave.associatedGiftName = prize.name;
+        console.log("Interaction Audio Data to Save (pre-upload):", audioDataToSave);
 
     } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent') {
+        console.log("Processing Game Event Audio for:", currentAudioSettingToEdit.id);
         firestoreCollectionName = 'bingoAudioSettings';
         firestoreDocId = currentAudioSettingToEdit.id;
         newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
         oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
-        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; // Ensure displayName is correct
+        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; 
         audioDataToSave = {
             id: currentAudioSettingToEdit.id,
             type: 'gameEvent',
@@ -1083,6 +1174,7 @@ export default function AdminBingoAdminPage() {
             storagePath: newStoragePath,
             uploadedAt: serverTimestamp(),
         };
+         console.log("Game Event Audio Data to Save (pre-upload):", audioDataToSave);
     } else {
         toast({ title: "Erro de Configuração", description: "Contexto de salvamento de áudio inválido.", variant: "destructive" });
         setIsUploadingAudio(false);
@@ -1090,40 +1182,72 @@ export default function AdminBingoAdminPage() {
         return;
     }
 
-    if (oldStoragePathToDelete && fileToUpload) { // Only attempt delete if a new file is being uploaded
+    if (oldStoragePathToDelete && fileToUpload) { 
+        console.log("Attempting to delete old audio file from storage:", oldStoragePathToDelete);
         try {
             await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
-            console.log("Old audio file deleted:", oldStoragePathToDelete);
+            console.log("Old audio file deleted successfully:", oldStoragePathToDelete);
         } catch (delError: any) {
-            if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar áudio antigo do Storage (prosseguindo com upload):", delError);
+            if (delError.code !== 'storage/object-not-found') {
+                 console.warn("Erro ao deletar áudio antigo do Storage (prosseguindo com upload):", delError);
+            } else {
+                console.log("Old audio file not found in storage, no deletion needed.");
+            }
         }
     }
 
     try {
+        console.log("Uploading new audio file to Storage path:", newStoragePath);
         const fileStorageRef = storageRef(storage, newStoragePath);
         const uploadTask = uploadBytesResumable(fileStorageRef, fileToUpload);
 
         const downloadURL = await new Promise<string>((resolve, reject) => {
             uploadTask.on('state_changed',
                 (snapshot) => setAudioUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                (error) => { console.error("Audio upload error:", error); reject(error);},
-                async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { console.error("Get DL URL error:", e); reject(e);} }
+                (error) => { console.error("Audio upload error (uploadTask.on):", error); reject(error);},
+                async () => { 
+                    try { 
+                        const url = await getDownloadURL(uploadTask.snapshot.ref); 
+                        console.log("Audio upload successful, Download URL:", url);
+                        resolve(url); 
+                    } catch (e:any) { 
+                        console.error("Get Download URL error after upload:", e); 
+                        reject(e);
+                    } 
+                }
             );
         });
         audioDataToSave.audioUrl = downloadURL;
-        audioDataToSave.storagePath = newStoragePath; // Ensure storagePath is also correctly set here
+        audioDataToSave.storagePath = newStoragePath; 
 
-        if (isInteractionAudio) {
-            if (firestoreDocId) { // Editing existing interaction audio
+        if (isInteractionAudioNewOrEdit) {
+            if (firestoreDocId) { 
+                 console.log("Updating existing Interaction Audio in Firestore:", firestoreDocId, audioDataToSave);
                  await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
-            } else { // Adding new interaction audio
+            } else { 
+                console.log("Adding new Interaction Audio to Firestore:", firestoreCollectionName, audioDataToSave);
                 const docRef = await addDoc(collection(db, firestoreCollectionName), audioDataToSave);
-                firestoreDocId = docRef.id; // Get the new ID for local state update
+                firestoreDocId = docRef.id; 
             }
-            fetchInteractionAudios(); // Refresh list
-        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { // Game Event Audio
+             // Update local state for interaction audios by re-fetching
+             const updatedInteractionAudio: AudioSetting = { ...audioDataToSave, id: firestoreDocId!, uploadedAt: new Date() } as AudioSetting;
+             setInteractionAudioSettings(prev => {
+                const existingIndex = prev.findIndex(s => s.id === firestoreDocId);
+                if (existingIndex > -1) {
+                    const newAudios = [...prev];
+                    newAudios[existingIndex] = updatedInteractionAudio;
+                    return newAudios;
+                }
+                return [updatedInteractionAudio, ...prev];
+             });
+
+        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { 
+            console.log("Saving Game Event Audio to Firestore:", firestoreDocId, audioDataToSave);
             await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
-            fetchGameEventAudios(); // Refresh list
+             // Update local state for game event audios
+             setGameEventAudioSettings(prev => prev.map(s => 
+                s.id === firestoreDocId ? { ...s, ...audioDataToSave, uploadedAt: new Date() } as AudioSetting : s
+            ));
         }
 
         toast({ title: "Áudio Salvo!", description: `O áudio '${audioDisplayNameForToast}' foi salvo com sucesso.` });
@@ -1135,7 +1259,7 @@ export default function AdminBingoAdminPage() {
         interactionAudioForm.reset();
 
     } catch (error: any) {
-        console.error("Erro ao salvar áudio:", error);
+        console.error("Erro geral ao salvar áudio (outer catch):", error);
         toast({ title: "Erro ao Salvar Áudio", description: `${error.message || "Erro desconhecido."} Código: ${error.code || 'N/A'}`, variant: "destructive" });
     } finally {
         setIsUploadingAudio(false);
@@ -1158,12 +1282,14 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                 audioUrl: deleteField(),
                 fileName: deleteField(),
                 storagePath: deleteField(),
-                uploadedAt: serverTimestamp(),
+                uploadedAt: serverTimestamp(), // Mark as updated
             });
-            fetchGameEventAudios();
+            setGameEventAudioSettings(prev => prev.map(s => 
+                s.id === setting.id ? {...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } : s
+            ));
         } else if (setting.type === 'interaction') {
             await deleteDoc(doc(db, "bingoInteractionAudios", setting.id));
-            fetchInteractionAudios();
+            setInteractionAudioSettings(prev => prev.filter(s => s.id !== setting.id));
         }
         toast({ title: "Áudio Removido", description: `Áudio "${setting.displayName}" removido com sucesso.` });
     } catch (error: any) {
@@ -1185,11 +1311,12 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
         addedBy: currentUser.uid,
         addedAt: serverTimestamp(),
       };
-      await addDoc(collection(db, "bingoRoomSettings"), newRoomData);
+      const docRef = await addDoc(collection(db, "bingoRoomSettings"), newRoomData);
+      const newRoom = { ...newRoomData, id: docRef.id, addedAt: new Date() } as BingoRoomSetting;
+      setBingoRoomSettings(prev => [newRoom, ...prev]);
       toast({ title: "Nova Sala Adicionada!", description: `Sala com ID ${values.roomId} adicionada com sucesso.` });
       setIsAddRoomDialogOpen(false);
       newRoomForm.reset();
-      fetchBingoRoomSettings();
     } catch (error) {
       console.error("Erro ao adicionar nova sala:", error);
       toast({ title: "Erro ao Adicionar Sala", description: "Não foi possível salvar a nova sala.", variant: "destructive" });
@@ -1199,15 +1326,16 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
   const handleToggleRoomStatus = async (roomSetting: BingoRoomSetting) => {
     if (!roomSetting.id) return;
     try {
+      const newStatus = !roomSetting.isActive;
       const roomDocRef = doc(db, "bingoRoomSettings", roomSetting.id);
       await updateDoc(roomDocRef, {
-        isActive: !roomSetting.isActive,
-        lastCheckedAt: serverTimestamp(), // Optionally update lastCheckedAt on status change
+        isActive: newStatus,
+        lastCheckedAt: serverTimestamp(), 
       });
       setBingoRoomSettings(prev => 
-        prev.map(r => r.id === roomSetting.id ? { ...r, isActive: !r.isActive } : r)
+        prev.map(r => r.id === roomSetting.id ? { ...r, isActive: newStatus, lastCheckedAt: new Date() } : r)
       );
-      toast({ title: "Status da Sala Atualizado", description: `Sala ${roomSetting.roomId} está agora ${!roomSetting.isActive ? 'Ativa' : 'Inativa'}.` });
+      toast({ title: "Status da Sala Atualizado", description: `Sala ${roomSetting.roomId} está agora ${newStatus ? 'Ativa' : 'Inativa'}.` });
     } catch (error) {
       console.error("Erro ao atualizar status da sala:", error);
       toast({ title: "Erro ao Atualizar Status", description: "Não foi possível atualizar o status da sala.", variant: "destructive" });
@@ -1276,9 +1404,21 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
         toast({ title: "Nenhuma Cartela para Apagar", description: "Não há cartelas de 90 bolas no banco de dados." });
         return;
       }
-      const batch = writeBatch(db);
-      querySnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
-      await batch.commit();
+      let currentBatch = writeBatch(db);
+      let operationsInBatch = 0;
+      for(const docSnap of querySnapshot.docs){
+          currentBatch.delete(docSnap.ref);
+          operationsInBatch++;
+          if(operationsInBatch >= 499){
+              await currentBatch.commit();
+              currentBatch = writeBatch(db);
+              operationsInBatch = 0;
+          }
+      }
+      if(operationsInBatch > 0){
+          await currentBatch.commit();
+      }
+
       setGenerated90BallCards([]);
       toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 90 bolas foram removidas do banco de dados."});
     } catch (error) {
@@ -1299,9 +1439,20 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
         toast({ title: "Nenhuma Cartela para Apagar", description: "Não há cartelas de 75 bolas no banco de dados." });
         return;
       }
-      const batch = writeBatch(db);
-      querySnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
-      await batch.commit();
+      let currentBatch = writeBatch(db);
+      let operationsInBatch = 0;
+       for(const docSnap of querySnapshot.docs){
+          currentBatch.delete(docSnap.ref);
+          operationsInBatch++;
+          if(operationsInBatch >= 499){
+              await currentBatch.commit();
+              currentBatch = writeBatch(db);
+              operationsInBatch = 0;
+          }
+      }
+      if(operationsInBatch > 0){
+          await currentBatch.commit();
+      }
       setGenerated75BallCards([]);
       toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 75 bolas foram removidas do banco de dados."});
     } catch (error) {
@@ -1352,6 +1503,24 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             <FormItem>
                               <FormLabel>Título da Partida</FormLabel>
                               <FormControl><Input placeholder="Ex: Bingo da Sorte Semanal" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={gameForm.control}
+                          name="bingoRoomId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Sala de Bingo</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value || ""} disabled={isLoadingBingoRoomsForGameForm}>
+                                <FormControl><SelectTrigger><SelectValue placeholder={isLoadingBingoRoomsForGameForm ? "Carregando salas..." : "Selecione uma sala"} /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  {availableBingoRooms.map(room => (
+                                    <SelectItem key={room.id!} value={room.id!}>{room.description || room.roomId}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -1537,6 +1706,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Título</TableHead>
+                        <TableHead>Sala</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead className="text-right">Preço</TableHead>
                         <TableHead>Prêmio</TableHead>
@@ -1549,12 +1719,16 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                       {bingoGames.map((game) => (
                         <TableRow key={game.id}>
                           <TableCell className="font-medium">{game.title}</TableCell>
+                          <TableCell className="text-xs">{game.bingoRoomName || game.bingoRoomId || 'N/A'}</TableCell>
                           <TableCell>{game.bingoType === '75-ball' ? '75 Bolas' : '90 Bolas'}</TableCell>
                           <TableCell className="text-right">R$ {game.cardPrice?.toFixed(2) ?? '0.00'}</TableCell>
                           <TableCell className="max-w-xs truncate" title={game.prizeDescription}>{game.prizeDescription}</TableCell>
                           <TableCell>{game.startTime ? format(new Date(game.startTime), "dd/MM/yy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
                           <TableCell><Badge variant={game.status === 'planejada' ? 'default' : game.status === 'ativa' ? 'destructive' : 'secondary'} className="capitalize">{game.status}</Badge></TableCell>
                           <TableCell className="text-right">
+                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs mr-1" onClick={() => toast({title: "Entrar na Partida", description:`Funcionalidade para '${game.title}' em desenvolvimento.`})}>
+                                Entrar
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toast({title: "Editar Partida", description:"Funcionalidade em desenvolvimento."})}>
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -2055,6 +2229,8 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
           </div>
         );
       case 'bingoBolasConfig':
+        const currentBallAudio = currentBallEditing?.locutorAudios?.['Padrão']?.audioUrl;
+
         return (
           <div className="space-y-6 p-6 bg-background h-full">
             <Card className="shadow-lg">
@@ -2064,12 +2240,19 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                   Configuração das Bolas (1-90)
                 </CardTitle>
                 <CardDescription>
-                  Personalize o áudio e a imagem para cada bola de bingo.
+                  Personalize o áudio e a imagem para cada bola de bingo. Selecione um locutor para gerenciar seus áudios.
                 </CardDescription>
               </CardHeader>
               <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                  {isLoadingBallSettings ? (
+                     <div className="flex justify-center items-center h-60"><LoadingSpinner size="lg" /><p className="ml-3 text-muted-foreground">Carregando configurações das bolas...</p></div>
+                  ) : (
                   <div className="space-y-3 pr-2">
-                    {bingoBallSettings.sort((a,b) => a.ballNumber - b.ballNumber).map((ballSetting) => (
+                    {bingoBallSettings.sort((a,b) => a.ballNumber - b.ballNumber).map((ballSetting) => {
+                      const locutorAudioUrl = ballSetting.locutorAudios?.['Padrão']?.audioUrl; // Assuming 'Padrão' for now
+                      const locutorAudioStoragePath = ballSetting.locutorAudios?.['Padrão']?.audioStoragePath;
+                      
+                      return (
                       <div key={ballSetting.ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center">
                           <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-semibold mr-3">
@@ -2078,7 +2261,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                           <span className="font-medium">Bola {String(ballSetting.ballNumber).padStart(2, '0')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs overflow-hidden">
+                          <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs overflow-hidden">
                             {ballSetting.imageUrl ? (
                                 <NextImage src={ballSetting.imageUrl} alt={`Bola ${ballSetting.ballNumber}`} width={40} height={40} className="object-contain" data-ai-hint="bingo ball" />
                             ) : (
@@ -2094,8 +2277,8 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                              </Button>
                           )}
 
-                          {ballSetting.locutorAudios?.['Padrão']?.audioUrl ? (
-                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(ballSetting.locutorAudios?.['Padrão']?.audioUrl, `ball-${ballSetting.ballNumber}-Padrão`)}>
+                          {locutorAudioUrl ? (
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(locutorAudioUrl, `ball-${ballSetting.ballNumber}-Padrão`)}>
                                   {currentPlayingAudioId === `ball-${ballSetting.ballNumber}-Padrão` ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
                               </Button>
                           ) : (
@@ -2106,21 +2289,23 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenBallAssetDialog(ballSetting, 'audio')}>
                              <Music2 className="mr-1.5 h-3 w-3" /> Áudio
                           </Button>
-                           {ballSetting.locutorAudios?.['Padrão']?.audioStoragePath && (
+                           {locutorAudioStoragePath && (
                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveBallAsset(ballSetting.ballNumber, 'audio', 'Padrão')}>
                                <Trash2 className="h-4 w-4" />
                              </Button>
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  )}
               </CardContent>
             </Card>
             <Dialog open={isUploadBallAssetDialogOpen} onOpenChange={(open) => {
                 setIsUploadBallAssetDialogOpen(open);
                 if (!open) {
-                    ballAssetForm.reset();
+                    ballAssetForm.reset(); // Reset form on close
                     setSelectedBallAssetFile(null);
                     if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
                     setCurrentBallEditing(null);
@@ -2141,7 +2326,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                              <FormField
                                 control={ballAssetForm.control}
                                 name="assetFile"
-                                render={({ field }) => (
+                                render={({ field }) => ( // field contains onChange, onBlur, value, name, ref
                                 <FormItem>
                                     <FormLabel>Arquivo</FormLabel>
                                     <FormControl>
@@ -2153,33 +2338,33 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                             if (files && files.length > 0) {
                                                 if (files[0].size > 2 * 1024 * 1024) {
                                                     ballAssetForm.setError("assetFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
-                                                    field.onChange(null);
+                                                    field.onChange(null); // Update RHF state
                                                     setSelectedBallAssetFile(null);
                                                 } else {
                                                     const fileTypeValid = assetTypeToUpload === 'image' ? files[0].type.startsWith("image/") : files[0].type.startsWith("audio/");
                                                     if (!fileTypeValid) {
                                                         ballAssetForm.setError("assetFile", { type: "manual", message: assetTypeToUpload === 'image' ? "O arquivo deve ser uma imagem." : "O arquivo deve ser um áudio."});
-                                                        field.onChange(null);
+                                                        field.onChange(null); // Update RHF state
                                                         setSelectedBallAssetFile(null);
                                                     } else {
                                                         ballAssetForm.clearErrors("assetFile");
-                                                        field.onChange(files);
-                                                        setSelectedBallAssetFile(files[0]);
+                                                        field.onChange(files); // Update RHF state with FileList
+                                                        setSelectedBallAssetFile(files[0]); // Keep your separate state for immediate use if needed
                                                     }
                                                 }
                                             } else {
-                                                field.onChange(null);
+                                                field.onChange(null); // Update RHF state
                                                 setSelectedBallAssetFile(null);
                                             }
                                         }}
                                         ref={el => {
-                                            field.ref(el);
-                                            if (ballAssetFileInputRef && typeof ballAssetFileInputRef === 'object') {
+                                            field.ref(el); // Pass RHF ref
+                                            if (ballAssetFileInputRef && typeof ballAssetFileInputRef === 'object') { // Your direct ref
                                                 ballAssetFileInputRef.current = el;
                                             }
                                         }}
-                                        name={field.name}
-                                        onBlur={field.onBlur}
+                                        name={field.name} // Pass RHF name
+                                        onBlur={field.onBlur} // Pass RHF onBlur
                                     />
                                     </FormControl>
                                     <FormMessage />
@@ -2220,6 +2405,9 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                 {isLoadingAudios ? (
+                     <div className="flex justify-center items-center h-60"><LoadingSpinner size="lg" /><p className="ml-3 text-muted-foreground">Carregando áudios...</p></div>
+                  ) : (
                 <div className="space-y-3 pr-2">
                   {gameEventAudioSettings.map((audioEvent) => (
                     <div key={audioEvent.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -2247,6 +2435,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
             <Dialog open={isUploadAudioDialogOpen || isAddInteractionAudioDialogOpen} onOpenChange={(open) => {
@@ -2263,7 +2452,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             displayName: currentAudioSettingToEdit.displayName,
                             keyword: currentAudioSettingToEdit.keyword || "",
                             associatedGiftId: currentAudioSettingToEdit.associatedGiftId || "",
-                            audioFile: undefined
+                            audioFile: undefined // Will be handled by separate state or direct input ref
                         });
                     } else if (isAddInteractionAudioDialogOpen && !currentAudioSettingToEdit) {
                         interactionAudioForm.reset();
@@ -2307,7 +2496,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                     </FormItem>
                                 )}/>
                                 <FormField control={interactionAudioForm.control} name="audioFile"
-                                  render={({ field: { onChange: rhfOnChange, value, name: rhfName, ref: rhfRef, ...rhfRest } }) => (
+                                  render={({ field: { onChange: rhfOnChange, value, name: rhfName, ref: fieldRefCallback, ...rhfRest } }) => (
                                   <FormItem>
                                       <FormLabel>Arquivo de Áudio (máx 2MB)</FormLabel>
                                       <FormControl>
@@ -2324,17 +2513,17 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                         rhfOnChange(null);
                                                     } else {
                                                         interactionAudioForm.clearErrors("audioFile");
-                                                        rhfOnChange(files);
+                                                        rhfOnChange(files); // Pass FileList to RHF
                                                     }
                                                 } else {
                                                     rhfOnChange(null);
                                                 }
-                                                handleAudioFileSelect(e);
+                                                // No direct call to handleAudioFileSelect needed here if RHF handles file
                                             }}
                                             ref={el => {
-                                                if (typeof rhfRef === 'function') rhfRef(el);
+                                                if (typeof fieldRefCallback === 'function') fieldRefCallback(el);
                                                 // @ts-ignore
-                                                else if (rhfRef) rhfRef.current = el;
+                                                else if (fieldRefCallback) fieldRefCallback.current = el;
                                                 if (audioFileInputRef && typeof audioFileInputRef === 'object') {
                                                   audioFileInputRef.current = el;
                                                 }
@@ -2364,7 +2553,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 </DialogFooter>
                             </form>
                         </Form>
-                    ) : isUploadAudioDialogOpen ? (
+                    ) : isUploadAudioDialogOpen ? ( // This is for Game Event Audios
                         <form onSubmit={(e) => { e.preventDefault(); handleSaveAudio(); }} className="space-y-4 py-2 pb-4">
                             <div className="space-y-1">
                                 <Label htmlFor="gameEventAudioFileDirect">Arquivo de Áudio (máx 2MB)</Label>
@@ -2466,7 +2655,10 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     Adicione e gerencie os RoomIDs do Kako Live para coleta de dados.
                   </CardDescription>
                 </div>
-                 <Dialog open={isAddRoomDialogOpen} onOpenChange={setIsAddRoomDialogOpen}>
+                 <Dialog open={isAddRoomDialogOpen} onOpenChange={(open) => {
+                    setIsAddRoomDialogOpen(open);
+                    if (!open) newRoomForm.reset();
+                  }}>
                     <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Sala
@@ -2546,7 +2738,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 </Label>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs">{room.addedBy ? (usersData[room.addedBy] || room.addedBy.substring(0,6)+ '...') : "N/A"}</TableCell>
+                          <TableCell className="text-xs">{usersData[room.addedBy || ''] || (room.addedBy ? room.addedBy.substring(0,6)+ '...' : "N/A")}</TableCell>
                           <TableCell className="text-xs">{room.addedAt ? format(new Date(room.addedAt), "dd/MM/yy HH:mm", { locale: ptBR }) : "N/A"}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRequestDeleteRoom(room)}>
@@ -2594,7 +2786,6 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
 
       try {
           const newUsersData: Record<string, string> = {};
-          // Fetch in chunks of 10 if needed, though for a few UIDs direct getDoc is fine
           for (const userId of uniqueUserIds) {
               const userDocRef = doc(db, "accounts", userId);
               const userDocSnap = await getDoc(userDocRef);
@@ -2609,11 +2800,13 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
       } catch (error) {
           console.error("Error fetching user display names:", error);
       }
-  }, [usersData]); // Added usersData dependency
+  }, [usersData]); 
 
   useEffect(() => {
       const roomCreatorIds = bingoRoomSettings.map(room => room.addedBy).filter(Boolean) as string[];
-      fetchUserDisplayNames(roomCreatorIds);
+      if (roomCreatorIds.length > 0) {
+        fetchUserDisplayNames(roomCreatorIds);
+      }
   }, [bingoRoomSettings, fetchUserDisplayNames]);
 
 
@@ -2710,7 +2903,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 key={`detail-card-75-${rowIndex}-${colIndex}`}
                                 className={cn(
                                   "flex items-center justify-center h-12 text-lg font-semibold",
-                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' // Updated free space style
+                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' 
                                 )}
                               >
                                 {cell !== null ? cell : <Star className="h-5 w-5 text-yellow-600" />}
