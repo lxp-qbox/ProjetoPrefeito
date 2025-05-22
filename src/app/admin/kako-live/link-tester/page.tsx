@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift, RadioTower, MessageSquare, UserCircle2 } from "lucide-react";
+import { PlugZap, XCircle, Link as LinkIconLucide, TableIcon, Send, BadgeInfo, Gamepad2, Gift as GiftIcon, RadioTower, MessageSquare, UserCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from "@/components/ui/table";
@@ -48,6 +48,8 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [messageToSend, setMessageToSend] = useState<string>("");
   const { toast } = useToast();
+  const isManuallyDisconnectingRef = useRef(false);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showLiveDataFilter, setShowLiveDataFilter] = useState(true);
   const [showChatMessageFilter, setShowChatMessageFilter] = useState(true);
@@ -55,6 +57,39 @@ export default function AdminKakoLiveLinkTesterPage() {
   const [showGameDataFilter, setShowGameDataFilter] = useState(true);
   const [showExternalDataFilter, setShowExternalDataFilter] = useState(true);
   const [showRoomGiftsFilter, setShowRoomGiftsFilter] = useState(true);
+
+
+  const addLogEntry = useCallback((message: string, type: ProcessedMessage['type'], originalData?: string, parsedData?: Record<string, any>, isJson?: boolean, classification?: string, parsedUserData?: ParsedUserData) => {
+    setProcessedMessages(prev => [{
+      id: generateUniqueId(),
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      type: type,
+      originalData: originalData || message,
+      parsedData: parsedData,
+      isJson: isJson || false,
+      classification: classification,
+      parsedUserData: parsedUserData,
+    }, ...prev.slice(0, 199)]);
+  }, []);
+
+  const disconnectManually = useCallback(() => {
+    isManuallyDisconnectingRef.current = true;
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (socketRef.current) {
+      addLogEntry("Desconectando WebSocket manualmente...", 'system');
+      socketRef.current.onopen = null;
+      socketRef.current.onmessage = null;
+      socketRef.current.onerror = null;
+      socketRef.current.onclose = null; 
+      socketRef.current.close();
+      socketRef.current = null; // Important to nullify after close
+    }
+    setConnectionStatus("Desconectado");
+    setIsConnecting(false);
+  }, [addLogEntry]);
 
 
   const handleConnect = useCallback(() => {
@@ -67,21 +102,17 @@ export default function AdminKakoLiveLinkTesterPage() {
       return;
     }
 
-    if (socketRef.current) {
-      if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
-        console.log("WebSocket Link Tester: Closing existing WebSocket before opening new one.");
-        socketRef.current.onopen = null;
-        socketRef.current.onmessage = null;
-        socketRef.current.onerror = null;
-        socketRef.current.onclose = null;
-        socketRef.current.close();
-      }
-      socketRef.current = null; 
+    // If already connected or connecting, disconnect first
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+        addLogEntry(`Fechando conexão existente com ${socketRef.current.url} para reconectar.`, 'system');
+        disconnectManually(); // Use the manual disconnect which also clears reconnect timers
     }
-
+    
+    isManuallyDisconnectingRef.current = false; // Reset manual disconnect flag for new connection attempt
     setIsConnecting(true);
     setConnectionStatus(`Conectando a ${wsUrl}...`);
     setErrorDetails(null);
+    addLogEntry(`Tentando conectar a ${wsUrl}...`, 'system');
 
     try {
       const newSocket = new WebSocket(wsUrl);
@@ -89,15 +120,9 @@ export default function AdminKakoLiveLinkTesterPage() {
 
       newSocket.onopen = () => {
         setIsConnecting(false);
-        setConnectionStatus(`Conectado a: ${wsUrl}`);
-        setProcessedMessages(prev => [{
-          id: generateUniqueId(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type: 'system',
-          originalData: `[SISTEMA] Conexão estabelecida com ${wsUrl}`,
-          isJson: false,
-        }, ...prev.slice(0,199)]); 
-        toast({ title: "Conectado!", description: `Conexão WebSocket com ${wsUrl} estabelecida.` });
+        setConnectionStatus(`Conectado a: ${newSocket.url}`);
+        addLogEntry(`Conexão estabelecida com ${newSocket.url}`, 'system');
+        toast({ title: "Conectado!", description: `Conexão WebSocket com ${newSocket.url} estabelecida.` });
       };
 
       newSocket.onmessage = async (event) => {
@@ -114,7 +139,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             let parsedJson: Record<string, any> | undefined;
             let isJsonMessage = false;
             let classification: string | undefined = undefined;
-            let parsedUserData: ProcessedMessage['parsedUserData'] = undefined;
+            let msgUserData: ParsedUserData | undefined = undefined;
 
             const firstBrace = messageContentString.indexOf('{');
             const lastBrace = messageContentString.lastIndexOf('}');
@@ -132,13 +157,23 @@ export default function AdminKakoLiveLinkTesterPage() {
             }
 
             if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-              // Classification Logic
+              if (parsedJson.user && typeof parsedJson.user === 'object') {
+                msgUserData = {
+                  nickname: parsedJson.user.nickname,
+                  avatarUrl: parsedJson.user.avatar || parsedJson.user.avatarUrl,
+                  level: parsedJson.user.level,
+                  showId: parsedJson.user.showId,
+                  userId: parsedJson.user.userId,
+                  gender: parsedJson.user.gender,
+                };
+              }
+
               if ('roomId' in parsedJson && 'mute' in parsedJson) {
                 classification = "Dados da LIVE";
               } else if ('roomId' in parsedJson && 'text' in parsedJson) {
                 classification = "Mensagem de Chat";
               } else if ('roomId' in parsedJson && 'giftId' in parsedJson) {
-                classification = "Presentes da Sala";
+                 classification = "Presentes da Sala";
               } else if ('roomId' in parsedJson) {
                 classification = "Dados da Sala";
               } else if ('game' in parsedJson) {
@@ -146,40 +181,13 @@ export default function AdminKakoLiveLinkTesterPage() {
               } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) {
                 classification = "Dados Externos";
               }
-
-              // User Data Parsing
-              if (parsedJson.user && typeof parsedJson.user === 'object') {
-                parsedUserData = {
-                  nickname: parsedJson.user.nickname,
-                  avatarUrl: parsedJson.user.avatar || parsedJson.user.avatarUrl,
-                  level: parsedJson.user.level,
-                  showId: parsedJson.user.showId,
-                  userId: parsedJson.user.userId, // FUID
-                  gender: parsedJson.user.gender,
-                };
-              }
             }
             
-            setProcessedMessages(prev => [{
-              id: generateUniqueId(),
-              timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              type: 'received',
-              originalData: messageContentString,
-              parsedData: parsedJson,
-              isJson: isJsonMessage,
-              classification: classification,
-              parsedUserData: parsedUserData,
-            }, ...prev.slice(0,199)]);
+            addLogEntry(messageContentString, 'received', messageContentString, parsedJson, isJsonMessage, classification, msgUserData);
 
         } catch (e) {
             console.error("Erro ao processar mensagem WebSocket:", e);
-            setProcessedMessages(prev => [{
-                id: generateUniqueId(),
-                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                type: 'error',
-                originalData: `[ERRO INTERNO AO PROCESSAR MENSAGEM] ${e instanceof Error ? e.message : String(e)}. Dados brutos: ${messageContentString.substring(0,100)}...`,
-                isJson: false,
-              }, ...prev.slice(0,199)]);
+            addLogEntry(`[ERRO INTERNO AO PROCESSAR MENSAGEM] ${e instanceof Error ? e.message : String(e)}. Dados brutos: ${messageContentString.substring(0,100)}...`, 'error', messageContentString);
         }
       };
 
@@ -188,27 +196,22 @@ export default function AdminKakoLiveLinkTesterPage() {
         const errorMsg = `Erro na conexão WebSocket: ${errorEvent.type || 'Tipo de erro desconhecido'}`;
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
-        setProcessedMessages(prev => [{
-          id: generateUniqueId(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type: 'error',
-          originalData: `[ERRO] ${errorMsg}`,
-          isJson: false,
-        }, ...prev.slice(0,199)]);
+        addLogEntry(`[ERRO] ${errorMsg}`, 'error', errorMsg);
         toast({ title: "Erro de Conexão", description: errorMsg, variant: "destructive" });
         
-        const currentSocketInstance = socketRef.current;
-        if (currentSocketInstance && currentSocketInstance === newSocket) {
-            currentSocketInstance.onopen = null;
-            currentSocketInstance.onmessage = null;
-            currentSocketInstance.onerror = null;
-            currentSocketInstance.onclose = null;
-            if (currentSocketInstance.readyState === WebSocket.OPEN || currentSocketInstance.readyState === WebSocket.CONNECTING) {
-              currentSocketInstance.close();
+        if (socketRef.current === newSocket) {
+            newSocket.onopen = null;
+            newSocket.onmessage = null;
+            newSocket.onerror = null;
+            newSocket.onclose = null;
+            if (newSocket.readyState === WebSocket.OPEN || newSocket.readyState === WebSocket.CONNECTING) {
+              newSocket.close();
             }
-            if (socketRef.current === currentSocketInstance) {
-              socketRef.current = null;
-            }
+            socketRef.current = null;
+        }
+         if (!isManuallyDisconnectingRef.current) {
+          if(reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = setTimeout(handleConnect, 5000); // Attempt to reconnect on error
         }
       };
 
@@ -218,18 +221,22 @@ export default function AdminKakoLiveLinkTesterPage() {
         if (closeEvent.code || closeEvent.reason) {
           closeMsg += ` Código: ${closeEvent.code}, Motivo: ${closeEvent.reason || 'N/A'}`;
         }
-        setConnectionStatus("Desconectado");
-        setProcessedMessages(prev => [{
-          id: generateUniqueId(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type: 'system',
-          originalData: `[SISTEMA] ${closeMsg}`,
-          isJson: false,
-        }, ...prev.slice(0,199)]);
-        toast({ title: "Desconectado", description: closeMsg });
-
-        if (socketRef.current === newSocket) {
-          socketRef.current = null;
+        
+        if (socketRef.current === newSocket) { 
+            if (!isManuallyDisconnectingRef.current) {
+                setConnectionStatus("Desconectado - Tentando Reconectar...");
+                addLogEntry(`${closeMsg} Tentando reconectar em 5 segundos.`, 'system', closeMsg);
+                socketRef.current = null; 
+                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = setTimeout(handleConnect, 5000);
+            } else {
+                setConnectionStatus("Desconectado");
+                addLogEntry("WebSocket Desconectado Manualmente.", 'system', "Manually disconnected.");
+                socketRef.current = null; 
+            }
+        } else {
+           // This close event is for an old socket, already handled or cleaned up
+           console.log("Old socket closed, current socketRef:", socketRef.current?.url);
         }
       };
 
@@ -238,29 +245,14 @@ export default function AdminKakoLiveLinkTesterPage() {
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar.";
       setConnectionStatus("Erro ao Iniciar Conexão");
       setErrorDetails(errMsg);
-      setProcessedMessages(prev => [{
-          id: generateUniqueId(),
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          type: 'error',
-          originalData: `[ERRO CRÍTICO AO CONECTAR] ${errMsg}`,
-          isJson: false,
-        }, ...prev.slice(0,199)]);
+      addLogEntry(`[ERRO CRÍTICO AO CONECTAR] ${errMsg}`, 'error', errMsg);
       toast({ title: "Falha ao Conectar", description: errMsg, variant: "destructive" });
       if (socketRef.current) { 
         socketRef.current.close();
         socketRef.current = null;
       }
     }
-  }, [wsUrl, toast]);
-
-  const handleDisconnect = () => {
-    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
-      socketRef.current.close(); 
-    } else {
-      setConnectionStatus("Desconectado"); 
-      toast({ title: "Já Desconectado", description: "Nenhuma conexão ativa para desconectar." });
-    }
-  };
+  }, [wsUrl, toast, addLogEntry, disconnectManually]);
 
   const handleSendMessage = () => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
@@ -274,67 +266,34 @@ export default function AdminKakoLiveLinkTesterPage() {
 
     try {
       socketRef.current.send(messageToSend.trim());
-      setProcessedMessages(prev => [{
-        id: generateUniqueId(),
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        type: 'sent',
-        originalData: `${messageToSend.trim()}`,
-        isJson: false, 
-      }, ...prev.slice(0,199)]);
+      addLogEntry(messageToSend.trim(), 'sent');
       toast({ title: "Mensagem Enviada", description: messageToSend.trim() });
       setMessageToSend("");
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
       const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao enviar mensagem.";
-      setProcessedMessages(prev => [{
-        id: generateUniqueId(),
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        type: 'error',
-        originalData: `[ERRO AO ENVIAR] ${errMsg}`,
-        isJson: false,
-      }, ...prev.slice(0,199)]);
+      addLogEntry(`[ERRO AO ENVIAR] ${errMsg}`, 'error', errMsg);
       toast({ title: "Erro ao Enviar", description: errMsg, variant: "destructive" });
     }
   };
 
   useEffect(() => {
     return () => {
-      if (socketRef.current) {
-        if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
-          console.log("WebSocket Link Tester: Closing WebSocket on component unmount.");
-          socketRef.current.onopen = null;
-          socketRef.current.onmessage = null;
-          socketRef.current.onerror = null;
-          socketRef.current.onclose = null; 
-          socketRef.current.close();
-        }
-        socketRef.current = null;
-      }
+      disconnectManually(); // Ensure cleanup on unmount
     };
-  }, []); 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // disconnectManually is memoized
 
   const filteredMessages = processedMessages.filter(msg => {
     if (msg.type === 'sent' || msg.type === 'system' || msg.type === 'error') {
       return true;
     }
-    if (msg.classification === "Dados da LIVE") {
-      return showLiveDataFilter;
-    }
-    if (msg.classification === "Mensagem de Chat") {
-      return showChatMessageFilter;
-    }
-    if (msg.classification === "Presentes da Sala") {
-      return showRoomGiftsFilter;
-    }
-    if (msg.classification === "Dados da Sala") {
-      return showRoomDataFilter;
-    }
-    if (msg.classification === "Dados de Jogo") {
-      return showGameDataFilter;
-    }
-    if (msg.classification === "Dados Externos") {
-      return showExternalDataFilter;
-    }
+    if (msg.classification === "Dados da LIVE") return showLiveDataFilter;
+    if (msg.classification === "Mensagem de Chat") return showChatMessageFilter;
+    if (msg.classification === "Presentes da Sala") return showRoomGiftsFilter;
+    if (msg.classification === "Dados da Sala") return showRoomDataFilter;
+    if (msg.classification === "Dados de Jogo") return showGameDataFilter;
+    if (msg.classification === "Dados Externos") return showExternalDataFilter;
     return true; 
   });
 
@@ -348,7 +307,7 @@ export default function AdminKakoLiveLinkTesterPage() {
             Testar Conexão WebSocket
           </CardTitle>
           <CardDescription>
-            Insira uma URL WebSocket (ws:// ou wss://) para conectar e visualizar as mensagens recebidas. Mensagens JSON serão formatadas em tabela.
+            Insira uma URL WebSocket (ws:// ou wss://) para conectar e visualizar as mensagens recebidas/enviadas.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 flex-grow flex flex-col">
@@ -359,20 +318,21 @@ export default function AdminKakoLiveLinkTesterPage() {
               value={wsUrl}
               onChange={(e) => setWsUrl(e.target.value)}
               placeholder="wss://exemplo.com/socket"
-              disabled={isConnecting || (socketRef.current && socketRef.current.readyState === WebSocket.OPEN)}
+              disabled={isConnecting && socketRef.current?.url === wsUrl}
             />
           </div>
           <div className="flex space-x-2">
             <Button
               onClick={handleConnect}
-              disabled={isConnecting || (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && socketRef.current.url === wsUrl) || !wsUrl.trim()}
+              disabled={isConnecting || !wsUrl.trim()}
             >
-              {isConnecting ? <LoadingSpinner size="sm" className="mr-2" /> : <PlugZap className="mr-2 h-4 w-4" />}
-              {isConnecting ? "Conectando..." : (socketRef.current && socketRef.current.readyState === WebSocket.OPEN ? "Conectado" : "Conectar")}
+              {isConnecting && socketRef.current?.url === wsUrl ? <LoadingSpinner size="sm" className="mr-2" /> : <PlugZap className="mr-2 h-4 w-4" />}
+              {isConnecting && socketRef.current?.url === wsUrl ? "Conectando..." : 
+               (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && socketRef.current.url === wsUrl) ? "Reconectar" : "Conectar"}
             </Button>
             <Button
               variant="outline"
-              onClick={handleDisconnect}
+              onClick={disconnectManually}
               disabled={!socketRef.current || (socketRef.current.readyState !== WebSocket.OPEN && socketRef.current.readyState !== WebSocket.CONNECTING)}
             >
               <XCircle className="mr-2 h-4 w-4" />
@@ -411,67 +371,43 @@ export default function AdminKakoLiveLinkTesterPage() {
 
           <div className="mt-4 flex items-center space-x-4 border-t pt-4 flex-wrap gap-y-2">
             <div className="flex items-center space-x-2">
-                <Checkbox
-                    id="showLiveDataFilter"
-                    checked={showLiveDataFilter}
-                    onCheckedChange={(checked) => setShowLiveDataFilter(Boolean(checked))}
-                />
+                <Checkbox id="showLiveDataFilter" checked={showLiveDataFilter} onCheckedChange={(checked) => setShowLiveDataFilter(Boolean(checked))} />
                 <Label htmlFor="showLiveDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da LIVE</Label>
             </div>
-             <div className="flex items-center space-x-2">
-                <Checkbox
-                    id="showChatMessageFilter"
-                    checked={showChatMessageFilter}
-                    onCheckedChange={(checked) => setShowChatMessageFilter(Boolean(checked))}
-                />
+            <div className="flex items-center space-x-2">
+                <Checkbox id="showChatMessageFilter" checked={showChatMessageFilter} onCheckedChange={(checked) => setShowChatMessageFilter(Boolean(checked))} />
                 <Label htmlFor="showChatMessageFilter" className="text-sm font-medium cursor-pointer">Mostrar Mensagens de Chat</Label>
             </div>
-             <div className="flex items-center space-x-2">
-                <Checkbox
-                    id="showRoomGiftsFilter"
-                    checked={showRoomGiftsFilter}
-                    onCheckedChange={(checked) => setShowRoomGiftsFilter(Boolean(checked))}
-                />
+            <div className="flex items-center space-x-2">
+                <Checkbox id="showRoomGiftsFilter" checked={showRoomGiftsFilter} onCheckedChange={(checked) => setShowRoomGiftsFilter(Boolean(checked))} />
                 <Label htmlFor="showRoomGiftsFilter" className="text-sm font-medium cursor-pointer">Mostrar Presentes da Sala</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="showRoomDataFilter"
-                checked={showRoomDataFilter}
-                onCheckedChange={(checked) => setShowRoomDataFilter(Boolean(checked))}
-              />
+              <Checkbox id="showRoomDataFilter" checked={showRoomDataFilter} onCheckedChange={(checked) => setShowRoomDataFilter(Boolean(checked))} />
               <Label htmlFor="showRoomDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados da Sala</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="showGameDataFilter"
-                checked={showGameDataFilter}
-                onCheckedChange={(checked) => setShowGameDataFilter(Boolean(checked))}
-              />
+              <Checkbox id="showGameDataFilter" checked={showGameDataFilter} onCheckedChange={(checked) => setShowGameDataFilter(Boolean(checked))} />
               <Label htmlFor="showGameDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados de Jogo</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="showExternalDataFilter"
-                checked={showExternalDataFilter}
-                onCheckedChange={(checked) => setShowExternalDataFilter(Boolean(checked))}
-              />
+              <Checkbox id="showExternalDataFilter" checked={showExternalDataFilter} onCheckedChange={(checked) => setShowExternalDataFilter(Boolean(checked))} />
               <Label htmlFor="showExternalDataFilter" className="text-sm font-medium cursor-pointer">Mostrar Dados Externos</Label>
             </div>
           </div>
 
           <div className="mt-2 flex-grow flex flex-col min-h-0">
-            <Label htmlFor="rawMessagesArea">Mensagens Recebidas/Enviadas ({filteredMessages.length} de {processedMessages.length}):</Label>
+            <Label htmlFor="rawMessagesArea">Mensagens ({filteredMessages.length} de {processedMessages.length}):</Label>
             <ScrollArea id="rawMessagesArea" className="flex-grow h-72 rounded-md border bg-muted/30 p-1 mt-1">
               <div className="p-3 space-y-3">
-                {filteredMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem para exibir (verifique os filtros)...</p>}
+                {filteredMessages.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma mensagem para exibir...</p>}
                 {filteredMessages.map((msg) => (
                   <div key={msg.id} className="p-3 border bg-background rounded-md shadow-sm">
                     <div className="flex justify-between items-center mb-1">
                         <p className={cn("text-xs", 
                             (msg.type === 'system' || msg.type === 'error') ? "text-destructive" : "text-muted-foreground"
                         )}>
-                        {msg.type === 'sent' ? 'Enviado às: ' : msg.type === 'received' ? 'Recebido às: ' : 'Sistema/Erro às: '}
+                        {msg.type === 'sent' ? 'Enviado: ' : msg.type === 'received' ? 'Recebido: ' : 'Sistema/Erro: '}
                         {msg.timestamp}
                         </p>
                         {msg.classification && msg.type === 'received' && (
@@ -482,20 +418,19 @@ export default function AdminKakoLiveLinkTesterPage() {
                                 msg.classification === "Dados da Sala" && "bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200",
                                 msg.classification === "Dados de Jogo" && "bg-green-100 text-green-700 border-green-200 hover:bg-green-200",
                                 msg.classification === "Dados Externos" && "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
-                                !["Dados da LIVE", "Mensagem de Chat", "Presentes da Sala", "Dados da Sala", "Dados de Jogo", "Dados Externos"].includes(msg.classification) && "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
                             )}>
                                 {msg.classification === "Dados da LIVE" && <RadioTower className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Mensagem de Chat" && <MessageSquare className="mr-1.5 h-3 w-3" />}
-                                {msg.classification === "Presentes da Sala" && <Gift className="mr-1.5 h-3 w-3" />}
+                                {msg.classification === "Presentes da Sala" && <GiftIcon className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados da Sala" && <BadgeInfo className="mr-1.5 h-3 w-3" />}
                                 {msg.classification === "Dados de Jogo" && <Gamepad2 className="mr-1.5 h-3 w-3" />}
-                                {msg.classification === "Dados Externos" && <Gift className="mr-1.5 h-3 w-3" />} 
+                                {msg.classification === "Dados Externos" && <GiftIcon className="mr-1.5 h-3 w-3" />} 
                                 {msg.classification}
                             </Badge>
                         )}
                     </div>
 
-                    {msg.type === 'received' && msg.isJson && msg.parsedUserData && (
+                    {msg.type === 'received' && msg.parsedUserData && (
                       <Card className="mb-2 border-primary/30">
                         <CardHeader className="p-2 bg-primary/5">
                            <CardTitle className={cn(
@@ -534,13 +469,12 @@ export default function AdminKakoLiveLinkTesterPage() {
                     {msg.type === 'received' && msg.classification === "Presentes da Sala" && msg.parsedData && msg.parsedUserData && (
                        <div className="mt-2 mb-3 p-3 bg-yellow-100 border border-yellow-200 rounded-md">
                         <p className="text-sm text-yellow-800 font-medium break-all">
-                          <Gift className="inline-block mr-1.5 h-4 w-4" /> 
-                          {msg.parsedUserData?.nickname || 'Usuário Desconhecido'} enviou {msg.parsedData?.giftCount || ''}x Presente ID {msg.parsedData?.giftId}! 
+                          <GiftIcon className="inline-block mr-1.5 h-4 w-4" /> 
+                          {msg.parsedUserData?.nickname || 'Usuário Desconhecido'} enviou {msg.parsedData?.giftCount || 'um'} Presente ID {msg.parsedData?.giftId}! 
                           (Destinatário: Anfitrião da Sala)
                         </p>
                       </div>
                     )}
-
 
                     {msg.type === 'received' && msg.isJson && msg.parsedData ? (
                       <div>
@@ -575,30 +509,18 @@ export default function AdminKakoLiveLinkTesterPage() {
                             </pre>
                           </details>
                       </div>
-                    ) : msg.type === 'sent' ? ( 
+                    ) : ( 
                         <div>
-                          <h4 className="text-sm font-semibold mb-1">Dados Brutos Enviados:</h4>
+                          <h4 className="text-sm font-semibold mb-1">
+                            {msg.type === 'sent' ? 'Dados Brutos Enviados:' : 
+                             msg.type === 'system' ? 'Mensagem do Sistema:' :
+                             msg.type === 'error' ? 'Mensagem de Erro:' : 
+                             'Dados Brutos Recebidos (Não JSON/Erro de Parse):'}
+                          </h4>
                           <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
                             {msg.originalData}
                           </pre>
                         </div>
-                    ) : msg.type !== 'received' ? ( 
-                      <div>
-                        <h4 className="text-sm font-semibold mb-1">
-                          {msg.type === 'system' ? 'Mensagem do Sistema:' :
-                           'Mensagem de Erro:'}
-                        </h4>
-                        <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
-                          {msg.originalData}
-                        </pre>
-                      </div>
-                    ) : ( 
-                       <div>
-                        <h4 className="text-sm font-semibold mb-1">Dados Brutos Recebidos (Não JSON/Erro de Parse):</h4>
-                        <pre className="text-xs p-2 bg-muted/50 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
-                          {msg.originalData}
-                        </pre>
-                      </div>
                     )}
                   </div>
                 ))}
