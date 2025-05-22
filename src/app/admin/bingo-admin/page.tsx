@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added Tabs
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
@@ -25,7 +26,7 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save 
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize } from '@/types';
@@ -717,9 +718,73 @@ export default function AdminBingoAdminPage() {
         contentDescription = "Acesse o registro de todas as bolas sorteadas em cada partida.";
         break;
       case 'bingoTelaSorteio':
-        contentTitle = "Interface da Tela de Sorteio";
-        contentDescription = "Esta seção permitirá visualizar e controlar uma tela de sorteio em tempo real."
-        break;
+        // contentTitle = "Interface da Tela de Sorteio";
+        // contentDescription = "Esta seção permitirá visualizar e controlar uma tela de sorteio em tempo real."
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <PlaySquare className="mr-2 h-6 w-6 text-primary" />
+                  Interface da Tela de Sorteio
+                </CardTitle>
+                <CardDescription>
+                  Visualize e controle uma tela de sorteio em tempo real para diferentes tipos de bingo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="bingo90" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="bingo90" className="flex items-center gap-2">
+                      <Grid3X3 className="h-4 w-4"/> Bingo 90 Bolas
+                    </TabsTrigger>
+                    <TabsTrigger value="bingo75" className="flex items-center gap-2">
+                      <Grid2X2 className="h-4 w-4"/> Bingo 75 Bolas
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="bingo90" className="mt-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Tela de Sorteio - 90 Bolas</CardTitle>
+                        <CardDescription>Interface para o sorteio de bingo de 90 bolas.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-muted/30 min-h-[200px] flex flex-col items-center justify-center">
+                           <Zap className="h-12 w-12 text-primary mb-2" />
+                           <p className="text-muted-foreground">Exibição da bola sorteada, grade de números marcados, etc.</p>
+                           <p className="text-xs text-muted-foreground mt-1">(Funcionalidade em desenvolvimento)</p>
+                        </div>
+                        <div className="flex justify-around items-center pt-4 border-t">
+                            <Button variant="outline"><Dice5 className="mr-2 h-4 w-4" />Sortear Próxima</Button>
+                            <Button variant="destructive"><CircleAlert className="mr-2 h-4 w-4"/>Resetar Jogo</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  <TabsContent value="bingo75" className="mt-4">
+                     <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Tela de Sorteio - 75 Bolas</CardTitle>
+                        <CardDescription>Interface para o sorteio de bingo de 75 bolas (B-I-N-G-O).</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-muted/30 min-h-[200px] flex flex-col items-center justify-center">
+                            <Zap className="h-12 w-12 text-primary mb-2" />
+                           <p className="text-muted-foreground">Exibição B-I-N-G-O, bola sorteada, padrões, etc.</p>
+                           <p className="text-xs text-muted-foreground mt-1">(Funcionalidade em desenvolvimento)</p>
+                        </div>
+                        <div className="flex justify-around items-center pt-4 border-t">
+                            <Button variant="outline"><Dice5 className="mr-2 h-4 w-4" />Sortear Próxima</Button>
+                            <Button variant="destructive"><CircleAlert className="mr-2 h-4 w-4"/>Resetar Jogo</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+        );
       default:
         return (
             <div className="space-y-6 p-6 bg-background h-full">
@@ -750,7 +815,6 @@ export default function AdminBingoAdminPage() {
             <CardTitle className="flex items-center">
               {activeTab === 'bingoGanhadores' && <Trophy className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoBolasSorteadas' && <Dice5 className="mr-2 h-6 w-6 text-primary" />}
-              {activeTab === 'bingoTelaSorteio' && <PlaySquare className="mr-2 h-6 w-6 text-primary" />}
               {activeTab === 'bingoPremiosDinheiro' && <DollarSign className="mr-2 h-6 w-6 text-primary" />}
               {contentTitle}
             </CardTitle>
