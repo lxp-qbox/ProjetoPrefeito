@@ -26,7 +26,8 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIcon, Edit2
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIcon, Edit2,
+  UploadCloud, Music2, Image as ImageIconLucide
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types';
@@ -45,7 +46,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, ref as storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 
@@ -156,7 +157,7 @@ const newGameSchema = z.object({
      ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Informe o valor do prêmio em dinheiro ou uma descrição.",
-      path: ['prizeCashAmount'], // Or prizeDescription, depending on desired focus
+      path: ['prizeCashAmount'], 
     });
   }
    if (data.prizeType === 'other' && !data.prizeDescription) {
@@ -184,6 +185,7 @@ export default function AdminBingoAdminPage() {
         { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#bingoGanhadores" },
         { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bingoBolasSorteadas" },
         { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#bingoTelaSorteio" },
+        { id: "bingoConfiguracoes", title: "Configurações", icon: SettingsIconLucide, link: "#bingoConfiguracoes" },
       ],
     },
     {
@@ -296,7 +298,6 @@ export default function AdminBingoAdminPage() {
         fetchedGames.push({ 
           id: docSnap.id, 
           ...data,
-          // Ensure startTime is converted to Date if it's a Firestore Timestamp
           startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
         } as Game);
       });
@@ -315,7 +316,7 @@ export default function AdminBingoAdminPage() {
     }
     if (activeTab === 'bingoPartidas') {
       fetchBingoGames();
-      fetchKakoPrizes(true); // Fetch for the form when partidas tab is active
+      fetchKakoPrizes(true); 
     }
   }, [activeTab, fetchKakoPrizes, fetchBingoGames]);
 
@@ -436,7 +437,6 @@ export default function AdminBingoAdminPage() {
       kakoPrizeForm.reset();
       fetchKakoPrizes(false); 
     } catch (error) {
-      // Only show generic error if upload specific error wasn't shown
       if (uploadProgress === null) { 
          console.error("Erro ao cadastrar prêmio Kako Live:", error);
          toast({
@@ -446,7 +446,7 @@ export default function AdminBingoAdminPage() {
          });
       }
     } finally {
-      setUploadProgress(null); // Ensure progress is cleared
+      setUploadProgress(null);
     }
   };
 
@@ -457,16 +457,14 @@ export default function AdminBingoAdminPage() {
     if (validTab) {
       setActiveTab(hash);
     } else {
-      // Default to the first item of the first group if no valid hash
       const firstItemId = bingoSpecificMenuGroups[0]?.items[0]?.id || 'bingoPartidas';
       setActiveTab(firstItemId); 
       if (pathname === '/admin/bingo-admin' && window.location.hash !== `#${firstItemId}` && window.location.hash !== '') {
-         // Correct the URL if it's on the base page but hash is wrong or empty
          router.replace(`/admin/bingo-admin#${firstItemId}`, { scroll: false });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); // Only run on pathname change, router will be stable
+  }, [pathname]); 
 
   const handleMenuClick = (item: BingoAdminMenuItem) => {
     if (item.action) {
@@ -476,7 +474,6 @@ export default function AdminBingoAdminPage() {
       setActiveTab(newTabId);
       router.push(`/admin/bingo-admin#${newTabId}`, { scroll: false });
     } else if (item.link) {
-        // Handle full navigation if item.link is a complete path
         router.push(item.link); 
     }
   };
@@ -942,14 +939,14 @@ export default function AdminBingoAdminPage() {
                                      <FormField
                                         control={kakoPrizeForm.control}
                                         name="imageFile"
-                                        render={({ field: { onChange, value, ...rest } }) => (
+                                        render={({ field: { onChange, value, ...rest } }) => ( // Use field.onChange for FileList
                                             <FormItem>
                                                 <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
                                                 <FormControl>
                                                     <Input 
                                                         type="file" 
                                                         accept="image/*"
-                                                        onChange={(e) => onChange(e.target.files)} 
+                                                        onChange={(e) => onChange(e.target.files)} // Pass FileList to RHF
                                                         {...rest} 
                                                     />
                                                 </FormControl>
@@ -1191,6 +1188,70 @@ export default function AdminBingoAdminPage() {
                         </div>
                       </CardContent>
                     </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      case 'bingoConfiguracoes':
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <SettingsIconLucide className="mr-2 h-6 w-6 text-primary" />
+                  Configurações de Bingo
+                </CardTitle>
+                <CardDescription>
+                  Ajuste as configurações globais do sistema de bingo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="bolas" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4"> {/* Adjust grid-cols if more tabs are added */}
+                    <TabsTrigger value="bolas">Bolas</TabsTrigger>
+                    <TabsTrigger value="outras" disabled>Outras Configurações (Em breve)</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="bolas">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Configuração das Bolas (1-90)</CardTitle>
+                        <CardDescription>
+                          Personalize o áudio e a imagem para cada bola de bingo. (Funcionalidade de upload em desenvolvimento)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[calc(100vh-450px)]"> {/* Adjust height as needed */}
+                          <div className="space-y-3 pr-2">
+                            {Array.from({ length: 90 }, (_, i) => i + 1).map((ballNumber) => (
+                              <div key={ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                                <div className="flex items-center">
+                                  <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-semibold mr-3">
+                                    {String(ballNumber).padStart(2, '0')}
+                                  </div>
+                                  <span className="font-medium">Bola {String(ballNumber).padStart(2, '0')}</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
+                                    <ImageIconLucide className="h-5 w-5" />
+                                  </div>
+                                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Imagem", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                                    <UploadCloud className="mr-1.5 h-3 w-3" /> Imagem
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Áudio", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                                     <Music2 className="mr-1.5 h-3 w-3" /> Áudio
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  <TabsContent value="outras">
+                     <p className="text-muted-foreground">Mais configurações globais do bingo aparecerão aqui.</p>
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -1451,4 +1512,3 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
-
