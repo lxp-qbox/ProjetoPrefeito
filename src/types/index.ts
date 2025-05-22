@@ -2,47 +2,42 @@
 export interface Game {
   id?: string; // Firestore document ID
   title: string;
-  status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada'; // Planned, Active, Paused, Ended, Cancelled
+  status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada'; 
   bingoType: '75-ball' | '90-ball';
-  cardPrice?: number; // Price per card, 0 for free
+  cardPrice?: number; 
   
   prizeType?: 'kako_virtual' | 'cash' | 'other';
-  prizeKakoVirtualId?: string; // ID of the BingoPrize document if type is kako_virtual
-  prizeCashAmount?: number; // Amount if type is cash
-  prizeDescription: string; // General description, or main description for 'other'/'cash'
+  prizeKakoVirtualId?: string; 
+  prizeCashAmount?: number; 
+  prizeDescription: string; 
 
-  startTime: any; // Firestore Timestamp for scheduled start
-  actualStartTime?: any; // Firestore Timestamp for when it actually started
-  endTime?: any; // Firestore Timestamp for when it ended or was cancelled
+  startTime: any; 
+  actualStartTime?: any; 
+  endTime?: any; 
 
-  // Statistics - These might be aggregated or calculated
-  participantsCount?: number; // Number of unique players who joined
+  participantsCount?: number; 
   cardsSold?: number;
-  totalRevenue?: number; // Calculated from cardsSold * cardPrice
+  totalRevenue?: number; 
 
-  // Game State - Specific to an active game instance
-  drawnBalls?: number[]; // Array of balls drawn in order
+  drawnBalls?: number[]; 
   lastDrawnBall?: number | null;
-  gamePatternToWin?: string; // For 75-ball bingo, e.g., "LINE", "FULL_HOUSE", "X_PATTERN"
-  // winningConditions?: any; // Could be complex object defining win patterns
-
-  // Winners
+  gamePatternToWin?: string; 
+  
   winners?: GameWinner[];
 
-  // Admin fields
-  createdBy?: string; // UID of admin who created it
-  createdAt: any; // Firestore Timestamp
-  updatedAt: any; // Firestore Timestamp
-  notes?: string; // Admin notes
+  createdBy?: string; 
+  createdAt: any; 
+  updatedAt: any; 
+  notes?: string; 
 }
 
 export interface GameWinner {
-  userId: string; // UID of the winning user
-  userName?: string; // Denormalized for display
-  prizeId?: string; // ID of the prize won (links to BingoPrize collection)
-  prizeDescription?: string; // Denormalized prize description
-  claimedAt?: any; // Timestamp
-  winningCardId?: string; // ID of the card that won
+  userId: string; 
+  userName?: string; 
+  prizeId?: string; 
+  prizeDescription?: string; 
+  claimedAt?: any; 
+  winningCardId?: string; 
 }
 
 
@@ -93,15 +88,15 @@ export interface UserProfile {
   role?: 'player' | 'host'; 
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
-  showId?: string;          
-  kakoLiveId?: string;     // FUID from Kako
+  showId?: string; // User-facing Kako Show ID          
+  kakoLiveId?: string; // FUID from Kako, technical key if profile is linked
 
-  profileName?: string;      
+  profileName?: string; // App's internal name, fallback or synced from Kako nickname    
   displayName?: string | null; 
-  photoURL?: string | null;    
-  level?: number; // Populated from linked KakoProfile if available
+  photoURL?: string | null; // App's internal avatar, fallback or synced from Kako avatar  
+  level?: number; // Synced from KakoProfile if linked
   
-  profileHeader?: string;    
+  // profileHeader?: string; // No longer used in current profile design
   bio?: string;              
   isVerified?: boolean;      
   followerCount?: number;    
@@ -109,7 +104,7 @@ export interface UserProfile {
   followingIds?: string[]; 
   photos?: string[];         
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay';
-  birthDate?: string;        
+  birthDate?: string; // Stored as "yyyy-MM-dd" string        
   country?: string;
   phoneNumber?: string;
   hostStatus?: 'approved' | 'pending_review' | 'banned'; 
@@ -117,7 +112,7 @@ export interface UserProfile {
   banReason?: string;
   bannedBy?: string; 
   bannedAt?: any; 
-  civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay';
+  // civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // Not currently used
   socialLinks?: {
     twitter?: string;
     instagram?: string;
@@ -150,7 +145,7 @@ export interface KakoProfile {
 }
 
 export interface KakoGift {
-  id: string; // Gift ID from Kako API, used as Firestore Document ID
+  id: string; 
   name: string; 
   imageUrl: string; 
   diamond?: number | null; 
@@ -164,12 +159,12 @@ export interface ChatMessage {
   id: string;
   user: string;
   avatar?: string;
+  userMedalUrl?: string;
   message: string;
   timestamp: string;
-  userMedalUrl?: string;
   rawData?: string;
   displayFormatted: boolean; 
-  extractedRoomId?: string; 
+  // extractedRoomId?: string; // Not directly needed on ChatMessage type if filtering happens before state update
   userId?: string; 
   userLevel?: number; 
   gender?: number; 
@@ -188,35 +183,35 @@ export interface ConversationPreview {
 }
 
 export interface AppMessage { 
-  id: string; // Firestore document ID
+  id: string; 
   conversationId: string;
   senderId: string; 
   senderName: string;
-  senderAvatar?: string | null; // Made optional
+  senderAvatar?: string | null; 
   text: string;
-  timestamp: any; // Firestore Server Timestamp or Date
-  isCurrentUser?: boolean; // Client-side only
-  status?: 'sent' | 'delivered' | 'read'; // For current user's messages
+  timestamp: any; 
+  isCurrentUser?: boolean; 
+  status?: 'sent' | 'delivered' | 'read'; 
 }
 
 export interface FirestoreConversation {
   id?: string; 
-  participants: string[]; // Array of UIDs
-  participantNames: { [uid: string]: string }; // Denormalized for quick display
-  participantAvatars: { [uid: string]: string | null }; // Denormalized
+  participants: string[]; 
+  participantNames: { [uid: string]: string }; 
+  participantAvatars: { [uid: string]: string | null }; 
   lastMessageText?: string;
-  lastMessageTimestamp?: any; // Firestore Server Timestamp
+  lastMessageTimestamp?: any; 
   lastMessageSenderId?: string; 
-  unreadCounts?: { [uid: string]: number }; // Unread count for each participant
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
+  unreadCounts?: { [uid: string]: number }; 
+  createdAt: any; 
+  updatedAt: any; 
 }
 
 export interface FirestoreMessage { 
-  id?: string; // Firestore document ID
+  id?: string; 
   senderId: string; 
   text: string;     
-  timestamp: any;   // Firestore Server Timestamp
+  timestamp: any;   
   imageUrl?: string; 
 }
 
@@ -226,7 +221,7 @@ export interface FeedPost {
   user: UserSummary; 
   postTitle?: string;
   content: string;
-  timestamp: any; // Firestore Timestamp or Date
+  timestamp: any; 
   imageUrl?: string;
   imageAiHint?: string;
   stats: {
@@ -254,7 +249,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; // Can be description like "CEO of Apple"
+  handle: string; 
   avatarUrl: string;
   dataAiHint?: string;
 }
@@ -271,7 +266,6 @@ export interface BanEntry {
   expiresAt?: any | null; 
 }
 
-// For Maintenance Rules
 export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
 export type MinimumAccessLevel = UserRole | 'nobody';
 
@@ -283,8 +277,6 @@ export interface SiteModule {
   isHiddenFromMenu: boolean;
   minimumAccessLevelWhenOffline: MinimumAccessLevel;
 }
-// End for Maintenance Rules
-
 
 export interface CardUsageInstance {
   userId: string; 
@@ -302,9 +294,8 @@ export interface AwardInstance {
 export interface GeneratedBingoCard {
   id: string; 
   cardNumbers: (number | null)[][]; 
-  creatorId: string; // ID of user who created/generated the card
+  creatorId: string; 
   createdAt: any; 
-  // removed generatedByIpAddress
   usageHistory: CardUsageInstance[]; 
   timesAwarded: number; 
   awardsHistory: AwardInstance[]; 
@@ -316,16 +307,40 @@ export interface BingoPrize {
   description?: string; 
   type: 'kako_virtual' | 'cash' | 'physical_item' | 'other'; 
   imageUrl?: string; 
-  valueDisplay?: string; // E.g., "10.000 Diamantes", "R$ 50,00"
+  storagePath?: string; // Added for Firebase Storage path
+  valueDisplay?: string; 
   
-  kakoGiftId?: string; // Specific ID from Kako Live API if it's a Kako gift
-  kakoGiftName?: string; // Name from Kako Live API
-  kakoGiftImageUrl?: string; // Image URL from Kako Live API
+  kakoGiftId?: string; 
+  kakoGiftName?: string; 
+  kakoGiftImageUrl?: string; 
 
   isActive: boolean; 
-  quantityAvailable?: number | null; // null for unlimited
+  quantityAvailable?: number | null; 
   
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
-  createdBy?: string; // UID of admin who created it
+  createdAt: any; 
+  updatedAt: any; 
+  createdBy?: string; 
+}
+
+export interface AudioSetting {
+  id: string; 
+  type: 'gameEvent' | 'interaction';
+  eventName?: string; // e.g., 'gameStart', 'winnerSound' - for type 'gameEvent'
+  displayName: string; 
+  audioUrl?: string;
+  fileName?: string;
+  storagePath?: string;
+  uploadedAt?: any; 
+  keyword?: string; // for type 'interaction'
+  associatedGiftId?: string; // for type 'interaction'
+  associatedGiftName?: string; // for type 'interaction', denormalized
+}
+
+export interface BingoBallSetting {
+  ballNumber: number;
+  imageUrl?: string;
+  imageStoragePath?: string;
+  audioUrl?: string;
+  audioStoragePath?: string;
+  lastUpdatedAt?: any; // Firestore Timestamp
 }

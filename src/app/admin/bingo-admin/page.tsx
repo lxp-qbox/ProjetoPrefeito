@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { Control } from "react-hook-form";
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -27,13 +28,13 @@ import {
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIconLucide, Edit2,
-  UploadCloud, Music2, Image as ImageIconLucide, Volume2
+  UploadCloud, Music2, Image as ImageIconLucide, Volume2, Music3, PlayCircleIcon, PauseCircleIcon
 } from 'lucide-react';
+import NextImage from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types';
+import type { GeneratedBingoCard, BingoPrize, Game, AudioSetting, BingoBallSetting } from '@/types';
 import { format, parse, setHours, setMinutes, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import NextImage from 'next/image';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -46,8 +47,28 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
+import { 
+  db, 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  addDoc, 
+  getDocs, 
+  serverTimestamp, 
+  storage, 
+  storageRef, 
+  uploadBytesResumable, 
+  getDownloadURL, 
+  Timestamp, 
+  doc, 
+  updateDoc,
+  setDoc,
+  deleteDoc,
+  deleteFileStorage
+} from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 interface BingoAdminMenuItem {
@@ -106,6 +127,7 @@ const placeholderGenerated75BallCards: GeneratedBingoCard[] = [
 ];
 
 const format90BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
+  if (!numbers || numbers.length === 0) return 'N/A';
   const firstRowNumbers = numbers[0]?.filter(n => n !== null).slice(0, 3).join(', ');
   return firstRowNumbers ? `${firstRowNumbers}...` : 'N/A';
 };
@@ -121,6 +143,7 @@ const newKakoPrizeSchema = z.object({
   imageUrl: z.string().url({ message: "URL da imagem inválida." }).optional().or(z.literal('')),
   imageFile: z.instanceof(FileList).optional().nullable()
     .refine(files => !files || files.length <= 1, "Apenas um arquivo de imagem é permitido.")
+    .refine(files => !files || !files?.[0] || files?.[0]?.size <= 2 * 1024 * 1024, "Imagem muito grande (máx 2MB).")
     .refine(files => !files || !files?.[0] || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
   kakoGiftId: z.string().optional(),
   valueDisplay: z.string().optional(),
@@ -153,7 +176,7 @@ const newGameSchema = z.object({
       path: ['prizeKakoVirtualId'],
     });
   }
-  if (data.prizeType === 'cash' && !data.prizeCashAmount && !data.prizeDescription) {
+  if (data.prizeType === 'cash' && (data.prizeCashAmount === undefined || data.prizeCashAmount < 0) && !data.prizeDescription) {
      ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Informe o valor do prêmio em dinheiro ou uma descrição.",
@@ -170,12 +193,119 @@ const newGameSchema = z.object({
 });
 type NewGameFormValues = z.infer<typeof newGameSchema>;
 
+const initialGameEventAudioSettings: Omit<AudioSetting, 'audioUrl' | 'fileName' | 'storagePath' | 'uploadedAt' | 'keyword' | 'associatedGiftId' | 'associatedGiftName'>[] = [
+  { id: 'audioInicioPartida', type: 'gameEvent', displayName: 'Início da Partida' },
+  { id: 'audioPausada', type: 'gameEvent', displayName: 'Partida Pausada' },
+  { id: 'audioContinuando', type: 'gameEvent', displayName: 'Partida Continuando' },
+  { id: 'audioVencedor', type: 'gameEvent', displayName: 'Temos um Vencedor!' },
+  { id: 'audioFimPartida', type: 'gameEvent', displayName: 'Fim da Partida' },
+];
+
+const interactionAudioSchema = z.object({
+  displayName: z.string().min(1, "Nome do áudio é obrigatório.").max(50, "Nome muito longo."),
+  keyword: z.string().min(1, "Palavra chave é obrigatória.").max(30, "Palavra chave muito longa."),
+  associatedGiftId: z.string().optional(),
+  audioFile: z.instanceof(FileList).refine(files => files?.length === 1, "Um arquivo de áudio é obrigatório.")
+                 .refine(files => files?.[0]?.size <= 2 * 1024 * 1024, "Áudio muito grande (máx 2MB).")
+                 .refine(files => files?.[0]?.type.startsWith("audio/"), "O arquivo deve ser um áudio."),
+});
+type InteractionAudioFormValues = z.infer<typeof interactionAudioSchema>;
+
+const ballAssetSchema = z.object({
+    assetFile: z.instanceof(FileList).refine(files => files?.length === 1, "Um arquivo é obrigatório.")
+                   .refine(files => files?.[0]?.size <= 2 * 1024 * 1024, "Arquivo muito grande (máx 2MB).")
+                   .refine(files => files?.[0]?.type.startsWith("image/") || files?.[0]?.type.startsWith("audio/"), "O arquivo deve ser uma imagem ou áudio."),
+});
+type BallAssetFormValues = z.infer<typeof ballAssetSchema>;
+
 
 export default function AdminBingoAdminPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser } = useAuth(); 
   const { toast } = useToast();
+  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
+  const ballAssetFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
+  const [generated90BallCards, setGenerated90BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated90BallCards);
+  const [generated75BallCards, setGenerated75BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated75BallCards);
+
+  const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
+  const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
+
+  const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
+  const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
+  const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
+  const [prizeImageUploadProgress, setPrizeImageUploadProgress] = useState<number | null>(null);
+  
+  const [bingoGames, setBingoGames] = useState<Game[]>([]);
+  const [isLoadingGames, setIsLoadingGames] = useState(true);
+  const [isCreateGameDialogOpen, setIsCreateGameDialogOpen] = useState(false);
+  const [availableKakoPrizesForGameForm, setAvailableKakoPrizesForGameForm] = useState<BingoPrize[]>([]);
+  const [isLoadingKakoPrizesForGameForm, setIsLoadingKakoPrizesForGameForm] = useState(false);
+
+  const [gameEventAudioSettings, setGameEventAudioSettings] = useState<AudioSetting[]>(
+    initialGameEventAudioSettings.map(s => ({ ...s, type: 'gameEvent' })) // Ensure type is set
+  );
+  const [interactionAudioSettings, setInteractionAudioSettings] = useState<AudioSetting[]>([]);
+  const [isLoadingAudios, setIsLoadingAudios] = useState(false);
+  const [isUploadAudioDialogOpen, setIsUploadAudioDialogOpen] = useState(false);
+  const [currentAudioSettingToEdit, setCurrentAudioSettingToEdit] = useState<AudioSetting | null>(null);
+  const [isAddInteractionAudioDialogOpen, setIsAddInteractionAudioDialogOpen] = useState(false);
+  
+  const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
+  const [audioUploadProgress, setAudioUploadProgress] = useState<number | null>(null);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  const [bingoBallSettings, setBingoBallSettings] = useState<BingoBallSetting[]>(
+    Array.from({ length: 90 }, (_, i) => ({ ballNumber: i + 1 }))
+  );
+  const [isLoadingBallSettings, setIsLoadingBallSettings] = useState(false);
+  const [isUploadBallAssetDialogOpen, setIsUploadBallAssetDialogOpen] = useState(false);
+  const [currentBallEditing, setCurrentBallEditing] = useState<BingoBallSetting | null>(null);
+  const [assetTypeToUpload, setAssetTypeToUpload] = useState<'image' | 'audio' | null>(null);
+  const [selectedBallAssetFile, setSelectedBallAssetFile] = useState<File | null>(null);
+  const [ballAssetUploadProgress, setBallAssetUploadProgress] = useState<number | null>(null);
+  const [isUploadingBallAsset, setIsUploadingBallAsset] = useState(false);
+
+  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
+  const [currentPlayingAudioId, setCurrentPlayingAudioId] = useState<string | null>(null);
+
+  const playAudio = (audioUrl?: string, audioId?: string) => {
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      setAudioPlayer(null);
+      if (currentPlayingAudioId === audioId) { // If it's the same audio, just stop it
+        setCurrentPlayingAudioId(null);
+        return;
+      }
+    }
+    if (audioUrl && audioId) {
+      const newPlayer = new Audio(audioUrl);
+      newPlayer.play().catch(e => console.error("Error playing audio:", e));
+      setAudioPlayer(newPlayer);
+      setCurrentPlayingAudioId(audioId);
+      newPlayer.onended = () => setCurrentPlayingAudioId(null);
+      newPlayer.onpause = () => { // Also clear if manually paused elsewhere
+        if (newPlayer.currentTime > 0 && !newPlayer.ended) { /* No specific action here unless needed */ }
+        else if (newPlayer.ended || newPlayer.paused) setCurrentPlayingAudioId(null);
+      };
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioPlayer) {
+        audioPlayer.pause();
+        setAudioPlayer(null);
+      }
+    };
+  }, [audioPlayer, activeTab]); // Re-evaluate if activeTab change is still desired here
+
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
     {
@@ -206,30 +336,10 @@ export default function AdminBingoAdminPage() {
       items: [
         { id: "bingoBolasConfig", title: "Bolas do Bingo", icon: SettingsIconLucide, link: "#bingoBolasConfig" },
         { id: "bingoAudiosPartida", title: "Áudios da Partida", icon: Volume2, link: "#bingoAudiosPartida" },
+        { id: "bingoAudiosInteracao", title: "Áudios de Interação", icon: Music3, link: "#bingoAudiosInteracao" },
       ],
     }
   ];
-
-  const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
-  const [generated90BallCards, setGenerated90BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated90BallCards);
-  const [generated75BallCards, setGenerated75BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated75BallCards);
-
-  const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
-  const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
-
-  const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
-  const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
-  const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  
-  const [bingoGames, setBingoGames] = useState<Game[]>([]);
-  const [isLoadingGames, setIsLoadingGames] = useState(true);
-  const [isCreateGameDialogOpen, setIsCreateGameDialogOpen] = useState(false);
-  const [availableKakoPrizes, setAvailableKakoPrizes] = useState<BingoPrize[]>([]);
-  const [isLoadingKakoPrizesForGameForm, setIsLoadingKakoPrizesForGameForm] = useState(false);
-
 
   const gameForm = useForm<NewGameFormValues>({
     resolver: zodResolver(newGameSchema),
@@ -246,7 +356,6 @@ export default function AdminBingoAdminPage() {
       notes: "",
     },
   });
-
   const watchedPrizeType = gameForm.watch("prizeType");
 
   const kakoPrizeForm = useForm<NewKakoPrizeFormValues>({
@@ -261,12 +370,27 @@ export default function AdminBingoAdminPage() {
     },
   });
 
+  const interactionAudioForm = useForm<InteractionAudioFormValues>({
+    resolver: zodResolver(interactionAudioSchema),
+    defaultValues: {
+      displayName: "",
+      keyword: "",
+      associatedGiftId: "",
+      audioFile: undefined,
+    },
+  });
+
+  const ballAssetForm = useForm<BallAssetFormValues>({
+      resolver: zodResolver(ballAssetSchema),
+      defaultValues: {
+          assetFile: undefined,
+      },
+  });
+
   const fetchKakoPrizes = useCallback(async (forGameForm: boolean = false) => {
-    if (forGameForm) {
-      setIsLoadingKakoPrizesForGameForm(true);
-    } else {
-      setIsLoadingKakoPrizes(true);
-    }
+    if (forGameForm) setIsLoadingKakoPrizesForGameForm(true);
+    else setIsLoadingKakoPrizes(true);
+    
     try {
       const prizesCollectionRef = collection(db, "bingoPrizes");
       const q = query(prizesCollectionRef, where("type", "==", "kako_virtual"), orderBy("createdAt", "desc"));
@@ -275,20 +399,14 @@ export default function AdminBingoAdminPage() {
       querySnapshot.forEach((docSnap) => {
         fetchedPrizes.push({ id: docSnap.id, ...docSnap.data() } as BingoPrize);
       });
-      if (forGameForm) {
-        setAvailableKakoPrizes(fetchedPrizes);
-      } else {
-        setKakoPrizes(fetchedPrizes);
-      }
+      if (forGameForm) setAvailableKakoPrizesForGameForm(fetchedPrizes);
+      else setKakoPrizes(fetchedPrizes);
     } catch (error) {
       console.error("Erro ao buscar prêmios Kako Live:", error);
-      toast({ title: "Erro ao Carregar Prêmios", description: "Não foi possível carregar a lista de prêmios Kako Live.", variant: "destructive" });
+      toast({ title: "Erro ao Carregar Prêmios", description: "Não foi possível carregar a lista de prêmios.", variant: "destructive" });
     } finally {
-      if (forGameForm) {
-        setIsLoadingKakoPrizesForGameForm(false);
-      } else {
-        setIsLoadingKakoPrizes(false);
-      }
+      if (forGameForm) setIsLoadingKakoPrizesForGameForm(false);
+      else setIsLoadingKakoPrizes(false);
     }
   }, [toast]);
 
@@ -316,17 +434,278 @@ export default function AdminBingoAdminPage() {
     }
   }, [toast]);
 
+  const fetchGameEventAudios = useCallback(async () => {
+    setIsLoadingAudios(true);
+    const settingsPromises = initialGameEventAudioSettings.map(async (initialSetting) => {
+      const docRef = doc(db, "bingoAudioSettings", initialSetting.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...initialSetting, ...docSnap.data() } as AudioSetting;
+      }
+      return initialSetting as AudioSetting; // Return initial setting if not found in DB
+    });
+    try {
+      const fetchedSettings = await Promise.all(settingsPromises);
+      setGameEventAudioSettings(fetchedSettings);
+    } catch (error) {
+      console.error("Erro ao buscar áudios de eventos:", error);
+      toast({ title: "Erro ao Carregar Áudios", description: "Não foi possível buscar os áudios dos eventos.", variant: "destructive" });
+    } finally {
+      setIsLoadingAudios(false);
+    }
+  }, [toast]);
+
+  const fetchInteractionAudios = useCallback(async () => {
+    setIsLoadingAudios(true);
+    try {
+      const audiosCollectionRef = collection(db, "bingoInteractionAudios");
+      const q = query(audiosCollectionRef, orderBy("uploadedAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedAudios: AudioSetting[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        let associatedGiftName = "";
+        if (data.associatedGiftId) {
+            const prize = kakoPrizes.find(p => p.id === data.associatedGiftId) || availableKakoPrizesForGameForm.find(p => p.id === data.associatedGiftId);
+            if (prize) associatedGiftName = prize.name;
+        }
+        fetchedAudios.push({ 
+            id: docSnap.id, 
+            ...data,
+            associatedGiftName: associatedGiftName || undefined,
+        } as AudioSetting);
+      });
+      setInteractionAudioSettings(fetchedAudios);
+    } catch (error) {
+      console.error("Erro ao buscar áudios de interação:", error);
+      toast({ title: "Erro ao Carregar Áudios", description: "Não foi possível buscar os áudios de interação.", variant: "destructive" });
+    } finally {
+      setIsLoadingAudios(false);
+    }
+  }, [toast, kakoPrizes, availableKakoPrizesForGameForm]);
+
+  const fetchBingoBallSettings = useCallback(async () => {
+    setIsLoadingBallSettings(true);
+    const settingsPromises = Array.from({ length: 90 }, (_, i) => i + 1).map(async (ballNum) => {
+        const docRef = doc(db, "bingoBallConfigurations", ballNum.toString());
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { ballNumber: ballNum, ...docSnap.data() } as BingoBallSetting;
+        }
+        return { ballNumber: ballNum } as BingoBallSetting; // Default if not found
+    });
+    try {
+        const fetchedSettings = await Promise.all(settingsPromises);
+        setBingoBallSettings(fetchedSettings);
+    } catch (error) {
+        console.error("Erro ao buscar configurações das bolas:", error);
+        toast({ title: "Erro ao Carregar Bolas", description: "Não foi possível buscar as configurações das bolas.", variant: "destructive" });
+    } finally {
+        setIsLoadingBallSettings(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
-    if (activeTab === 'bingoPremiosKako') {
+    if (activeTab === 'bingoPremiosKako' || activeTab === 'bingoAudiosInteracao') {
       fetchKakoPrizes(false);
     }
-    if (activeTab === 'bingoPartidas') {
-      fetchBingoGames();
-      fetchKakoPrizes(true); 
+    if (activeTab === 'bingoPartidas' || activeTab === 'bingoAudiosInteracao') {
+      fetchKakoPrizes(true); // For Game Form prize select and Interaction Audio prize select
     }
-  }, [activeTab, fetchKakoPrizes, fetchBingoGames]);
+    if (activeTab === 'bingoPartidas') fetchBingoGames();
+    if (activeTab === 'bingoAudiosPartida') fetchGameEventAudios();
+    if (activeTab === 'bingoAudiosInteracao') fetchInteractionAudios();
+    if (activeTab === 'bingoBolasConfig') fetchBingoBallSettings();
+    
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]); // Removed specific fetch functions from deps to avoid loops, activeTab should trigger correctly
 
-   const onSubmitNewGame = async (values: NewGameFormValues) => {
+  const handleAudioFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+        if (event.target.files[0].size > 2 * 1024 * 1024) { // 2MB limit
+            toast({ title: "Arquivo Muito Grande", description: "O arquivo de áudio deve ter no máximo 2MB.", variant: "destructive" });
+            setSelectedAudioFile(null);
+            if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+            return;
+        }
+        setSelectedAudioFile(event.target.files[0]);
+    } else {
+        setSelectedAudioFile(null);
+    }
+  };
+
+  const handleBallAssetFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files && event.target.files[0]) {
+          if (event.target.files[0].size > 2 * 1024 * 1024) { // 2MB limit
+              toast({ title: "Arquivo Muito Grande", description: "O arquivo deve ter no máximo 2MB.", variant: "destructive" });
+              setSelectedBallAssetFile(null);
+              ballAssetForm.setValue("assetFile", null as any);
+              if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+              return;
+          }
+          setSelectedBallAssetFile(event.target.files[0]);
+          ballAssetForm.setValue("assetFile", event.target.files); // For react-hook-form
+      } else {
+          setSelectedBallAssetFile(null);
+          ballAssetForm.setValue("assetFile", null as any);
+      }
+  };
+
+  const handleOpenUploadAudioDialog = (setting: AudioSetting | null, isNewInteraction: boolean = false) => {
+    interactionAudioForm.reset();
+    setSelectedAudioFile(null);
+    if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+    
+    if (isNewInteraction) {
+        setCurrentAudioSettingToEdit(null); // Ensure it's null for new random audio
+        setIsAddInteractionAudioDialogOpen(true);
+        setIsUploadAudioDialogOpen(false); // Ensure the other dialog is closed
+    } else {
+        setCurrentAudioSettingToEdit(setting);
+        setIsAddInteractionAudioDialogOpen(false);
+        setIsUploadAudioDialogOpen(true);
+    }
+  };
+  
+  const handleOpenBallAssetDialog = (ball: BingoBallSetting, assetType: 'image' | 'audio') => {
+    ballAssetForm.reset();
+    setSelectedBallAssetFile(null);
+    if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+    setCurrentBallEditing(ball);
+    setAssetTypeToUpload(assetType);
+    setIsUploadBallAssetDialogOpen(true);
+  };
+
+  const onSubmitBallAsset = async (data: BallAssetFormValues) => {
+      if (!currentBallEditing || !assetTypeToUpload || !data.assetFile || data.assetFile.length === 0) {
+          toast({ title: "Erro", description: "Informações incompletas para upload.", variant: "destructive" });
+          return;
+      }
+      const fileToUpload = data.assetFile[0];
+      await handleSaveBallAssetInternal(fileToUpload);
+  };
+
+  const handleSaveBallAssetInternal = async (fileToUpload: File) => {
+      if (!currentUser?.uid || !currentBallEditing || !assetTypeToUpload) {
+          toast({ title: "Erro de Autenticação ou Configuração", variant: "destructive" });
+          return;
+      }
+      setIsUploadingBallAsset(true);
+      setBallAssetUploadProgress(0);
+
+      const sanitizedFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const newStoragePath = `bingoBalls/${currentBallEditing.ballNumber}/${assetTypeToUpload}/${Date.now()}_${sanitizedFileName}`;
+      let oldStoragePathToDelete: string | undefined = undefined;
+
+      if (assetTypeToUpload === 'image') oldStoragePathToDelete = currentBallEditing.imageStoragePath;
+      else if (assetTypeToUpload === 'audio') oldStoragePathToDelete = currentBallEditing.audioStoragePath;
+      
+      if (oldStoragePathToDelete) {
+          try {
+              await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+          } catch (delError: any) {
+              if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar asset antigo:", delError);
+          }
+      }
+
+      try {
+          const fileStorageRef = storageRef(storage, newStoragePath);
+          const uploadTask = uploadBytesResumable(fileStorageRef, fileToUpload);
+
+          const downloadURL = await new Promise<string>((resolve, reject) => {
+              uploadTask.on('state_changed',
+                  (snapshot) => setBallAssetUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                  (error) => reject(error),
+                  async () => {
+                      try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } 
+                      catch (e) { reject(e); }
+                  }
+              );
+          });
+
+          const assetDataToSave: Partial<BingoBallSetting> = {
+              lastUpdatedAt: serverTimestamp(),
+          };
+          if (assetTypeToUpload === 'image') {
+              assetDataToSave.imageUrl = downloadURL;
+              assetDataToSave.imageStoragePath = newStoragePath;
+          } else {
+              assetDataToSave.audioUrl = downloadURL;
+              assetDataToSave.audioStoragePath = newStoragePath;
+          }
+          
+          const docRef = doc(db, "bingoBallConfigurations", currentBallEditing.ballNumber.toString());
+          await setDoc(docRef, { ballNumber: currentBallEditing.ballNumber, ...assetDataToSave }, { merge: true });
+          
+          setBingoBallSettings(prev => prev.map(b => 
+              b.ballNumber === currentBallEditing.ballNumber ? { ...b, ...assetDataToSave, lastUpdatedAt: new Date() } : b // Use new Date() for local state consistency
+          ));
+
+          toast({ title: "Asset Salvo!", description: `${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para bola ${currentBallEditing.ballNumber} salvo.` });
+          setIsUploadBallAssetDialogOpen(false);
+
+      } catch (error: any) {
+          console.error("Erro ao salvar asset da bola:", error);
+          toast({ title: "Erro ao Salvar Asset", description: error.message || "Erro desconhecido.", variant: "destructive" });
+      } finally {
+          setIsUploadingBallAsset(false);
+          setBallAssetUploadProgress(null);
+          setSelectedBallAssetFile(null);
+          if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+      }
+  };
+
+  const handleRemoveBallAsset = async (ballNumber: number, assetType: 'image' | 'audio') => {
+    if (!currentUser?.uid) return;
+    const ballSetting = bingoBallSettings.find(b => b.ballNumber === ballNumber);
+    if (!ballSetting) return;
+
+    const storagePathToRemove = assetType === 'image' ? ballSetting.imageStoragePath : ballSetting.audioStoragePath;
+    const firestoreUpdate: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
+
+    if (assetType === 'image') {
+        firestoreUpdate.imageUrl = undefined; // Using undefined to trigger field deletion with merge:true
+        firestoreUpdate.imageStoragePath = undefined;
+    } else {
+        firestoreUpdate.audioUrl = undefined;
+        firestoreUpdate.audioStoragePath = undefined;
+    }
+
+    try {
+        if (storagePathToRemove) {
+            await deleteFileStorage(storageRef(storage, storagePathToRemove));
+        }
+        const docRef = doc(db, "bingoBallConfigurations", ballNumber.toString());
+        // Use updateDoc with specific fields to delete. If setDoc with merge, null values might be preferred.
+        const fieldsToDelete: Record<string, any> = {};
+        if (assetType === 'image') {
+            fieldsToDelete.imageUrl = null;
+            fieldsToDelete.imageStoragePath = null;
+        } else {
+            fieldsToDelete.audioUrl = null;
+            fieldsToDelete.audioStoragePath = null;
+        }
+        await updateDoc(docRef, { ...fieldsToDelete, lastUpdatedAt: serverTimestamp() });
+        
+        setBingoBallSettings(prev => prev.map(b => 
+            b.ballNumber === ballNumber ? { 
+                ...b, 
+                imageUrl: assetType === 'image' ? undefined : b.imageUrl,
+                imageStoragePath: assetType === 'image' ? undefined : b.imageStoragePath,
+                audioUrl: assetType === 'audio' ? undefined : b.audioUrl,
+                audioStoragePath: assetType === 'audio' ? undefined : b.audioStoragePath,
+                lastUpdatedAt: new Date()
+            } : b
+        ));
+        toast({ title: "Asset Removido", description: `${assetType === 'image' ? 'Imagem' : 'Áudio'} da bola ${ballNumber} removido.` });
+    } catch (error: any) {
+        console.error(`Erro ao remover asset da bola ${ballNumber}:`, error);
+        toast({ title: "Erro ao Remover Asset", description: error.message || "Erro desconhecido.", variant: "destructive" });
+    }
+  };
+
+
+  const onSubmitNewGame = async (values: NewGameFormValues) => {
     if (!currentUser?.uid) {
       toast({ title: "Erro de Autenticação", description: "Você precisa estar logado.", variant: "destructive" });
       return;
@@ -373,7 +752,6 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-
   const onSubmitNewKakoPrize = async (values: NewKakoPrizeFormValues) => {
     if (!currentUser) {
         toast({ title: "Erro de Autenticação", description: "Você precisa estar logado para adicionar prêmios.", variant: "destructive"});
@@ -388,74 +766,241 @@ export default function AdminBingoAdminPage() {
           toast({ title: "Arquivo Inválido", description: "Nenhum arquivo selecionado para upload.", variant: "destructive" });
           return;
         }
-        const filePath = `bingoPrizesImages/${Date.now()}-${file.name}`;
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `bingoPrizesImages/${Date.now()}-${sanitizedFileName}`;
         const fileStorageRef = storageRef(storage, filePath);
         
-        setUploadProgress(0);
+        setPrizeImageUploadProgress(0);
         const uploadTask = uploadBytesResumable(fileStorageRef, file);
 
-        await new Promise<void>((resolve, reject) => {
+        const uploadedUrlAndPath = await new Promise<{url: string, path: string}>((resolve, reject) => {
           uploadTask.on('state_changed',
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress);
-            },
+            (snapshot) => setPrizeImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
             (error) => {
               console.error("Upload failed:", error);
               toast({ title: "Falha no Upload", description: "Não foi possível carregar a imagem.", variant: "destructive" });
-              setUploadProgress(null);
+              setPrizeImageUploadProgress(null);
               reject(error);
             },
             async () => {
               try {
-                prizeImageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                setUploadProgress(null);
-                resolve();
+                const url = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve({ url, path: filePath });
               } catch (error) {
                 console.error("Failed to get download URL", error);
                 toast({ title: "Falha ao Obter URL", description: "Não foi possível obter o link da imagem.", variant: "destructive" });
-                setUploadProgress(null);
                 reject(error);
               }
             }
           );
         });
-      }
+        prizeImageUrl = uploadedUrlAndPath.url;
+        const storagePath = uploadedUrlAndPath.path;
 
-      const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
-        name: values.name,
-        imageUrl: prizeImageUrl || undefined,
-        kakoGiftId: values.kakoGiftId || undefined,
-        valueDisplay: values.valueDisplay || undefined,
-        description: values.description || undefined,
-        type: 'kako_virtual',
-        isActive: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: currentUser.uid,
-      };
-      await addDoc(collection(db, "bingoPrizes"), newPrizeData);
-      toast({
-        title: "Prêmio Cadastrado!",
-        description: `O prêmio '${values.name}' foi salvo com sucesso.`,
-      });
+        const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, storagePath?: string } = {
+            name: values.name,
+            imageUrl: prizeImageUrl || undefined,
+            storagePath: storagePath,
+            kakoGiftId: values.kakoGiftId || undefined,
+            valueDisplay: values.valueDisplay || undefined,
+            description: values.description || undefined,
+            type: 'kako_virtual',
+            isActive: true,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: currentUser.uid,
+        };
+        await addDoc(collection(db, "bingoPrizes"), newPrizeData);
+
+      } else if (values.imageUrl) { // No file, but URL provided
+        const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
+            name: values.name,
+            imageUrl: values.imageUrl,
+            kakoGiftId: values.kakoGiftId || undefined,
+            valueDisplay: values.valueDisplay || undefined,
+            description: values.description || undefined,
+            type: 'kako_virtual',
+            isActive: true,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: currentUser.uid,
+        };
+        await addDoc(collection(db, "bingoPrizes"), newPrizeData);
+      } else {
+         toast({ title: "Informação Faltando", description: "Forneça uma URL da imagem ou um arquivo para upload.", variant: "destructive"});
+         return;
+      }
+      
+      toast({ title: "Prêmio Cadastrado!", description: `O prêmio '${values.name}' foi salvo com sucesso.` });
       setIsAddKakoPrizeDialogOpen(false);
       kakoPrizeForm.reset();
       fetchKakoPrizes(false); 
     } catch (error) {
-      if (uploadProgress === null) { 
-         console.error("Erro ao cadastrar prêmio Kako Live:", error);
-         toast({
-           title: "Erro ao Cadastrar",
-           description: "Não foi possível salvar o prêmio. Tente novamente.",
-           variant: "destructive",
-         });
-      }
+        // Error already handled by promise rejection or general catch
+        console.error("Erro ao cadastrar prêmio Kako Live:", error);
+        if (prizeImageUploadProgress === null) { // Only show general error if upload didn't start/fail specifically
+            toast({ title: "Erro ao Cadastrar", description: "Não foi possível salvar o prêmio. Tente novamente.", variant: "destructive" });
+        }
     } finally {
-      setUploadProgress(null);
+      setPrizeImageUploadProgress(null);
     }
   };
 
+  const handleSaveAudio = async (data?: InteractionAudioFormValues) => {
+    if (!currentUser?.uid) {
+        toast({ title: "Erro de Autenticação", variant: "destructive"});
+        return;
+    }
+    if (isUploadingAudio) return;
+    setIsUploadingAudio(true);
+    setAudioUploadProgress(0);
+
+    const isInteractionAudio = !!data || (currentAudioSettingToEdit?.type === 'interaction');
+    const fileToUpload = isInteractionAudio ? data?.audioFile?.[0] : selectedAudioFile;
+    const audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
+
+    if (!fileToUpload) {
+        toast({ title: "Nenhum Arquivo Selecionado", description: "Por favor, selecione um arquivo de áudio.", variant: "destructive" });
+        setIsUploadingAudio(false);
+        return;
+    }
+     if (!audioDisplayNameForToast && isInteractionAudio) {
+        toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o áudio de interação.", variant: "destructive" });
+        setIsUploadingAudio(false);
+        return;
+    }
+
+    const sanitizedSelectedFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    let newStoragePath = '';
+    let firestoreCollectionName = '';
+    let firestoreDocId: string | undefined = undefined;
+    let oldStoragePathToDelete: string | undefined = undefined;
+    let dataToSave: Partial<AudioSetting> & { uploadedAt: any, type: 'gameEvent' | 'interaction', displayName?: string, eventName?: string, id?: string };
+
+    if (isInteractionAudio && data) {
+        firestoreCollectionName = 'bingoInteractionAudios';
+        newStoragePath = `bingoAudios/interaction/${Date.now()}_${sanitizedSelectedFileName}`;
+        // For new interaction audio, Firestore will generate ID if 'currentAudioSettingToEdit' is null (which it should be for new)
+        // If editing an interaction audio, currentAudioSettingToEdit would have its ID
+        firestoreDocId = currentAudioSettingToEdit?.id; 
+        oldStoragePathToDelete = currentAudioSettingToEdit?.storagePath;
+         dataToSave = {
+            displayName: data.displayName,
+            keyword: data.keyword,
+            associatedGiftId: data.associatedGiftId || undefined,
+            audioUrl: '', // Will be set after upload
+            fileName: sanitizedSelectedFileName,
+            storagePath: newStoragePath,
+            type: 'interaction',
+            uploadedAt: serverTimestamp(),
+            createdBy: currentUser.uid,
+        };
+        const prize = availableKakoPrizesForGameForm.find(p => p.id === data.associatedGiftId);
+        if (prize) dataToSave.associatedGiftName = prize.name;
+
+    } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent') {
+        firestoreCollectionName = 'bingoAudioSettings';
+        firestoreDocId = currentAudioSettingToEdit.id;
+        newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
+        oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
+        dataToSave = {
+            id: currentAudioSettingToEdit.id,
+            type: 'gameEvent',
+            displayName: currentAudioSettingToEdit.displayName, // This is the eventName for gameEvent type
+            eventName: currentAudioSettingToEdit.displayName,
+            audioUrl: '',
+            fileName: sanitizedSelectedFileName,
+            storagePath: newStoragePath,
+            uploadedAt: serverTimestamp(),
+        };
+    } else {
+        toast({ title: "Erro de Configuração", description: "Contexto de salvamento de áudio inválido.", variant: "destructive" });
+        setIsUploadingAudio(false);
+        return;
+    }
+    
+    if (oldStoragePathToDelete) {
+        try {
+            await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+        } catch (delError: any) {
+            if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar áudio antigo do Storage (prosseguindo com upload):", delError);
+        }
+    }
+
+    try {
+        const fileStorageRef = storageRef(storage, newStoragePath);
+        const uploadTask = uploadBytesResumable(fileStorageRef, fileToUpload);
+
+        const downloadURL = await new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => setAudioUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                (error) => reject(error),
+                async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { reject(e); } }
+            );
+        });
+        dataToSave.audioUrl = downloadURL;
+        dataToSave.storagePath = newStoragePath; // Ensure storagePath is the new one
+
+        if (isInteractionAudio) {
+            if (firestoreDocId) { // Editing existing interaction audio
+                 await setDoc(doc(db, firestoreCollectionName, firestoreDocId), dataToSave, { merge: true });
+                 setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...dataToSave, uploadedAt: new Date()} : s));
+            } else { // Adding new interaction audio
+                const docRef = await addDoc(collection(db, firestoreCollectionName), dataToSave);
+                setInteractionAudioSettings(prev => [{...dataToSave, id: docRef.id, uploadedAt: new Date()}, ...prev ]);
+            }
+        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) {
+            await setDoc(doc(db, firestoreCollectionName, firestoreDocId), dataToSave, { merge: true });
+             setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...dataToSave, uploadedAt: new Date()} : s));
+        }
+
+        toast({ title: "Áudio Salvo!", description: `O áudio '${audioDisplayNameForToast}' foi salvo com sucesso.` });
+        setIsUploadAudioDialogOpen(false);
+        setIsAddInteractionAudioDialogOpen(false);
+        setSelectedAudioFile(null);
+        if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+        setCurrentAudioSettingToEdit(null);
+        interactionAudioForm.reset();
+
+    } catch (error: any) {
+        console.error("Erro ao salvar áudio:", error);
+        toast({ title: "Erro ao Salvar Áudio", description: `${error.message || "Erro desconhecido."} (Código: ${error.code || 'N/A'})`, variant: "destructive" });
+    } finally {
+        setIsUploadingAudio(false);
+        setAudioUploadProgress(null);
+    }
+};
+
+const handleRemoveAudio = async (setting: AudioSetting) => {
+    if (!currentUser?.uid) return;
+    const { id, storagePath, type, displayName } = setting;
+    if (!id) return;
+
+    const confirmDelete = window.confirm(`Tem certeza que deseja remover o áudio "${displayName}"?`);
+    if (!confirmDelete) return;
+
+    try {
+        if (storagePath) {
+            await deleteFileStorage(storageRef(storage, storagePath));
+        }
+        if (type === 'gameEvent') {
+            await updateDoc(doc(db, "bingoAudioSettings", id), {
+                audioUrl: null,
+                fileName: null,
+                storagePath: null,
+                uploadedAt: serverTimestamp(),
+            });
+            setGameEventAudioSettings(prev => prev.map(s => s.id === id ? { ...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } : s));
+        } else if (type === 'interaction') {
+            await deleteDoc(doc(db, "bingoInteractionAudios", id));
+            setInteractionAudioSettings(prev => prev.filter(s => s.id !== id));
+        }
+        toast({ title: "Áudio Removido", description: `Áudio "${displayName}" removido com sucesso.` });
+    } catch (error: any) {
+        console.error("Erro ao remover áudio:", error);
+        toast({ title: "Erro ao Remover Áudio", description: error.message || "Erro desconhecido.", variant: "destructive" });
+    }
+};
 
   useEffect(() => {
     const hash = window.location.hash.substring(1); 
@@ -604,7 +1149,7 @@ export default function AdminBingoAdminPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {availableKakoPrizes.map(prize => (
+                                    {availableKakoPrizesForGameForm.map(prize => (
                                       <SelectItem key={prize.id} value={prize.id!}>{prize.name}</SelectItem>
                                     ))}
                                   </SelectContent>
@@ -954,17 +1499,22 @@ export default function AdminBingoAdminPage() {
                                                         accept="image/*"
                                                         onChange={(e) => onChange(e.target.files)} 
                                                         {...rest} 
+                                                        ref={el => { // @ts-ignore
+                                                            if(rest.ref && typeof rest.ref === 'function') rest.ref(el); 
+                                                            // @ts-ignore
+                                                            else if(rest.ref) rest.ref.current = el;
+                                                        }}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    {uploadProgress !== null && (
+                                    {prizeImageUploadProgress !== null && (
                                       <div className="space-y-1">
                                         <Label className="text-xs">Progresso do Upload:</Label>
-                                        <Progress value={uploadProgress} className="h-2" />
-                                        <p className="text-xs text-muted-foreground text-center">{Math.round(uploadProgress)}%</p>
+                                        <Progress value={prizeImageUploadProgress} className="h-2" />
+                                        <p className="text-xs text-muted-foreground text-center">{Math.round(prizeImageUploadProgress)}%</p>
                                       </div>
                                     )}
                                     <FormField
@@ -1023,8 +1573,8 @@ export default function AdminBingoAdminPage() {
                                         <DialogClose asChild>
                                             <Button type="button" variant="outline">Cancelar</Button>
                                         </DialogClose>
-                                        <Button type="submit" disabled={kakoPrizeForm.formState.isSubmitting || uploadProgress !== null}>
-                                            {(kakoPrizeForm.formState.isSubmitting || uploadProgress !== null) ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                        <Button type="submit" disabled={kakoPrizeForm.formState.isSubmitting || prizeImageUploadProgress !== null}>
+                                            {(kakoPrizeForm.formState.isSubmitting || prizeImageUploadProgress !== null) ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                                             Salvar Prêmio
                                         </Button>
                                     </DialogFooter>
@@ -1210,37 +1760,134 @@ export default function AdminBingoAdminPage() {
                   Configuração das Bolas (1-90)
                 </CardTitle>
                 <CardDescription>
-                  Personalize o áudio e a imagem para cada bola de bingo. (Funcionalidade de upload em desenvolvimento)
+                  Personalize o áudio e a imagem para cada bola de bingo.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[calc(100vh-350px)]"> 
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto"> 
                   <div className="space-y-3 pr-2">
-                    {Array.from({ length: 90 }, (_, i) => i + 1).map((ballNumber) => (
-                      <div key={ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                    {bingoBallSettings.sort((a,b) => a.ballNumber - b.ballNumber).map((ballSetting) => (
+                      <div key={ballSetting.ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center">
                           <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-semibold mr-3">
-                            {String(ballNumber).padStart(2, '0')}
+                            {String(ballSetting.ballNumber).padStart(2, '0')}
                           </div>
-                          <span className="font-medium">Bola {String(ballNumber).padStart(2, '0')}</span>
+                          <span className="font-medium">Bola {String(ballSetting.ballNumber).padStart(2, '0')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
-                            <ImageIconLucide className="h-5 w-5" />
+                          <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs overflow-hidden">
+                            {ballSetting.imageUrl ? (
+                                <NextImage src={ballSetting.imageUrl} alt={`Bola ${ballSetting.ballNumber}`} width={40} height={40} className="object-contain" data-ai-hint="bingo ball" />
+                            ) : (
+                                <ImageIconLucide className="h-5 w-5" />
+                            )}
                           </div>
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Imagem", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenBallAssetDialog(ballSetting, 'image')}>
                             <UploadCloud className="mr-1.5 h-3 w-3" /> Imagem
                           </Button>
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Áudio", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                          {ballSetting.imageStoragePath && (
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveBallAsset(ballSetting.ballNumber, 'image')}>
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                          )}
+
+                          {ballSetting.audioUrl ? (
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(ballSetting.audioUrl, `ball-${ballSetting.ballNumber}`)}>
+                                  {currentPlayingAudioId === `ball-${ballSetting.ballNumber}` ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
+                              </Button>
+                          ) : (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled>
+                                  <PlayCircleIcon className="h-4 w-4 opacity-50"/>
+                              </Button>
+                          )}
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenBallAssetDialog(ballSetting, 'audio')}>
                              <Music2 className="mr-1.5 h-3 w-3" /> Áudio
                           </Button>
+                           {ballSetting.audioStoragePath && (
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveBallAsset(ballSetting.ballNumber, 'audio')}>
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
               </CardContent>
             </Card>
+             {/* Dialog for Ball Asset Upload */}
+            <Dialog open={isUploadBallAssetDialogOpen} onOpenChange={setIsUploadBallAssetDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {currentBallEditing ? `Configurar ${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para Bola ${currentBallEditing.ballNumber}` : "Upload de Asset"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Selecione um arquivo de {assetTypeToUpload === 'image' ? 'imagem (JPG, PNG, GIF)' : 'áudio (MP3, WAV)'}. Máximo 2MB.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...ballAssetForm}>
+                        <form onSubmit={ballAssetForm.handleSubmit(onSubmitBallAsset)} className="space-y-4 py-2 pb-4">
+                             <FormField
+                                control={ballAssetForm.control}
+                                name="assetFile"
+                                render={({ field: { onChange, value, name: formFieldName, ref: fieldRefCallback, ...rest }}) => (
+                                <FormItem>
+                                    <FormLabel>Arquivo</FormLabel>
+                                    <FormControl>
+                                    <Input
+                                        type="file"
+                                        accept={assetTypeToUpload === 'image' ? "image/*" : "audio/*"}
+                                        onChange={(e) => {
+                                            const files = e.target.files;
+                                            if (files && files.length > 0 && files[0].size > 2 * 1024 * 1024) {
+                                                ballAssetForm.setError("assetFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
+                                                formOnChange(null); 
+                                            } else if (files && files.length > 0 && assetTypeToUpload === 'image' && !files[0].type.startsWith("image/")) {
+                                                ballAssetForm.setError("assetFile", { type: "manual", message: "O arquivo deve ser uma imagem."});
+                                                formOnChange(null);
+                                            } else if (files && files.length > 0 && assetTypeToUpload === 'audio' && !files[0].type.startsWith("audio/")) {
+                                                ballAssetForm.setError("assetFile", { type: "manual", message: "O arquivo deve ser um áudio."});
+                                                formOnChange(null);
+                                            }
+                                            else {
+                                                ballAssetForm.clearErrors("assetFile");
+                                                formOnChange(files); 
+                                            }
+                                            handleBallAssetFileSelect(e); 
+                                        }}
+                                        ref={el => {
+                                            if (typeof fieldRefCallback === 'function') fieldRefCallback(el);
+                                            // @ts-ignore
+                                            else if (fieldRefCallback) fieldRefCallback.current = el;
+                                            if (ballAssetFileInputRef && typeof ballAssetFileInputRef === 'object') {
+                                            ballAssetFileInputRef.current = el;
+                                            }
+                                        }}
+                                        name={formFieldName}
+                                        {...rest}
+                                    />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            {ballAssetUploadProgress !== null && (
+                            <div className="space-y-1">
+                                <Label className="text-xs">Progresso do Upload:</Label>
+                                <Progress value={ballAssetUploadProgress} className="h-2" />
+                                <p className="text-xs text-muted-foreground text-center">{Math.round(ballAssetUploadProgress)}%</p>
+                            </div>
+                            )}
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                                <Button type="submit" disabled={isUploadingBallAsset || !ballAssetForm.formState.isValid || !selectedBallAssetFile}>
+                                    {isUploadingBallAsset ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Salvar Asset
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
           </div>
         );
       case 'bingoAudiosPartida':
@@ -1253,33 +1900,223 @@ export default function AdminBingoAdminPage() {
                   Gerenciamento de Áudios da Partida
                 </CardTitle>
                 <CardDescription>
-                  Defina os áudios para eventos chave da partida de bingo. (Funcionalidade de upload em desenvolvimento)
+                  Defina os áudios para eventos chave da partida de bingo.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[calc(100vh-350px)]">
-                  <div className="space-y-3 pr-2">
-                    {[
-                      { id: 'audioInicio', label: 'Início da Partida' },
-                      { id: 'audioPausada', label: 'Partida Pausada' },
-                      { id: 'audioContinuando', label: 'Partida Continuando' },
-                      { id: 'audioVencedor', label: 'Temos um Vencedor!' },
-                      { id: 'audioFimPartida', label: 'Fim da Partida' },
-                    ].map((audioEvent) => (
-                      <div key={audioEvent.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <span className="font-medium">{audioEvent.label}</span>
-                        <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: `Definir Áudio: ${audioEvent.label}`, description: `Funcionalidade em breve.`})}>
-                             <UploadCloud className="mr-1.5 h-3 w-3" /> Upload Áudio
-                          </Button>
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => toast({title: `Remover Áudio: ${audioEvent.label}`, description: `Funcionalidade em breve.`})}>
-                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                <div className="space-y-3 pr-2">
+                  {gameEventAudioSettings.map((audioEvent) => (
+                    <div key={audioEvent.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{audioEvent.displayName}</span>
+                        <p className="text-xs text-muted-foreground truncate" title={audioEvent.fileName || "Nenhum áudio definido"}>
+                            {audioEvent.fileName || "Nenhum áudio definido"}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                        {audioEvent.audioUrl && (
+                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(audioEvent.audioUrl, audioEvent.id)}>
+                                {currentPlayingAudioId === audioEvent.id ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
+                            </Button>
+                        )}
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenUploadAudioDialog(audioEvent)}>
+                           <UploadCloud className="mr-1.5 h-3 w-3" /> Upload
+                        </Button>
+                         {audioEvent.storagePath && (
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveAudio(audioEvent)}>
+                             <Trash2 className="h-4 w-4" />
+                           </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+             {/* Dialog for Uploading Game Event or Interaction Audio */}
+            <Dialog open={isUploadAudioDialogOpen || isAddInteractionAudioDialogOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setIsUploadAudioDialogOpen(false);
+                    setIsAddInteractionAudioDialogOpen(false);
+                    setCurrentAudioSettingToEdit(null);
+                    setSelectedAudioFile(null);
+                    if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+                    interactionAudioForm.reset();
+                }
+            }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {isAddInteractionAudioDialogOpen 
+                                ? "Adicionar Novo Áudio de Interação" 
+                                : `Configurar Áudio para: ${currentAudioSettingToEdit?.displayName || 'Evento'}`
+                            }
+                        </DialogTitle>
+                        <DialogDescription>
+                            Selecione um arquivo de áudio (MP3, WAV, etc.). Máximo 2MB.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {/* Form for Interaction Audio */}
+                    {isAddInteractionAudioDialogOpen ? (
+                        <Form {...interactionAudioForm}>
+                            <form onSubmit={interactionAudioForm.handleSubmit(handleSaveAudio)} className="space-y-4 py-2 pb-4">
+                                <FormField control={interactionAudioForm.control} name="displayName" render={({ field }) => (
+                                    <FormItem><FormLabel>Nome do Áudio</FormLabel><FormControl><Input placeholder="Ex: Aplausos Curtos" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={interactionAudioForm.control} name="keyword" render={({ field }) => (
+                                    <FormItem><FormLabel>Palavra Chave</FormLabel><FormControl><Input placeholder="Ex: !aplauso" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={interactionAudioForm.control} name="associatedGiftId" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Presente Associado (Opcional)</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingKakoPrizesForGameForm}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder={isLoadingKakoPrizesForGameForm ? "Carregando..." : "Nenhum presente"} /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="">Nenhum</SelectItem>
+                                                {availableKakoPrizesForGameForm.map(prize => (
+                                                    <SelectItem key={prize.id} value={prize.id!}>{prize.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={interactionAudioForm.control} name="audioFile"
+                                  render={({ field: { onChange: formOnChange, value, name: formFieldName, ref: fieldRefCallback, ...rest }}) => (
+                                  <FormItem>
+                                      <FormLabel>Arquivo de Áudio</FormLabel>
+                                      <FormControl>
+                                          <Input
+                                            type="file" accept="audio/*"
+                                            onChange={(e) => {
+                                                const files = e.target.files;
+                                                if (files && files.length > 0 && files[0].size > 2 * 1024 * 1024) {
+                                                    interactionAudioForm.setError("audioFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
+                                                    formOnChange(null); 
+                                                } else if (files && files.length > 0 && !files[0].type.startsWith("audio/")) {
+                                                    interactionAudioForm.setError("audioFile", { type: "manual", message: "O arquivo deve ser um áudio."});
+                                                    formOnChange(null);
+                                                } else {
+                                                    interactionAudioForm.clearErrors("audioFile");
+                                                    formOnChange(files); 
+                                                }
+                                                handleAudioFileSelect(e); 
+                                            }}
+                                            ref={el => {
+                                                if (typeof fieldRefCallback === 'function') fieldRefCallback(el);
+                                                // @ts-ignore
+                                                else if (fieldRefCallback) fieldRefCallback.current = el;
+                                                if (audioFileInputRef && typeof audioFileInputRef === 'object') {
+                                                  audioFileInputRef.current = el;
+                                                }
+                                            }}
+                                            name={formFieldName}
+                                            {...rest}
+                                          />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                )}/>
+                                {audioUploadProgress !== null && ( /* Common progress bar */
+                                  <div className="space-y-1"><Label className="text-xs">Progresso:</Label><Progress value={audioUploadProgress} className="h-2" /><p className="text-xs text-muted-foreground text-center">{Math.round(audioUploadProgress)}%</p></div>
+                                )}
+                                <DialogFooter>
+                                    <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                                    <Button type="submit" disabled={isUploadingAudio || !interactionAudioForm.formState.isValid || !interactionAudioForm.getValues('audioFile')?.[0]}>
+                                        {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    ) : ( /* Form for Game Event Audio */
+                        <form onSubmit={(e) => { e.preventDefault(); handleSaveAudio(); }} className="space-y-4 py-2 pb-4">
+                            <div className="space-y-1">
+                                <Label htmlFor="gameEventAudioFileDirect">Arquivo de Áudio (máx 2MB)</Label>
+                                <Input id="gameEventAudioFileDirect" type="file" accept="audio/*" ref={audioFileInputRef} onChange={handleAudioFileSelect} />
+                                {selectedAudioFile && <p className="text-xs text-muted-foreground mt-1">Selecionado: {selectedAudioFile.name}</p>}
+                            </div>
+                            {audioUploadProgress !== null && (
+                                <div className="space-y-1"><Label className="text-xs">Progresso:</Label><Progress value={audioUploadProgress} className="h-2" /><p className="text-xs text-muted-foreground text-center">{Math.round(audioUploadProgress)}%</p></div>
+                            )}
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                                <Button type="submit" disabled={isUploadingAudio || !selectedAudioFile}>
+                                    {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    )}
+                </DialogContent>
+            </Dialog>
+          </div>
+        );
+    case 'bingoAudiosInteracao':
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <Music3 className="mr-2 h-6 w-6 text-primary" />
+                    Gerenciamento de Áudios de Interação
+                  </CardTitle>
+                  <CardDescription>
+                    Cadastre áudios que podem ser acionados por palavras-chave no chat, opcionalmente vinculados a presentes.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleOpenUploadAudioDialog(null, true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Áudio
+                </Button>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {isLoadingAudios ? (
+                    <div className="flex justify-center items-center h-32"><LoadingSpinner /> <p className="ml-2 text-muted-foreground">Carregando áudios...</p></div>
+                ) : interactionAudioSettings.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhum áudio de interação cadastrado.</p>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Palavra Chave</TableHead><TableHead>Presente Associado</TableHead><TableHead>Arquivo</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {interactionAudioSettings.map((audio) => (
+                        <TableRow key={audio.id}>
+                          <TableCell className="font-medium">{audio.displayName}</TableCell>
+                          <TableCell className="font-mono text-xs">{audio.keyword}</TableCell>
+                          <TableCell className="text-xs">{audio.associatedGiftName || 'Nenhum'}</TableCell>
+                          <TableCell className="text-xs truncate max-w-xs" title={audio.fileName}>{audio.fileName || 'N/A'}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-1">
+                              {audio.audioUrl && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => playAudio(audio.audioUrl, audio.id)}>
+                                  {currentPlayingAudioId === audio.id ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
+                                </Button>
+                              )}
+                               <Button variant="ghost" size="icon" className="h-7 w-7" 
+                                onClick={() => {
+                                    const fullSetting = interactionAudioSettings.find(s => s.id === audio.id);
+                                    if (fullSetting) {
+                                        setCurrentAudioSettingToEdit(fullSetting); // Store the full setting for editing
+                                        interactionAudioForm.reset({ // Populate form for editing
+                                            displayName: fullSetting.displayName,
+                                            keyword: fullSetting.keyword || "",
+                                            associatedGiftId: fullSetting.associatedGiftId || "",
+                                            audioFile: undefined // File input needs to be re-selected
+                                        });
+                                        setIsAddInteractionAudioDialogOpen(true); // Open the dialog in "edit mode" for interaction audio
+                                        setIsUploadAudioDialogOpen(false);
+                                    }
+                                }}>
+                                  <Edit2 className="h-4 w-4" />
+                               </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemoveAudio(audio)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1291,7 +2128,7 @@ export default function AdminBingoAdminPage() {
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    {currentItem ? <currentItem.icon className="mr-2 h-6 w-6 text-primary" /> : <TicketIcon className="mr-2 h-6 w-6 text-primary" />}
+                    {currentItem && currentItem.icon ? <currentItem.icon className="mr-2 h-6 w-6 text-primary" /> : <TicketIcon className="mr-2 h-6 w-6 text-primary" />}
                     {currentItem?.title || "Gerenciamento de Bingo"}
                   </CardTitle>
                   <CardDescription>
@@ -1498,7 +2335,7 @@ export default function AdminBingoAdminPage() {
       <AlertDialog open={isConfirmDeleteAll90BallCardsDialogOpen} onOpenChange={setIsConfirmDeleteAll90BallCardsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão (90 Bolas)</AlertDialogTitle>
+            <AlertDialogTitleComponent>Confirmar Exclusão (90 Bolas)</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Você tem certeza que deseja apagar TODAS as cartelas de 90 bolas geradas desta lista?
               Esta ação é apenas local e não afeta o banco de dados.
@@ -1519,7 +2356,7 @@ export default function AdminBingoAdminPage() {
       <AlertDialog open={isConfirmDeleteAll75BallCardsDialogOpen} onOpenChange={setIsConfirmDeleteAll75BallCardsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão (75 Bolas)</AlertDialogTitle>
+            <AlertDialogTitleComponent>Confirmar Exclusão (75 Bolas)</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Você tem certeza que deseja apagar TODAS as cartelas de 75 bolas geradas desta lista?
               Esta ação é apenas local e não afeta o banco de dados.
@@ -1539,4 +2376,3 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
-
