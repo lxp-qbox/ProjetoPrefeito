@@ -185,7 +185,6 @@ export default function AdminBingoAdminPage() {
         { id: "bingoGanhadores", title: "Ganhadores", icon: Trophy, link: "#bingoGanhadores" },
         { id: "bingoBolasSorteadas", title: "Bolas Sorteadas", icon: Dice5, link: "#bingoBolasSorteadas" },
         { id: "bingoTelaSorteio", title: "Tela de Sorteio", icon: PlaySquare, link: "#bingoTelaSorteio" },
-        { id: "bingoConfiguracoes", title: "Configurações", icon: SettingsIconLucide, link: "#bingoConfiguracoes" },
       ],
     },
     {
@@ -200,6 +199,12 @@ export default function AdminBingoAdminPage() {
       items: [
         { id: "bingoPremiosKako", title: "Prêmios Kako Live", icon: Gift, link: "#bingoPremiosKako" },
         { id: "bingoPremiosDinheiro", title: "Prêmios em Dinheiro", icon: DollarSign, link: "#bingoPremiosDinheiro" },
+      ],
+    },
+    {
+      groupTitle: "CONFIGURAÇÕES",
+      items: [
+        { id: "bingoBolasConfig", title: "Bolas do Bingo", icon: SettingsIconLucide, link: "#bingoBolasConfig" },
       ],
     }
   ];
@@ -1194,7 +1199,7 @@ export default function AdminBingoAdminPage() {
             </Card>
           </div>
         );
-      case 'bingoConfiguracoes':
+      case 'bingoBolasConfig':
         return (
           <div className="space-y-6 p-6 bg-background h-full">
             <Card className="shadow-lg">
@@ -1515,6 +1520,8 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
+
+    
 
     
 
