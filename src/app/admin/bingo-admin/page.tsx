@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added Tabs
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
@@ -718,8 +718,6 @@ export default function AdminBingoAdminPage() {
         contentDescription = "Acesse o registro de todas as bolas sorteadas em cada partida.";
         break;
       case 'bingoTelaSorteio':
-        // contentTitle = "Interface da Tela de Sorteio";
-        // contentDescription = "Esta seção permitirá visualizar e controlar uma tela de sorteio em tempo real."
         return (
           <div className="space-y-6 p-6 bg-background h-full">
             <Card className="shadow-lg">
@@ -770,7 +768,7 @@ export default function AdminBingoAdminPage() {
                       <CardContent className="space-y-4">
                         <div className="p-4 border rounded-lg bg-muted/30 min-h-[200px] flex flex-col items-center justify-center">
                             <Zap className="h-12 w-12 text-primary mb-2" />
-                           <p className="text-muted-foreground">Exibição B-I-N-G-O, bola sorteada, padrões, etc.</p>
+                           <p className="text-muted-foreground">Exibição da bola sorteada, grade de números marcados, etc.</p>
                            <p className="text-xs text-muted-foreground mt-1">(Funcionalidade em desenvolvimento)</p>
                         </div>
                         <div className="flex justify-around items-center pt-4 border-t">
@@ -889,13 +887,13 @@ export default function AdminBingoAdminPage() {
                 {selectedCardForDetails.cardNumbers.length === 3 && selectedCardForDetails.cardNumbers[0].length === 9 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Visualização da Cartela (90 Bolas)</h3>
-                    <div className="grid grid-cols-9 gap-px bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md mx-auto">
+                    <div className="grid grid-cols-9 gap-0 bg-primary/10 border-2 border-primary rounded-lg p-0.5 w-full max-w-md mx-auto">
                       {selectedCardForDetails.cardNumbers.map((row, rowIndex) =>
                         row.map((cell, colIndex) => (
                           <div
                             key={`detail-card-90-${rowIndex}-${colIndex}`}
                             className={cn(
-                              "flex items-center justify-center h-12 text-base font-medium aspect-square",
+                              "flex items-center justify-center h-12 text-base font-semibold", // Updated font to semibold
                               cell === null ? 'bg-primary/10' : 'bg-card text-primary'
                             )}
                           >
@@ -923,8 +921,8 @@ export default function AdminBingoAdminPage() {
                               <div
                                 key={`detail-card-75-${rowIndex}-${colIndex}`}
                                 className={cn(
-                                  "flex items-center justify-center h-12 text-base font-medium aspect-square",
-                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' // Using Tailwind colors directly for FREE space
+                                  "flex items-center justify-center h-12 text-base font-semibold", // Updated font to semibold
+                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' 
                                 )}
                               >
                                 {cell !== null ? cell : <Star className="h-5 w-5 text-yellow-600" />}
@@ -1067,6 +1065,5 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
-    
 
     
