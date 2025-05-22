@@ -124,7 +124,7 @@ export default function AdminKakoLiveDataListPageContent() {
     setIsLoadingLinkedAccounts(true);
     try {
       const accountsRef = collection(db, "accounts");
-      const q = query(accountsRef, where("showId", "!=", "")); // Count accounts with a non-empty showId
+      const q = query(accountsRef, where("showId", "!=", "")); 
       const querySnapshot = await getDocs(q);
       setLinkedAccountsCount(querySnapshot.size);
     } catch (error) {
@@ -232,10 +232,6 @@ export default function AdminKakoLiveDataListPageContent() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={refreshAllData} className="h-10" disabled={isLoadingProfiles || isLoadingLinkedAccounts}>
-                 <RefreshCw className="mr-2 h-4 w-4" />
-                Atualizar Lista
-              </Button>
               <Button variant="destructive" onClick={() => setIsConfirmClearProfilesDBDialogOpen(true)} className="h-10" disabled={isDeletingProfilesDB || kakoProfiles.length === 0}>
                  {isDeletingProfilesDB ? <LoadingSpinner size="sm" className="mr-2"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
                 Zerar DB (Perfis)
@@ -313,7 +309,7 @@ export default function AdminKakoLiveDataListPageContent() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => alert('Sincronizar dados do perfil: ' + profile.nickname)}>
+                                <DropdownMenuItem onSelect={() => toast({ title: "Sincronizar Dados", description: "Funcionalidade em desenvolvimento."})}>
                                   Sincronizar Dados
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
