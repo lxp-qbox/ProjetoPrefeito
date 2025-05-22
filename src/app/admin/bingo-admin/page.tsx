@@ -28,7 +28,7 @@ import {
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIconLucide, Edit2,
-  UploadCloud, Music2, Image as ImageIconLucide, Volume2, Music3, PlayCircleIcon, PauseCircleIcon
+  UploadCloud, Music2, ImageIcon as ImageIconLucide, Volume2, Music3, PlayCircleIcon, PauseCircleIcon, ArrowUpDown
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
@@ -66,7 +66,9 @@ import {
   updateDoc,
   setDoc,
   deleteDoc,
-  deleteFileStorage
+  deleteFileStorage,
+  deleteField,
+  writeBatch, // Import writeBatch
 } from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -86,45 +88,12 @@ interface BingoAdminMenuGroup {
   isBottomSection?: boolean;
 }
 
-const placeholderGenerated90BallCards: GeneratedBingoCard[] = [
-  {
-    id: 'card-90-001',
-    cardNumbers: [
-      [5, null, 30, null, 49, null, 61, null, 81],
-      [8, 17, null, 32, null, 53, null, 70, 89],
-      [null, 19, 22, null, 42, null, 55, null, 84]
-    ],
-    creatorId: 'user-creator-123',
-    createdAt: new Date(),
-    usageHistory: [
-      { userId: 'player123', gameId: 'game789', timestamp: new Date(), isWinner: false },
-      { userId: 'player456', gameId: 'gameXYZ', timestamp: new Date(Date.now() - 3600000), isWinner: true },
-    ],
-    timesAwarded: 1,
-    awardsHistory: [
-      { gameId: 'gameXYZ', userId: 'player456', timestamp: new Date(Date.now() - 3600000) }
-    ]
-  },
-];
-
-const placeholderGenerated75BallCards: GeneratedBingoCard[] = [
-  {
-    id: 'card-75-001',
-    cardNumbers: [
-      [1, 16, 31, 46, 61],
-      [5, 20, 35, 50, 65],
-      [10, 25, null, 55, 70], 
-      [12, 28, 40, 58, 72],
-      [15, 30, 45, 60, 75]
-    ],
-    creatorId: 'user-creator-75A',
-    createdAt: new Date(Date.now() - 172800000), 
-    usageHistory: [
-      { userId: 'playerABC', gameId: 'game75-1', timestamp: new Date(), isWinner: false },
-    ],
-    timesAwarded: 0,
-    awardsHistory: []
-  },
+const initialGameEventAudioSettings: Omit<AudioSetting, 'audioUrl' | 'fileName' | 'storagePath' | 'uploadedAt' | 'keyword' | 'associatedGiftId' | 'associatedGiftName' | 'createdBy'>[] = [
+  { id: 'audioInicioPartida', type: 'gameEvent', displayName: 'Início da Partida' },
+  { id: 'audioPausada', type: 'gameEvent', displayName: 'Partida Pausada' },
+  { id: 'audioContinuando', type: 'gameEvent', displayName: 'Partida Continuando' },
+  { id: 'audioVencedor', type: 'gameEvent', displayName: 'Temos um Vencedor!' },
+  { id: 'audioFimPartida', type: 'gameEvent', displayName: 'Fim da Partida' },
 ];
 
 const format90BallCardNumbersPreview = (numbers: (number | null)[][]): string => {
@@ -194,14 +163,6 @@ const newGameSchema = z.object({
 });
 type NewGameFormValues = z.infer<typeof newGameSchema>;
 
-const initialGameEventAudioSettings: Omit<AudioSetting, 'audioUrl' | 'fileName' | 'storagePath' | 'uploadedAt' | 'keyword' | 'associatedGiftId' | 'associatedGiftName' | 'createdBy'>[] = [
-  { id: 'audioInicioPartida', type: 'gameEvent', displayName: 'Início da Partida' },
-  { id: 'audioPausada', type: 'gameEvent', displayName: 'Partida Pausada' },
-  { id: 'audioContinuando', type: 'gameEvent', displayName: 'Partida Continuando' },
-  { id: 'audioVencedor', type: 'gameEvent', displayName: 'Temos um Vencedor!' },
-  { id: 'audioFimPartida', type: 'gameEvent', displayName: 'Fim da Partida' },
-];
-
 const interactionAudioSchema = z.object({
   displayName: z.string().min(1, "Nome do áudio é obrigatório.").max(50, "Nome muito longo."),
   keyword: z.string().min(1, "Palavra chave é obrigatória.").max(30, "Palavra chave muito longa."),
@@ -229,13 +190,23 @@ export default function AdminBingoAdminPage() {
   const ballAssetFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<string>('bingoPartidas');
-  const [generated90BallCards, setGenerated90BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated90BallCards);
-  const [generated75BallCards, setGenerated75BallCards] = useState<GeneratedBingoCard[]>(placeholderGenerated75BallCards);
+  
+  // Card states
+  const [generated90BallCards, setGenerated90BallCards] = useState<GeneratedBingoCard[]>([]);
+  const [isLoading90BallCards, setIsLoading90BallCards] = useState(true);
+  const [isGeneratingCards, setIsGeneratingCards] = useState(false);
+  const [cardsToGenerateCount, setCardsToGenerateCount] = useState<string>("100");
+
+  const [generated75BallCards, setGenerated75BallCards] = useState<GeneratedBingoCard[]>([]);
+  const [isLoading75BallCards, setIsLoading75BallCards] = useState(true);
 
   const [selectedCardForDetails, setSelectedCardForDetails] = useState<GeneratedBingoCard | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isConfirmDeleteAll90BallCardsDialogOpen, setIsConfirmDeleteAll90BallCardsDialogOpen] = useState(false);
   const [isConfirmDeleteAll75BallCardsDialogOpen, setIsConfirmDeleteAll75BallCardsDialogOpen] = useState(false);
+  const [isDeleting90BallCards, setIsDeleting90BallCards] = useState(false);
+  const [isDeleting75BallCards, setIsDeleting75BallCards] = useState(false);
+
 
   const [kakoPrizes, setKakoPrizes] = useState<BingoPrize[]>([]);
   const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
@@ -394,6 +365,60 @@ export default function AdminBingoAdminPage() {
       },
   });
 
+  const fetchGenerated90BallCards = useCallback(async () => {
+    setIsLoading90BallCards(true);
+    try {
+      const cardsCollectionRef = collection(db, "bingoGeneratedCards90");
+      const q = query(cardsCollectionRef, orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedCards: GeneratedBingoCard[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedCards.push({ 
+          id: docSnap.id, 
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+          // Ensure nested arrays for usageHistory and awardsHistory are correctly typed if fetched
+          usageHistory: (data.usageHistory || []).map((uh: any) => ({ ...uh, timestamp: uh.timestamp instanceof Timestamp ? uh.timestamp.toDate() : new Date(uh.timestamp) })),
+          awardsHistory: (data.awardsHistory || []).map((ah: any) => ({ ...ah, timestamp: ah.timestamp instanceof Timestamp ? ah.timestamp.toDate() : new Date(ah.timestamp) })),
+        } as GeneratedBingoCard);
+      });
+      setGenerated90BallCards(fetchedCards);
+    } catch (error) {
+      console.error("Erro ao buscar cartelas de 90 bolas:", error);
+      toast({ title: "Erro ao Carregar Cartelas (90)", description: "Não foi possível carregar a lista de cartelas.", variant: "destructive" });
+    } finally {
+      setIsLoading90BallCards(false);
+    }
+  }, [toast]);
+
+  const fetchGenerated75BallCards = useCallback(async () => {
+    setIsLoading75BallCards(true);
+    try {
+      const cardsCollectionRef = collection(db, "bingoGeneratedCards75");
+      const q = query(cardsCollectionRef, orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedCards: GeneratedBingoCard[] = [];
+      querySnapshot.forEach((docSnap) => {
+         const data = docSnap.data();
+        fetchedCards.push({ 
+          id: docSnap.id, 
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+          usageHistory: (data.usageHistory || []).map((uh: any) => ({ ...uh, timestamp: uh.timestamp instanceof Timestamp ? uh.timestamp.toDate() : new Date(uh.timestamp) })),
+          awardsHistory: (data.awardsHistory || []).map((ah: any) => ({ ...ah, timestamp: ah.timestamp instanceof Timestamp ? ah.timestamp.toDate() : new Date(ah.timestamp) })),
+        } as GeneratedBingoCard);
+      });
+      setGenerated75BallCards(fetchedCards);
+    } catch (error) {
+      console.error("Erro ao buscar cartelas de 75 bolas:", error);
+      toast({ title: "Erro ao Carregar Cartelas (75)", description: "Não foi possível carregar a lista de cartelas.", variant: "destructive" });
+    } finally {
+      setIsLoading75BallCards(false);
+    }
+  }, [toast]);
+
+
   const fetchKakoPrizes = useCallback(async (forGameForm: boolean = false) => {
     if (forGameForm) setIsLoadingKakoPrizesForGameForm(true);
     else setIsLoadingKakoPrizes(true);
@@ -430,6 +455,8 @@ export default function AdminBingoAdminPage() {
           id: docSnap.id, 
           ...data,
           startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
+           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
         } as Game);
       });
       setBingoGames(fetchedGames);
@@ -481,6 +508,7 @@ export default function AdminBingoAdminPage() {
             ...data,
             type: 'interaction',
             associatedGiftName: associatedGiftName || undefined,
+             uploadedAt: data.uploadedAt instanceof Timestamp ? data.uploadedAt.toDate() : new Date(data.uploadedAt),
         } as AudioSetting);
       });
       setInteractionAudioSettings(fetchedAudios);
@@ -498,7 +526,12 @@ export default function AdminBingoAdminPage() {
         const docRef = doc(db, "bingoBallConfigurations", ballNum.toString());
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { ballNumber: ballNum, ...docSnap.data() } as BingoBallSetting;
+             const data = docSnap.data();
+            return { 
+                ballNumber: ballNum, 
+                ...data, 
+                lastUpdatedAt: data.lastUpdatedAt instanceof Timestamp ? data.lastUpdatedAt.toDate() : new Date(data.lastUpdatedAt) 
+            } as BingoBallSetting;
         }
         return { ballNumber: ballNum } as BingoBallSetting;
     });
@@ -521,12 +554,111 @@ export default function AdminBingoAdminPage() {
       fetchKakoPrizes(true);
     }
     if (activeTab === 'bingoPartidas') fetchBingoGames();
+    if (activeTab === 'bingoCartelas90') fetchGenerated90BallCards();
+    if (activeTab === 'bingoCartelas75') fetchGenerated75BallCards();
     if (activeTab === 'bingoAudiosPartida') fetchGameEventAudios();
     if (activeTab === 'bingoAudiosInteracao') fetchInteractionAudios();
     if (activeTab === 'bingoBolasConfig') fetchBingoBallSettings();
     
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]); 
+
+  const generateSingle90BallCardNumbers = (): (number | null)[][] => {
+    const card: (number | null)[][] = Array(3).fill(null).map(() => Array(9).fill(null));
+    const numbersOnCard = new Set<number>();
+  
+    const getRandomNumberForColumn = (colIndex: number): number => {
+      let num;
+      let min, max_range_size;
+      if (colIndex === 0) { min = 1; max_range_size = 9; } 
+      else if (colIndex === 8) { min = 80; max_range_size = 11; } 
+      else { min = colIndex * 10; max_range_size = 10; }
+      
+      let attempts = 0;
+      do {
+        num = min + Math.floor(Math.random() * max_range_size);
+        if (colIndex === 8 && num > 90) num = 80 + Math.floor(Math.random() * 11);
+        if (colIndex === 0 && (num < 1 || num > 9)) num = 1 + Math.floor(Math.random() * 9);
+        attempts++;
+        if (attempts > 50) break; // Avoid infinite loop for this specific card
+      } while (numbersOnCard.has(num)); // Check against numbers already on *this specific card*
+      
+      numbersOnCard.add(num);
+      return num;
+    };
+  
+    const cellsToFill: { r: number, c: number }[] = [];
+    for (let r = 0; r < 3; r++) {
+      const colsInThisRow = new Set<number>();
+      while (colsInThisRow.size < 5) {
+        colsInThisRow.add(Math.floor(Math.random() * 9));
+      }
+      Array.from(colsInThisRow).forEach(c => cellsToFill.push({ r, c }));
+    }
+  
+    const tempNumbers: { r: number, c: number, val: number }[] = [];
+    cellsToFill.forEach(cell => {
+      tempNumbers.push({ r: cell.r, c: cell.c, val: getRandomNumberForColumn(cell.c) });
+    });
+  
+    tempNumbers.forEach(item => {
+      card[item.r][item.c] = item.val;
+    });
+  
+    for (let c = 0; c < 9; c++) {
+      const colValues: number[] = [];
+      for (let r = 0; r < 3; r++) {
+        if (card[r][c] !== null) {
+          colValues.push(card[r][c] as number);
+          card[r][c] = null; 
+        }
+      }
+      colValues.sort((a, b) => a - b); 
+      let valueIdx = 0;
+      for (let r = 0; r < 3; r++) {
+        const wasChosen = tempNumbers.some(item => item.r === r && item.c === c);
+        if (wasChosen && valueIdx < colValues.length) {
+          card[r][c] = colValues[valueIdx++];
+        }
+      }
+    }
+    return card;
+  };
+
+  const handleGenerateCards = async (count: number) => {
+    if (!currentUser?.uid) {
+      toast({ title: "Erro de Autenticação", description: "Você precisa estar logado.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingCards(true);
+    try {
+      const batch = writeBatch(db);
+      const cardsCollectionRef = collection(db, "bingoGeneratedCards90");
+      
+      for (let i = 0; i < count; i++) {
+        const cardNumbers = generateSingle90BallCardNumbers();
+        const newCardRef = doc(cardsCollectionRef); // Auto-generate ID
+        const newCardData: Omit<GeneratedBingoCard, 'id'> = {
+          cardNumbers,
+          creatorId: currentUser.uid,
+          createdAt: serverTimestamp(),
+          usageHistory: [],
+          timesAwarded: 0,
+          awardsHistory: [],
+        };
+        batch.set(newCardRef, newCardData);
+      }
+      await batch.commit();
+      toast({ title: "Cartelas Geradas!", description: `${count} novas cartelas de 90 bolas foram geradas e salvas.` });
+      fetchGenerated90BallCards(); // Refresh the list
+    } catch (error) {
+      console.error("Erro ao gerar cartelas:", error);
+      toast({ title: "Erro ao Gerar Cartelas", description: "Não foi possível gerar as cartelas.", variant: "destructive" });
+    } finally {
+      setIsGeneratingCards(false);
+    }
+  };
+
 
   const handleAudioFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -562,7 +694,7 @@ export default function AdminBingoAdminPage() {
             });
             setIsAddInteractionAudioDialogOpen(true);
             setIsUploadAudioDialogOpen(false);
-        } else {
+        } else { // Game Event Audio
             setIsAddInteractionAudioDialogOpen(false);
             setIsUploadAudioDialogOpen(true);
         }
@@ -578,7 +710,7 @@ export default function AdminBingoAdminPage() {
     setIsUploadBallAssetDialogOpen(true);
   };
 
-  const onSubmitBallAsset = async (data: BallAssetFormValues) => {
+ const onSubmitBallAsset = async (data: BallAssetFormValues) => {
       if (!currentBallEditing || !assetTypeToUpload || !data.assetFile || data.assetFile.length === 0) {
           toast({ title: "Erro", description: "Informações incompletas para upload.", variant: "destructive" });
           return;
@@ -588,9 +720,11 @@ export default function AdminBingoAdminPage() {
       setBallAssetUploadProgress(0);
 
       const sanitizedFileName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const newStoragePath = `bingoBalls/${currentBallEditing.ballNumber}/${assetTypeToUpload}/${Date.now()}_${sanitizedFileName}`;
+      const fileExtension = fileToUpload.name.substring(fileToUpload.name.lastIndexOf('.') + 1).toLowerCase();
+      const standardizedFileName = `${currentBallEditing.ballNumber}.${fileExtension}`;
+      const newStoragePath = `bingoBalls/${currentBallEditing.ballNumber}/${assetTypeToUpload}/${standardizedFileName}`;
+      
       let oldStoragePathToDelete: string | undefined = undefined;
-
       if (assetTypeToUpload === 'image') oldStoragePathToDelete = currentBallEditing.imageStoragePath;
       else if (assetTypeToUpload === 'audio') oldStoragePathToDelete = currentBallEditing.audioStoragePath;
       
@@ -632,10 +766,9 @@ export default function AdminBingoAdminPage() {
 
           toast({ title: "Asset Salvo!", description: `${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para bola ${currentBallEditing.ballNumber} salvo.` });
           setIsUploadBallAssetDialogOpen(false);
-          ballAssetForm.reset();
-          setSelectedBallAssetFile(null);
-          if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
-
+          // ballAssetForm.reset(); // Keep this if you want to reset form after successful upload
+          // setSelectedBallAssetFile(null);
+          // if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
 
       } catch (error: any) {
           console.error("Erro ao salvar asset da bola:", error);
@@ -658,13 +791,14 @@ export default function AdminBingoAdminPage() {
             await deleteFileStorage(storageRef(storage, storagePathToRemove));
         }
         const docRef = doc(db, "bingoBallConfigurations", ballNumber.toString());
-        const updateData: Record<string, any> = { lastUpdatedAt: serverTimestamp() };
+        const updateData: Partial<BingoBallSetting> & { lastUpdatedAt: any } = { lastUpdatedAt: serverTimestamp() };
+
         if (assetType === 'image') {
-            updateData.imageUrl = null; 
-            updateData.imageStoragePath = null;
+            updateData.imageUrl = deleteField() as unknown as undefined; 
+            updateData.imageStoragePath = deleteField() as unknown as undefined;
         } else {
-            updateData.audioUrl = null;
-            updateData.audioStoragePath = null;
+            updateData.audioUrl = deleteField() as unknown as undefined;
+            updateData.audioStoragePath = deleteField() as unknown as undefined;
         }
         await updateDoc(docRef, updateData);
         
@@ -769,7 +903,7 @@ export default function AdminBingoAdminPage() {
          return;
       }
       
-      const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, storagePath?: string } = {
+      const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'| 'createdBy'> & { createdAt: any, updatedAt: any, storagePath?: string, createdBy: string } = {
           name: values.name,
           imageUrl: prizeImageUrl || undefined,
           storagePath: storagePath,
@@ -805,7 +939,7 @@ export default function AdminBingoAdminPage() {
     setIsUploadingAudio(true);
     setAudioUploadProgress(0);
 
-    const isInteractionAudio = !!data;
+    const isInteractionAudio = !!data || (currentAudioSettingToEdit?.type === 'interaction');
     const fileToUpload = isInteractionAudio ? data?.audioFile?.[0] : selectedAudioFile;
     let audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
     
@@ -815,8 +949,8 @@ export default function AdminBingoAdminPage() {
         setAudioUploadProgress(null);
         return;
     }
-     if (!audioDisplayNameForToast && isInteractionAudio) { // If currentAudioSettingToEdit is null for interaction, name is needed
-        toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o áudio de interação.", variant: "destructive" });
+     if (!audioDisplayNameForToast && isInteractionAudio && !currentAudioSettingToEdit) { 
+        toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o novo áudio de interação.", variant: "destructive" });
         setIsUploadingAudio(false);
         setAudioUploadProgress(null);
         return;
@@ -836,7 +970,7 @@ export default function AdminBingoAdminPage() {
         newStoragePath = `bingoAudios/interaction/${Date.now()}_${sanitizedSelectedFileName}`;
         firestoreDocId = currentAudioSettingToEdit?.id; 
         oldStoragePathToDelete = currentAudioSettingToEdit?.storagePath;
-         audioDataToSave = {
+        audioDataToSave = {
             displayName: data.displayName,
             keyword: data.keyword,
             associatedGiftId: data.associatedGiftId || undefined,
@@ -855,9 +989,9 @@ export default function AdminBingoAdminPage() {
         firestoreDocId = currentAudioSettingToEdit.id;
         newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
         oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
-        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; // Ensure toast name is correct
+        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; 
         audioDataToSave = {
-            id: currentAudioSettingToEdit.id,
+            id: currentAudioSettingToEdit.id, // Keep existing ID for game event
             type: 'gameEvent',
             displayName: currentAudioSettingToEdit.displayName, 
             audioUrl: '',
@@ -872,7 +1006,7 @@ export default function AdminBingoAdminPage() {
         return;
     }
     
-    if (oldStoragePathToDelete) {
+    if (oldStoragePathToDelete && fileToUpload) { // Ensure new file exists if deleting old one
         try {
             await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
         } catch (delError: any) {
@@ -892,17 +1026,17 @@ export default function AdminBingoAdminPage() {
             );
         });
         audioDataToSave.audioUrl = downloadURL;
-        audioDataToSave.storagePath = newStoragePath; 
+        audioDataToSave.storagePath = newStoragePath; // Set the new storage path
 
         if (isInteractionAudio) {
-            if (firestoreDocId) { 
+            if (firestoreDocId) { // Editing existing interaction audio
                  await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
                  setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
-            } else { 
+            } else { // Adding new interaction audio
                 const docRef = await addDoc(collection(db, firestoreCollectionName), audioDataToSave);
                 setInteractionAudioSettings(prev => [{...audioDataToSave, id: docRef.id, uploadedAt: new Date()} as AudioSetting, ...prev ]);
             }
-        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { 
+        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { // Game Event Audio
             await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
              setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
         }
@@ -935,14 +1069,16 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             await deleteFileStorage(storageRef(storage, setting.storagePath));
         }
         if (setting.type === 'gameEvent') {
+            // For game events, we update fields to null, rather than deleting the doc,
+            // as the event itself is predefined.
             await setDoc(doc(db, "bingoAudioSettings", setting.id), {
-                id: setting.id,
-                displayName: setting.displayName,
-                type: 'gameEvent',
-                audioUrl: null,
-                fileName: null,
-                storagePath: null,
-                uploadedAt: serverTimestamp(),
+                id: setting.id, // Keep ID
+                displayName: setting.displayName, // Keep display name
+                type: 'gameEvent', // Keep type
+                audioUrl: deleteField(), // Remove these fields
+                fileName: deleteField(),
+                storagePath: deleteField(),
+                uploadedAt: serverTimestamp(), // Update timestamp
             }, { merge: true });
             setGameEventAudioSettings(prev => prev.map(s => s.id === setting.id ? { ...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } as AudioSetting : s));
         } else if (setting.type === 'interaction') {
@@ -988,16 +1124,50 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
     setIsDetailModalOpen(true);
   };
 
-  const handleConfirmDeleteAll90BallCards = () => {
-    setGenerated90BallCards([]);
-    toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 90 bolas foram removidas da lista (localmente)."});
-    setIsConfirmDeleteAll90BallCardsDialogOpen(false);
+ const handleConfirmDeleteAll90BallCards = async () => {
+    setIsDeleting90BallCards(true);
+    try {
+      const cardsCollectionRef = collection(db, "bingoGeneratedCards90");
+      const querySnapshot = await getDocs(cardsCollectionRef);
+      if (querySnapshot.empty) {
+        toast({ title: "Nenhuma Cartela para Apagar", description: "Não há cartelas de 90 bolas no banco de dados." });
+        return;
+      }
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+      setGenerated90BallCards([]);
+      toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 90 bolas foram removidas do banco de dados."});
+    } catch (error) {
+      console.error("Erro ao apagar cartelas de 90 bolas:", error);
+      toast({ title: "Erro ao Apagar", description: "Não foi possível apagar as cartelas.", variant: "destructive" });
+    } finally {
+      setIsConfirmDeleteAll90BallCardsDialogOpen(false);
+      setIsDeleting90BallCards(false);
+    }
   };
 
-  const handleConfirmDeleteAll75BallCards = () => {
-    setGenerated75BallCards([]);
-    toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 75 bolas foram removidas da lista (localmente)."});
-    setIsConfirmDeleteAll75BallCardsDialogOpen(false);
+  const handleConfirmDeleteAll75BallCards = async () => {
+    setIsDeleting75BallCards(true);
+    try {
+      const cardsCollectionRef = collection(db, "bingoGeneratedCards75");
+      const querySnapshot = await getDocs(cardsCollectionRef);
+      if (querySnapshot.empty) {
+        toast({ title: "Nenhuma Cartela para Apagar", description: "Não há cartelas de 75 bolas no banco de dados." });
+        return;
+      }
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+      setGenerated75BallCards([]);
+      toast({title: "Cartelas Apagadas", description: "Todas as cartelas de 75 bolas foram removidas do banco de dados."});
+    } catch (error) {
+      console.error("Erro ao apagar cartelas de 75 bolas:", error);
+      toast({ title: "Erro ao Apagar", description: "Não foi possível apagar as cartelas.", variant: "destructive" });
+    } finally {
+      setIsConfirmDeleteAll75BallCardsDialogOpen(false);
+      setIsDeleting75BallCards(false);
+    }
   };
 
 
@@ -1274,12 +1444,15 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     variant="destructive" 
                     size="sm" 
                     onClick={() => setIsConfirmDeleteAll75BallCardsDialogOpen(true)}
-                    disabled={generated75BallCards.length === 0}
+                    disabled={generated75BallCards.length === 0 || isDeleting75BallCards}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Apagar Todas (75 Bolas - Local)
+                    {isDeleting75BallCards ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Apagar Todas (75 Bolas - DB)
                   </Button>
                 </div>
+                 {isLoading75BallCards ? (
+                   <div className="flex justify-center items-center h-32"><LoadingSpinner size="md" /><p className="ml-2 text-muted-foreground">Carregando cartelas de 75 bolas...</p></div>
+                ) : (
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1320,9 +1493,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     </TableBody>
                   </Table>
                 </div>
-                 <p className="mt-4 text-xs text-muted-foreground">
-                  Esta tabela mostrará as cartelas de 75 bolas.
-                </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1337,21 +1508,44 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                   Cartelas de Bingo 90 Bolas Geradas
                 </CardTitle>
                 <CardDescription>
-                  Visualize informações sobre as cartelas de bingo de 90 bolas geradas no sistema.
+                  Visualize informações sobre as cartelas de bingo de 90 bolas geradas e salvas no banco de dados.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex justify-end">
+                <div className="mb-4 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                     <Select value={cardsToGenerateCount} onValueChange={setCardsToGenerateCount}>
+                        <SelectTrigger className="w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="Qtd. para gerar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="100">Gerar 100</SelectItem>
+                            <SelectItem value="500">Gerar 500</SelectItem>
+                            <SelectItem value="1000">Gerar 1000</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button 
+                        size="sm" 
+                        onClick={() => handleGenerateCards(parseInt(cardsToGenerateCount, 10))}
+                        disabled={isGeneratingCards}
+                    >
+                        {isGeneratingCards ? <LoadingSpinner size="sm" className="mr-2"/> : <PlusCircle className="mr-2 h-4 w-4" />}
+                        Gerar Cartelas
+                    </Button>
+                  </div>
                   <Button 
                     variant="destructive" 
                     size="sm" 
                     onClick={() => setIsConfirmDeleteAll90BallCardsDialogOpen(true)}
-                    disabled={generated90BallCards.length === 0}
+                    disabled={generated90BallCards.length === 0 || isDeleting90BallCards}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Apagar Todas (90 Bolas - Local)
+                    {isDeleting90BallCards ? <LoadingSpinner size="sm" className="mr-2"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Apagar Todas (90 Bolas - DB)
                   </Button>
                 </div>
+                {isLoading90BallCards ? (
+                   <div className="flex justify-center items-center h-32"><LoadingSpinner size="md" /><p className="ml-2 text-muted-foreground">Carregando cartelas de 90 bolas...</p></div>
+                ) : (
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1369,7 +1563,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                       {generated90BallCards.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center h-24">
-                            Nenhuma cartela de 90 bolas gerada encontrada.
+                            Nenhuma cartela de 90 bolas gerada encontrada no banco de dados.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -1392,9 +1586,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     </TableBody>
                   </Table>
                 </div>
-                 <p className="mt-4 text-xs text-muted-foreground">
-                  Esta tabela mostrará as cartelas conforme são registradas no sistema pelo backend. A funcionalidade de registro real e listagem do banco de dados está em desenvolvimento.
-                </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1470,14 +1662,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                               onChange(files);
                                                           }
                                                         }}
-                                                        ref={el => { 
-                                                            if(rest.ref && typeof rest.ref === 'function') rest.ref(el); 
-                                                            // @ts-ignore
-                                                            else if(rest.ref) rest.ref.current = el;
-                                                        }}
-                                                        name={rest.name}
-                                                        onBlur={rest.onBlur}
-                                                        disabled={rest.disabled}
+                                                        {...rest} // Spread remaining field props
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -2000,7 +2185,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                 } else {
                                                     rhfOnChange(null);
                                                 }
-                                                handleAudioFileSelect(e); // For setting selectedAudioFile if still needed elsewhere
+                                                handleAudioFileSelect(e); 
                                             }}
                                             ref={el => { 
                                                 if (typeof rhfRef === 'function') rhfRef(el);
@@ -2340,7 +2525,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             <AlertDialogTitleComponent>Confirmar Exclusão (90 Bolas)</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Você tem certeza que deseja apagar TODAS as cartelas de 90 bolas geradas desta lista?
-              Esta ação é apenas local e não afeta o banco de dados.
+              Esta ação removerá os dados do banco de dados permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2348,8 +2533,10 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             <AlertDialogAction
               onClick={handleConfirmDeleteAll90BallCards}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isDeleting90BallCards}
             >
-              Apagar Tudo (90 Bolas - Local)
+               {isDeleting90BallCards ? <LoadingSpinner size="sm" className="mr-2"/> : null}
+              Apagar Tudo (90 Bolas - DB)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2361,7 +2548,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             <AlertDialogTitleComponent>Confirmar Exclusão (75 Bolas)</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Você tem certeza que deseja apagar TODAS as cartelas de 75 bolas geradas desta lista?
-              Esta ação é apenas local e não afeta o banco de dados.
+              Esta ação removerá os dados do banco de dados permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2369,8 +2556,10 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             <AlertDialogAction
               onClick={handleConfirmDeleteAll75BallCards}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isDeleting75BallCards}
             >
-              Apagar Tudo (75 Bolas - Local)
+              {isDeleting75BallCards ? <LoadingSpinner size="sm" className="mr-2"/> : null}
+              Apagar Tudo (75 Bolas - DB)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2379,3 +2568,5 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
   );
 }
 
+
+    

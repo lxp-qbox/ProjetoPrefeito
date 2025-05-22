@@ -19,10 +19,15 @@ import {
   arrayUnion, 
   arrayRemove, 
   increment,
-  Timestamp, // Imported Timestamp
-  addDoc, // Imported addDoc
-  onSnapshot, // Imported onSnapshot
-  orderBy // Imported orderBy
+  Timestamp, 
+  addDoc, 
+  onSnapshot, 
+  orderBy,
+  limit, 
+  startAfter,
+  documentId,
+  getCountFromServer,
+  deleteField // Import deleteField from firestore
 } from "firebase/firestore";
 import {
   getStorage,
@@ -38,6 +43,7 @@ import {
 const firebaseConfig = {
   apiKey: "AIzaSyC2q1UTbiF9gz7_9r3oWlmf22f30S-zCOY",
   authDomain: "agency-3852d.firebaseapp.com",
+  databaseURL: "https://agency-3852d-default-rtdb.firebaseio.com",
   projectId: "agency-3852d",
   storageBucket: "agency-3852d.firebasestorage.app",
   messagingSenderId: "547405510107",
@@ -88,13 +94,19 @@ export {
   arrayUnion,
   arrayRemove,
   increment,
-  Timestamp, // Exporting Timestamp
-  addDoc, // Exporting addDoc
-  onSnapshot, // Exporting onSnapshot
-  orderBy, // Exporting orderBy
-  storage, // Exporting storage
-  storageRef, // Exporting storageRef
-  uploadBytesResumable, // Exporting uploadBytesResumable
-  getDownloadURL, // Exporting getDownloadURL
-  deleteFileStorage // Exporting deleteFileStorage
+  Timestamp, 
+  addDoc, 
+  onSnapshot, 
+  orderBy, 
+  limit,
+  startAfter,
+  documentId,
+  getCountFromServer,
+  deleteField, // Export deleteField
+  storage, 
+  storageRef, 
+  uploadBytesResumable, 
+  getDownloadURL, 
+  deleteFileStorage 
 };
+
