@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react"; // Added React import
+import React from "react"; // Ensure React is imported
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
   XCircle,
   Database,
   Link as LinkIcon,
-  Ticket as TicketIcon,
+  Ticket as TicketIcon, // Alias for Bingo Admin menu
   MailQuestion,
   ServerOff,
   RefreshCw,
@@ -35,7 +35,7 @@ import {
   PlusCircle, 
   ListChecks, 
   Settings as SettingsIconLucide,
-  Gift as GiftIconLucide
+  Gift as GiftIconLucide // For "Lista de Presentes" in Kako Live section
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -65,12 +65,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>(pathname); // Used to manage active state
+  const [activeLink, setActiveLink] = useState<string>(pathname);
 
   useEffect(() => {
-    setActiveTab(pathname);
+    setActiveLink(pathname);
   }, [pathname]);
-
 
   const adminMenuGroups: AdminMenuGroup[] = [
     {
@@ -140,10 +139,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       item.action();
     } else if (item.link) {
       router.push(item.link);
-      // setActiveTab is updated by useEffect watching pathname
+      setActiveLink(item.link);
     }
   };
-
 
   if (!currentUser || !currentUser.adminLevel) {
     return (
@@ -162,7 +160,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // If the path is specifically /admin/bingo-admin, render only its children to allow it to have its own full-page layout with internal menu.
   if (pathname === '/admin/bingo-admin') {
     return (
       <ProtectedPage>
@@ -176,90 +173,90 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedPage>
       <TooltipProvider delayDuration={0}>
-        <div className="flex flex-col h-full">
-          <div className="flex-grow flex flex-col md:flex-row gap-0 overflow-hidden">
-            <nav className={cn(
-              "flex flex-col flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto transition-all duration-300 ease-in-out",
-              isCollapsed ? "w-20" : "md:w-80"
-            )}>
-              <div className="p-4 space-y-4 flex-grow">
-                {adminMenuGroups.map((group, groupIndex) => (
-                  <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
-                    {group.groupTitle && !isCollapsed && (
-                      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                        {group.groupTitle}
-                      </h2>
-                    )}
-                     {group.groupTitle && isCollapsed && (
-                        <div className="flex justify-center my-3">
-                           <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                        </div>
-                    )}
-                    <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
-                      {group.items.map((item) => {
-                        const isActive = activeTab === item.link || (item.link === "/admin" && pathname === "/admin/hosts");
-                        
-                        return (
-                          <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className={cn(
-                                  "w-full text-left h-auto text-sm font-normal rounded-md transition-all duration-300 ease-in-out",
-                                  isActive
-                                    ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                                    : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
-                                  isCollapsed
-                                    ? "flex items-center justify-center p-3 h-14"
-                                    : "justify-between py-3 px-3" 
-                                )}
-                                onClick={() => handleMenuClick(item)}
-                              >
-                                <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
-                                    <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
-                                        <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
-                                        {!isCollapsed && item.title}
+        <div className="flex flex-col md:flex-row h-full gap-0 overflow-hidden">
+          <nav className={cn(
+            "flex flex-col flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto transition-all duration-300 ease-in-out",
+            isCollapsed ? "w-20" : "md:w-80"
+          )}>
+            <div className="p-4 space-y-4 flex-grow">
+              {adminMenuGroups.map((group, groupIndex) => (
+                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
+                  {group.groupTitle && !isCollapsed && (
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                      {group.groupTitle}
+                    </h2>
+                  )}
+                   {group.groupTitle && isCollapsed && (
+                      <div className="flex justify-center my-3">
+                         <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                      </div>
+                  )}
+                  <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
+                    {group.items.map((item) => {
+                      const isActive = activeLink === item.link || (item.link === "/admin" && pathname === "/admin/hosts" && activeLink === "/admin");
+                      
+                      return (
+                        <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className={cn(
+                                "w-full text-left h-auto text-sm font-normal rounded-md transition-all duration-300 ease-in-out",
+                                isActive
+                                  ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                                  : "text-card-foreground hover:bg-card/80 hover:text-card-foreground bg-card shadow-sm",
+                                isCollapsed
+                                  ? "flex items-center justify-center p-3 h-14"
+                                  : "justify-between py-3 px-3" 
+                              )}
+                              onClick={() => handleMenuClick(item)}
+                            >
+                              <div className={cn("flex items-center w-full", isCollapsed ? "justify-center" : "")}>
+                                  <div className={cn("flex items-center", isCollapsed ? "" : "gap-2.5")}>
+                                      <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
+                                      {!isCollapsed && item.title}
+                                  </div>
+                                  {!isCollapsed && !item.action && item.link !== "/support" && item.link !== "/admin/bingo-admin" ? (
+                                    <div className="flex items-center ml-auto">
+                                      {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </div>
-                                    {!isCollapsed && !item.action && item.link !== "/support" ? (
-                                      <div className="flex items-center ml-auto">
-                                        {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                      </div>
-                                    ) : null }
-                                </div>
-                              </Button>
-                            </TooltipTrigger>
-                            {isCollapsed && (
-                              <TooltipContent side="right" className="bg-foreground text-background">
-                                <p>{item.title}</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
+                                  ) : null }
+                              </div>
+                            </Button>
+                          </TooltipTrigger>
+                          {isCollapsed && (
+                            <TooltipContent side="right" className="bg-foreground text-background">
+                              <p>{item.title}</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-              <div className="p-4 border-t border-border">
-                <Button
-                  variant="ghost"
-                  onClick={toggleAdminSidebar}
-                  className="w-full flex items-center justify-center"
-                >
-                  {isCollapsed ? <PanelRightOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-                  {!isCollapsed && <span className="ml-2 text-sm">{isCollapsed ? "Expandir" : "Recolher"}</span>}
-                  <span className="sr-only">{isCollapsed ? "Expandir menu" : "Recolher menu"}</span>
-                </Button>
-              </div>
-            </nav>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-border">
+              <Button
+                variant="ghost"
+                onClick={toggleAdminSidebar}
+                className="w-full flex items-center justify-center"
+              >
+                {isCollapsed ? <PanelRightOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                {!isCollapsed && <span className="ml-2 text-sm">{isCollapsed ? "Expandir" : "Recolher"}</span>}
+                <span className="sr-only">{isCollapsed ? "Expandir menu" : "Recolher menu"}</span>
+              </Button>
+            </div>
+          </nav>
 
-            <main className="flex-grow h-full overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          <main className="flex-grow h-full overflow-y-auto">
+            {children}
+          </main>
         </div>
       </TooltipProvider>
     </ProtectedPage>
   );
 }
+
+    
