@@ -91,19 +91,12 @@ const giftFormSchema = z.object({
     .refine(files => !files || !files?.[0] || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
   diamond: z.preprocess(
     (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
-    z.number({ invalid_type_error: "Diamantes deve ser um número" }).int("Diamantes deve ser um número inteiro.").positive("Diamantes deve ser um número positivo.").optional()
+    z.number({ invalid_type_error: "Diamantes deve ser um número" }).int("Diamantes deve ser um número inteiro.").min(0, "Diamantes deve ser zero ou positivo.").optional()
   ),
   display: z.boolean().default(true),
 }).superRefine((data, ctx) => {
-  if (!data.imageUrl && (!data.imageFile || data.imageFile.length === 0)) {
-    // This condition applies more strictly for ADDING. For EDITING, an image might already exist.
-    // For now, let's keep it simple. A more complex logic could check if it's an edit and an imageUrl already exists.
-    // ctx.addIssue({
-    //   code: z.ZodIssueCode.custom,
-    //   message: "Forneça uma URL da imagem ou selecione um arquivo para upload.",
-    //   path: ["imageUrl"], // Or path: ["imageFile"]
-    // });
-  }
+  // This refine is more for ADDING a new gift. For editing, an image might already exist even if not newly provided.
+  // The form submission logic will handle image presence more robustly.
 });
 
 type GiftFormValues = z.infer<typeof giftFormSchema>;
@@ -170,7 +163,6 @@ export default function AdminKakoLiveGiftsPageContent() {
       const batch = writeBatch(db);
       let count = 0;
       querySnapshot.docs.forEach((docSnap) => {
-        // Also attempt to delete associated image from storage if storagePath exists
         const giftData = docSnap.data() as KakoGift;
         if (giftData.storagePath) {
           try {
@@ -181,9 +173,6 @@ export default function AdminKakoLiveGiftsPageContent() {
         }
         batch.delete(docSnap.ref);
         count++;
-        if (count % 499 === 0) {
-          // Consider committing partial batches if needed for very large collections
-        }
       });
       await batch.commit();
       setKakoGifts([]);
@@ -215,7 +204,7 @@ export default function AdminKakoLiveGiftsPageContent() {
   const editGiftForm = useForm<GiftFormValues>({
     resolver: zodResolver(giftFormSchema),
     defaultValues: {
-      id: "", // Will be pre-filled and read-only
+      id: "", 
       name: "",
       imageUrl: "",
       imageFile: null,
@@ -226,16 +215,27 @@ export default function AdminKakoLiveGiftsPageContent() {
 
 
   const onSubmitNewGift = async (values: GiftFormValues) => {
+    console.log("Submitting new gift:", values);
     setAddImageUploadProgress(null);
     let imageUrlToSave = values.imageUrl || "";
     let storagePathToSave: string | undefined = undefined;
 
     try {
+      const giftDocRef = doc(db, "kakoGifts", values.id);
+      const docSnap = await getDoc(giftDocRef);
+
+      if (docSnap.exists()) {
+        toast({ title: "ID de Presente já Existe", description: `O ID '${values.id}' já está em uso.`, variant: "destructive" });
+        setAddImageUploadProgress(null);
+        return;
+      }
+
       if (values.imageFile && values.imageFile.length > 0) {
         const file = values.imageFile[0];
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `kakoGiftsImages/${values.id}-${Date.now()}-${sanitizedFileName}`;
         const fileStorageRef = storageRef(storage, filePath);
+        console.log("Uploading new gift image to:", filePath);
 
         setAddImageUploadProgress(0);
         const uploadTask = uploadBytesResumable(fileStorageRef, file);
@@ -243,23 +243,23 @@ export default function AdminKakoLiveGiftsPageContent() {
         const uploadedUrlAndPath = await new Promise<{ url: string, path: string }>((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setAddImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => { console.error("Upload failed:", error); reject(error); },
-            async () => { try { const url = await getDownloadURL(uploadTask.snapshot.ref); resolve({ url, path: filePath }); } catch (error) { reject(error); } }
+            (error) => { console.error("New gift image upload failed:", error); reject(error); },
+            async () => { 
+              try { 
+                const url = await getDownloadURL(uploadTask.snapshot.ref); 
+                console.log("New gift image uploaded, URL:", url);
+                resolve({ url, path: filePath }); 
+              } catch (error) { 
+                console.error("Failed to get download URL for new gift image:", error);
+                reject(error); 
+              } 
+            }
           );
         });
         imageUrlToSave = uploadedUrlAndPath.url;
         storagePathToSave = uploadedUrlAndPath.path;
       } else if (!values.imageUrl) {
         toast({ title: "Imagem Obrigatória", description: "Forneça uma URL de imagem ou selecione um arquivo.", variant: "destructive" });
-        setAddImageUploadProgress(null);
-        return;
-      }
-
-      const giftDocRef = doc(db, "kakoGifts", values.id);
-      const docSnap = await getDoc(giftDocRef);
-
-      if (docSnap.exists()) {
-        toast({ title: "ID de Presente já Existe", description: `O ID '${values.id}' já está em uso.`, variant: "destructive" });
         setAddImageUploadProgress(null);
         return;
       }
@@ -273,16 +273,17 @@ export default function AdminKakoLiveGiftsPageContent() {
         display: values.display,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        dataAiHint: values.name.toLowerCase().split(" ")[0] || "gift icon",
+        dataAiHint: values.name.toLowerCase().split(" ").find(word => word.length > 0) || "gift icon",
       };
+      console.log("Saving new gift data to Firestore:", newGiftData);
       await setDoc(giftDocRef, newGiftData);
       toast({ title: "Presente Cadastrado!", description: `O presente '${values.name}' foi salvo.` });
       setIsAddGiftDialogOpen(false);
       addGiftForm.reset();
-      fetchKakoGifts();
+      fetchKakoGifts(); // Refresh list
     } catch (error) {
       console.error("Erro ao cadastrar presente:", error);
-      toast({ title: "Erro ao Cadastrar", description: "Não foi possível salvar o presente.", variant: "destructive" });
+      toast({ title: "Erro ao Cadastrar", description: `Não foi possível salvar o presente. ${error instanceof Error ? error.message : ''}`, variant: "destructive" });
     } finally {
       setAddImageUploadProgress(null);
       if (addGiftImageFileRef.current) addGiftImageFileRef.current.value = "";
@@ -295,7 +296,7 @@ export default function AdminKakoLiveGiftsPageContent() {
       id: gift.id,
       name: gift.name,
       imageUrl: gift.imageUrl || "",
-      imageFile: null, // Reset file input
+      imageFile: null, 
       diamond: gift.diamond ?? undefined,
       display: gift.display ?? true,
     });
@@ -304,7 +305,12 @@ export default function AdminKakoLiveGiftsPageContent() {
   };
 
   const onSubmitEditGift = async (values: GiftFormValues) => {
-    if (!giftToEdit) return;
+    console.log("Submitting edited gift:", values);
+    if (!giftToEdit) {
+      console.error("giftToEdit is null in onSubmitEditGift");
+      toast({ title: "Erro", description: "Nenhum presente selecionado para edição.", variant: "destructive" });
+      return;
+    }
     setEditImageUploadProgress(null);
 
     let imageUrlToSave = giftToEdit.imageUrl;
@@ -314,13 +320,13 @@ export default function AdminKakoLiveGiftsPageContent() {
     try {
       if (values.imageFile && values.imageFile.length > 0) {
         const file = values.imageFile[0];
-        // If replacing an existing uploaded image, mark old one for deletion
         if (giftToEdit.storagePath) {
           oldStoragePathToDelete = giftToEdit.storagePath;
         }
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const filePath = `kakoGiftsImages/${giftToEdit.id}-${Date.now()}-${sanitizedFileName}`;
         const fileStorageRef = storageRef(storage, filePath);
+        console.log("Uploading edited gift image to:", filePath);
 
         setEditImageUploadProgress(0);
         const uploadTask = uploadBytesResumable(fileStorageRef, file);
@@ -328,30 +334,43 @@ export default function AdminKakoLiveGiftsPageContent() {
         const uploadedUrlAndPath = await new Promise<{ url: string, path: string }>((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setEditImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => { console.error("Upload failed:", error); reject(error); },
-            async () => { try { const url = await getDownloadURL(uploadTask.snapshot.ref); resolve({ url, path: filePath }); } catch (e) { reject(e); } }
+            (error) => { console.error("Edited gift image upload failed:", error); reject(error); },
+            async () => { 
+              try { 
+                const url = await getDownloadURL(uploadTask.snapshot.ref); 
+                console.log("Edited gift image uploaded, URL:", url);
+                resolve({ url, path: filePath }); 
+              } catch (e) { 
+                console.error("Failed to get download URL for edited gift image:", e);
+                reject(e); 
+              } 
+            }
           );
         });
         imageUrlToSave = uploadedUrlAndPath.url;
         storagePathToSave = uploadedUrlAndPath.path;
 
-        // Delete the old file from storage if it existed and a new one was uploaded
         if (oldStoragePathToDelete) {
+          console.log("Attempting to delete old image from storage:", oldStoragePathToDelete);
           try {
             await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+            console.log("Old image deleted successfully.");
           } catch (delError: any) {
              if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar imagem antiga do Storage:", delError);
+             else console.log("Old image not found, no deletion needed.");
           }
         }
-      } else if (values.imageUrl !== giftToEdit.imageUrl) {
-        // Image URL text field was changed, and no new file was uploaded
-        imageUrlToSave = values.imageUrl || ""; // Ensure empty string if cleared
-        // If there was a previously uploaded image, and now we're using an external URL, delete the stored image
-        if (giftToEdit.storagePath) {
+      } else if (values.imageUrl !== giftToEdit.imageUrl) { // If text URL changed and no new file
+        imageUrlToSave = values.imageUrl || ""; 
+        if (giftToEdit.storagePath) { // If previous image was an upload, delete it
+          oldStoragePathToDelete = giftToEdit.storagePath;
+          console.log("Image URL changed to text, attempting to delete old stored image:", oldStoragePathToDelete);
           try {
-            await deleteFileStorage(storageRef(storage, giftToEdit.storagePath));
+            await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+            console.log("Old stored image deleted successfully.");
           } catch (delError: any) {
              if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar imagem antiga do Storage ao mudar para URL externa:", delError);
+             else console.log("Old stored image not found, no deletion needed.");
           }
         }
         storagePathToSave = undefined; // No longer an app-uploaded file
@@ -364,19 +383,33 @@ export default function AdminKakoLiveGiftsPageContent() {
         diamond: values.diamond ?? null,
         display: values.display,
         updatedAt: serverTimestamp(),
-        dataAiHint: values.name.toLowerCase().split(" ")[0] || "gift icon",
+        dataAiHint: values.name.toLowerCase().split(" ").find(word => word.length > 0) || "gift icon",
       };
-
+      console.log("Updating gift data in Firestore:", giftToEdit.id, updatedGiftData);
       await setDoc(doc(db, "kakoGifts", giftToEdit.id), updatedGiftData, { merge: true });
       toast({ title: "Presente Atualizado!", description: `O presente '${values.name}' foi atualizado.` });
       
-      setKakoGifts(prev => prev.map(g => g.id === giftToEdit.id ? { ...giftToEdit, ...updatedGiftData, updatedAt: new Date() } : g));
+      // Update local state
+      const localUpdatedAt = new Date(); // Use current date for local state
+      setKakoGifts(prev => prev.map(g => g.id === giftToEdit!.id 
+        ? { 
+            ...giftToEdit!, // Keep existing fields like createdAt
+            name: updatedGiftData.name!,
+            imageUrl: updatedGiftData.imageUrl,
+            storagePath: updatedGiftData.storagePath,
+            diamond: updatedGiftData.diamond,
+            display: updatedGiftData.display!,
+            dataAiHint: updatedGiftData.dataAiHint,
+            updatedAt: localUpdatedAt, 
+          } 
+        : g
+      ));
       setIsEditGiftDialogOpen(false);
       editGiftForm.reset();
 
     } catch (error) {
       console.error("Erro ao atualizar presente:", error);
-      toast({ title: "Erro ao Atualizar", description: "Não foi possível salvar as alterações.", variant: "destructive" });
+      toast({ title: "Erro ao Atualizar", description: `Não foi possível salvar as alterações. ${error instanceof Error ? error.message : ''}`, variant: "destructive" });
     } finally {
       setEditImageUploadProgress(null);
        if (editGiftImageFileRef.current) editGiftImageFileRef.current.value = "";
@@ -387,7 +420,6 @@ export default function AdminKakoLiveGiftsPageContent() {
   return (
     <>
       <div className="space-y-6 h-full flex flex-col p-6">
-        {/* Stat Cards */}
         <div className="grid grid-cols-1 gap-4">
           <StatCard title="Total de Presentes (DB)" count={isLoadingGifts ? '...' : kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
         </div>
@@ -396,7 +428,7 @@ export default function AdminKakoLiveGiftsPageContent() {
           <CardHeader className="flex flex-row justify-between items-center">
             <div>
               <CardTitle className="flex items-center"><GiftIconLucide className="mr-2 h-5 w-5 text-primary" /> Lista de Presentes Cadastrados</CardTitle>
-              <CardDescription>Presentes recuperados do banco de dados 'kakoGifts'.</CardDescription>
+              <CardDescription>Presentes disponíveis no sistema, recuperados do banco de dados 'kakoGifts'.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Dialog open={isAddGiftDialogOpen} onOpenChange={(open) => {
@@ -442,17 +474,30 @@ export default function AdminKakoLiveGiftsPageContent() {
                       <FormField control={addGiftForm.control} name="imageFile"
                          render={({ field: { onChange, value, ref: rhfRef, ...rest } }) => (
                           <FormItem>
-                              <FormLabel>Arquivo da Imagem (Opcional, máx 2MB)</FormLabel>
+                              <FormLabel>Arquivo da Imagem (Máx 2MB)</FormLabel>
                               <FormControl>
                                   <Input type="file" accept="image/*"
                                     ref={el => {
                                         if (typeof rhfRef === 'function') rhfRef(el);
-                                        // @ts-ignore - For direct ref assignment
+                                        // @ts-ignore 
                                         else if (rhfRef) rhfRef.current = el;
                                         addGiftImageFileRef.current = el;
                                     }}
-                                    onChange={(e) => onChange(e.target.files)}
-                                    {...rest}
+                                    onChange={(e) => {
+                                      const files = e.target.files;
+                                      if (files && files[0] && files[0].size > 2 * 1024 * 1024) {
+                                          addGiftForm.setError("imageFile", {type: "manual", message: "Imagem muito grande (máx 2MB)."});
+                                          onChange(null);
+                                      } else if (files && files[0] && !files[0].type.startsWith("image/")) {
+                                          addGiftForm.setError("imageFile", {type: "manual", message: "O arquivo deve ser uma imagem."});
+                                          onChange(null);
+                                      } else {
+                                          addGiftForm.clearErrors("imageFile");
+                                          onChange(files);
+                                      }
+                                    }}
+                                    name={rest.name}
+                                    onBlur={rest.onBlur}
                                   />
                               </FormControl>
                               <FormMessage />
@@ -469,9 +514,9 @@ export default function AdminKakoLiveGiftsPageContent() {
                       <FormField control={addGiftForm.control} name="imageUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>OU URL da Imagem do Presente</FormLabel>
+                            <FormLabel>OU URL da Imagem do Presente (se não for fazer upload)</FormLabel>
                             <FormControl><Input placeholder="https://..." {...field} /></FormControl>
-                            <FormDesc>Use se não for fazer upload de um arquivo.</FormDesc>
+                            <FormDesc>Use se não for fazer upload de um arquivo. Se ambos forem fornecidos, o arquivo enviado terá prioridade.</FormDesc>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -605,7 +650,7 @@ export default function AdminKakoLiveGiftsPageContent() {
                  <FormField control={editGiftForm.control} name="imageFile"
                     render={({ field: { onChange, value, ref: rhfRef, ...rest } }) => (
                       <FormItem>
-                          <FormLabel>Enviar Nova Imagem (Opcional, substitui URL/imagem existente)</FormLabel>
+                          <FormLabel>Enviar Nova Imagem (Opcional, máx 2MB, substitui URL/imagem existente)</FormLabel>
                           <FormControl>
                               <Input type="file" accept="image/*"
                                 ref={el => {
@@ -615,15 +660,23 @@ export default function AdminKakoLiveGiftsPageContent() {
                                     editGiftImageFileRef.current = el;
                                 }}
                                 onChange={(e) => {
-                                    onChange(e.target.files);
-                                    if (e.target.files && e.target.files[0]) {
-                                      // No need to setEditImageFile here, form state handles it
+                                    const files = e.target.files;
+                                    if (files && files[0] && files[0].size > 2 * 1024 * 1024) {
+                                        editGiftForm.setError("imageFile", {type: "manual", message: "Imagem muito grande (máx 2MB)."});
+                                        onChange(null);
+                                    } else if (files && files[0] && !files[0].type.startsWith("image/")) {
+                                        editGiftForm.setError("imageFile", {type: "manual", message: "O arquivo deve ser uma imagem."});
+                                        onChange(null);
+                                    } else {
+                                        editGiftForm.clearErrors("imageFile");
+                                        onChange(files);
                                     }
                                 }}
-                                {...rest}
+                                name={rest.name}
+                                onBlur={rest.onBlur}
                               />
                           </FormControl>
-                           {giftToEdit && giftToEdit.imageUrl && !value?.[0] && (
+                           {giftToEdit && giftToEdit.imageUrl && (!editGiftForm.getValues('imageFile') || editGiftForm.getValues('imageFile')?.length === 0) && (
                             <div className="mt-2 text-xs text-muted-foreground">
                                 Imagem atual: <NextImage src={giftToEdit.imageUrl} alt="Imagem atual" width={32} height={32} className="inline-block rounded ml-1" data-ai-hint="current image" />
                             </div>
@@ -644,7 +697,7 @@ export default function AdminKakoLiveGiftsPageContent() {
                     <FormItem>
                       <FormLabel>OU URL da Imagem</FormLabel>
                       <FormControl><Input placeholder="https://..." {...field} /></FormControl>
-                       <FormDesc>Deixe em branco se estiver enviando um novo arquivo.</FormDesc>
+                       <FormDesc>Deixe em branco se estiver enviando um novo arquivo. Se ambos forem fornecidos, o arquivo enviado terá prioridade.</FormDesc>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -708,3 +761,5 @@ export default function AdminKakoLiveGiftsPageContent() {
     </>
   );
 }
+
+    
