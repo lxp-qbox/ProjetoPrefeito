@@ -27,7 +27,7 @@ import {
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIconLucide, Edit2,
-  UploadCloud, Music2, Image as ImageIconLucide
+  UploadCloud, Music2, Image as ImageIconLucide, Volume2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types';
@@ -205,6 +205,7 @@ export default function AdminBingoAdminPage() {
       groupTitle: "CONFIGURAÇÕES",
       items: [
         { id: "bingoBolasConfig", title: "Bolas do Bingo", icon: SettingsIconLucide, link: "#bingoBolasConfig" },
+        { id: "bingoAudiosPartida", title: "Áudios da Partida", icon: Volume2, link: "#bingoAudiosPartida" },
       ],
     }
   ];
@@ -810,7 +811,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)} disabled={!card.cardNumbers || card.cardNumbers.length !== 5}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -882,7 +883,7 @@ export default function AdminBingoAdminPage() {
                             <TableCell className="text-center">{card.usageHistory.length}</TableCell>
                             <TableCell className="text-center">{card.timesAwarded > 0 ? `${card.timesAwarded}x` : 'Não'}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)}>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleViewCardDetails(card)} disabled={!card.cardNumbers || card.cardNumbers.length !== 3}>
                                 <FileJson className="mr-1.5 h-3 w-3" /> Ver Detalhes
                               </Button>
                             </TableCell>
@@ -1242,6 +1243,47 @@ export default function AdminBingoAdminPage() {
             </Card>
           </div>
         );
+      case 'bingoAudiosPartida':
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Volume2 className="mr-2 h-6 w-6 text-primary" />
+                  Gerenciamento de Áudios da Partida
+                </CardTitle>
+                <CardDescription>
+                  Defina os áudios para eventos chave da partida de bingo. (Funcionalidade de upload em desenvolvimento)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[calc(100vh-350px)]">
+                  <div className="space-y-3 pr-2">
+                    {[
+                      { id: 'audioInicio', label: 'Início da Partida' },
+                      { id: 'audioPausada', label: 'Partida Pausada' },
+                      { id: 'audioContinuando', label: 'Partida Continuando' },
+                      { id: 'audioVencedor', label: 'Temos um Vencedor!' },
+                      { id: 'audioFimPartida', label: 'Fim da Partida' },
+                    ].map((audioEvent) => (
+                      <div key={audioEvent.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <span className="font-medium">{audioEvent.label}</span>
+                        <div className="flex items-center space-x-2">
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: `Definir Áudio: ${audioEvent.label}`, description: `Funcionalidade em breve.`})}>
+                             <UploadCloud className="mr-1.5 h-3 w-3" /> Upload Áudio
+                          </Button>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => toast({title: `Remover Áudio: ${audioEvent.label}`, description: `Funcionalidade em breve.`})}>
+                             <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        );
       default:
         const currentItem = bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab);
         return (
@@ -1497,3 +1539,4 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
+
