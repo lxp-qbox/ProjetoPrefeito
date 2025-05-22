@@ -7,17 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Save, Settings2 as Settings2Icon } from 'lucide-react';
+import { Save, Settings2 as Settings2Icon, RadioTower, ExternalLink, Info } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import type { WalletConfig } from '@/types';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function AdminWalletsConfigPage() {
   const [config, setConfig] = useState<WalletConfig>({
     autoAddDiamondsOnGift: false,
     autoAddThreshold: 10,
+    enableDonationsToHostWalletsForLinkedRooms: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,9 +33,13 @@ export default function AdminWalletsConfigPage() {
     try {
       const docSnap = await getDoc(configDocRef);
       if (docSnap.exists()) {
-        setConfig(docSnap.data() as WalletConfig);
+        const data = docSnap.data() as WalletConfig;
+        setConfig({
+          autoAddDiamondsOnGift: data.autoAddDiamondsOnGift ?? false,
+          autoAddThreshold: data.autoAddThreshold ?? 10,
+          enableDonationsToHostWalletsForLinkedRooms: data.enableDonationsToHostWalletsForLinkedRooms ?? false,
+        });
       } else {
-        // If no config exists, save initial defaults to Firestore
         await setDoc(configDocRef, { ...config, lastUpdatedAt: serverTimestamp() });
         toast({ title: "Configuração Inicial", description: "Configurações padrão da carteira foram salvas."});
       }
@@ -42,12 +49,12 @@ export default function AdminWalletsConfigPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [configDocRef, toast, config]); // Added config to dependencies to ensure defaults are saved if not present
+  }, [configDocRef, config, toast]); // Added config to dependencies of fetchConfig
 
   useEffect(() => {
     fetchConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Fetch config only on mount
+  }, []); 
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
@@ -115,6 +122,23 @@ export default function AdminWalletsConfigPage() {
               </p>
             </div>
           )}
+
+          <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">
+            <Switch
+              id="enableDonationsToHostWallets"
+              checked={config.enableDonationsToHostWalletsForLinkedRooms}
+              onCheckedChange={(checked) => setConfig(prev => ({ ...prev, enableDonationsToHostWalletsForLinkedRooms: checked }))}
+            />
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="enableDonationsToHostWallets" className="text-sm font-medium cursor-pointer">
+                Habilitar Doações para Carteiras de Hosts com Salas Vinculadas
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Se ativo, doações (presentes convertidos em diamantes) feitas em lives de hosts que possuem um RoomID cadastrado em &quot;Salas de Bingo&quot; serão creditadas nas carteiras desses hosts.
+              </p>
+            </div>
+          </div>
+
         </CardContent>
         <CardFooter className="border-t pt-6">
           <Button onClick={handleSaveConfig} disabled={isSaving}>
@@ -123,8 +147,38 @@ export default function AdminWalletsConfigPage() {
           </Button>
         </CardFooter>
       </Card>
+
+       <Card className="shadow-lg mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <RadioTower className="mr-2 h-5 w-5 text-primary" />
+            Gerenciamento de RoomIDs de Hosts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Para que o sistema identifique corretamente as lives dos hosts e possa processar doações para suas carteiras (se a opção acima estiver habilitada),
+            os RoomIDs das salas de transmissão desses hosts devem estar cadastrados e ativos na seção &quot;Salas de Bingo&quot;.
+          </p>
+          <Button variant="outline" asChild>
+            <Link href="/admin/bingo-admin#bingoSalas">
+              <RadioTower className="mr-2 h-4 w-4" /> Ir para Salas de Bingo
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+
        <div className="mt-auto pt-6 text-xs text-muted-foreground">
-        <p><strong>Nota:</strong> A lógica real para adicionar diamantes automaticamente com base nessas configurações precisaria ser implementada em um backend (por exemplo, Firebase Cloud Functions) que processa eventos de presentes e consulta estas configurações.</p>
+        <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Nota Importante</AlertTitle>
+            <AlertDescription>
+                A lógica real para adicionar diamantes automaticamente ou processar doações com base nessas configurações precisaria ser implementada em um backend 
+                (por exemplo, Firebase Cloud Functions) que processa eventos de presentes do Kako Live e consulta estas configurações. 
+                Esta interface apenas salva as preferências.
+            </AlertDescription>
+        </Alert>
       </div>
     </div>
   );

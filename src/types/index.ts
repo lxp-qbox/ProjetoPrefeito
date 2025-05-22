@@ -24,7 +24,6 @@ export interface Game {
 
   drawnBalls?: number[];
   lastDrawnBall?: number | null;
-  // gamePatternToWin?: string; // Example: "line", "full_house" - for 75-ball mainly
 
   winners?: GameWinner[];
 
@@ -60,27 +59,27 @@ export interface ReceivedGift {
 }
 
 export interface Host {
-  id: string; // This is the App User ID (UID from Firebase Auth)
+  id: string; 
   rankPosition: number;
-  name: string; // This should be UserProfile.profileName or displayName
-  avatarUrl: string; // This should be UserProfile.photoURL
+  name: string; 
+  avatarUrl: string; 
   dataAiHint?: string;
   avgViewers: number;
   timeStreamed: number;
   allTimePeakViewers: number;
   hoursWatched: string;
-  rank?: number; // This could be UserProfile.level if sourced from KakoProfile
+  rank?: number; 
   followersGained: number;
-  totalFollowers: string; // Could be UserProfile.followerCount
+  totalFollowers: string; 
   totalViews: string;
-  kakoLiveFuid?: string; // This is the FUID from Kako, stored in UserProfile.kakoLiveId
-  kakoLiveRoomId?: string; // Stored in UserProfile if specific to the host's primary room
-  bio?: string; // UserProfile.bio
+  kakoLiveFuid?: string; 
+  kakoLiveRoomId?: string; 
+  bio?: string; 
   streamTitle?: string;
   likes?: number;
   giftsReceived?: ReceivedGift[];
-  createdAt?: any; // UserProfile.createdAt
-  lastSeen?: any; // UserProfile.updatedAt or a specific last_active field
+  createdAt?: any; 
+  lastSeen?: any; 
   source?: 'kakoLive' | 'manual';
   totalDonationsValue?: number;
 }
@@ -91,13 +90,13 @@ export interface UserProfile {
   role?: 'player' | 'host';
   adminLevel?: 'master' | 'admin' | 'suporte' | null;
 
-  showId?: string; // User-facing Kako Show ID
-  kakoLiveId?: string; // Technical FUID from Kako, linked from KakoProfile.id
-
-  profileName?: string; // App's primary display name, can be synced from KakoProfile.nickname
-  displayName?: string | null; // Firebase Auth display name
-  photoURL?: string | null; // App's primary avatar, can be synced from KakoProfile.avatarUrl
-  level?: number; // Synced from linked KakoProfile.level
+  showId?: string; 
+  kakoLiveId?: string; // FUID from Kako
+  
+  profileName?: string; 
+  displayName?: string | null; 
+  photoURL?: string | null; 
+  level?: number; // From linked KakoProfile
 
   hostStatus?: 'approved' | 'pending_review' | 'banned';
 
@@ -123,26 +122,24 @@ export interface UserProfile {
     twitch?: string;
   };
   themePreference?: 'light' | 'dark' | 'system';
-  accentColor?: string;
-  hasCompletedOnboarding?: boolean;
+  accentColor?: string; 
+  hasCompletedOnboarding?: boolean; 
   agreedToTermsAt?: any; // Firestore Timestamp
   createdAt?: any;
   updatedAt?: any;
-  kakoLiveRoomId?: string; // If a host has a default/primary room ID
 }
 
-// Represents a profile as fetched or stored from Kako Live itself
 export interface KakoProfile {
   id: string; // FUID - This is the document ID in 'kakoProfiles' Firestore collection
   numId?: number;
   nickname: string;
   avatarUrl: string; // Mapped from 'avatar' in Kako API
-  level: number;
+  level?: number;
   signature?: string;
   gender?: number; // 1 for male, 2 for female
   area?: string;
   school?: string;
-  showId: string; // User-facing Show ID from Kako
+  showId: string; 
   isLiving?: boolean;
   roomId?: string;
   lastFetchedAt?: any; // Firestore Timestamp
@@ -151,13 +148,29 @@ export interface KakoProfile {
 export interface KakoGift {
   id: string; // This should be the giftId from Kako, used as the document ID in 'kakoGifts'.
   name: string;
-  imageUrl: string | null;
+  imageUrl: string | null; // Can be null if not yet set or not applicable
   storagePath?: string | null; // Path in Firebase Storage if uploaded by app
   diamond?: number | null;
   display?: boolean;
   createdAt?: any;
   updatedAt?: any;
   dataAiHint?: string;
+}
+
+export interface BingoPrize {
+  id?: string;
+  name: string;
+  type: 'kako_virtual' | 'cash' | 'other';
+  imageUrl?: string;
+  storagePath?: string; // For app-uploaded images
+  kakoGiftId?: string;
+  valueDisplay?: string;
+  description?: string;
+  isActive: boolean;
+  quantityAvailable?: number | null; // null for unlimited
+  createdAt: any;
+  updatedAt: any;
+  createdBy?: string; // UID of admin
 }
 
 
@@ -172,7 +185,7 @@ export interface ConversationPreview {
   id: string; // Firestore document ID of the conversation
   userId: string; // UID of the other participant
   userName: string;
-  userAvatar?: string | null; // Made optional to align with AppMessage
+  userAvatar?: string | null; 
   lastMessage: string;
   lastMessageTime: string;
   unreadCount?: number;
@@ -183,8 +196,8 @@ export interface ConversationPreview {
 export interface FirestoreConversation {
   id?: string; // Document ID
   participants: string[]; // Array of UIDs
-  participantNames: { [uid: string]: string }; // Denormalized names for quick display
-  participantAvatars: { [uid: string]: string | null }; // Denormalized avatars
+  participantNames: { [uid: string]: string }; 
+  participantAvatars: { [uid: string]: string | null }; 
   lastMessageText?: string;
   lastMessageTimestamp?: any; // Firestore Timestamp
   lastMessageSenderId?: string;
@@ -194,29 +207,25 @@ export interface FirestoreConversation {
 }
 
 export interface AppMessage {
-  id?: string; // Firestore document ID
+  id?: string; 
   conversationId: string;
-  senderId: string; // UID of the sender
-  senderName: string; // Denormalized sender name
-  senderAvatar?: string | null; // Denormalized sender avatar
+  senderId: string; 
+  senderName: string; 
+  senderAvatar?: string | null; 
   text: string;
-  timestamp: any; // Firestore Timestamp or Date object
+  timestamp: any; 
   imageUrl?: string;
-  isCurrentUser?: boolean; // UI flag
+  isCurrentUser?: boolean; 
   status?: 'sent' | 'delivered' | 'read';
-  gender?: number; // For nickname color
-  userMedalUrl?: string;
-  rawData?: string;
-  displayFormatted: boolean;
 }
 
 export interface FeedPost {
   id: string;
-  userId?: string; // UID of the post author from 'accounts' collection
-  user: UserSummary;
+  userId?: string; 
+  user: UserSummary; 
   postTitle?: string;
   content: string;
-  timestamp: any; // Firestore Timestamp or Date object
+  timestamp: any; 
   imageUrl?: string;
   imageAiHint?: string;
   stats: {
@@ -228,7 +237,7 @@ export interface FeedPost {
 
 export interface UserSummary {
   name: string;
-  handle: string; // e.g., @username or role
+  handle: string; 
   avatarUrl: string;
   dataAiHint?: string;
 }
@@ -244,21 +253,21 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; // Can be username or role/description
+  handle: string; 
   avatarUrl: string;
   dataAiHint?: string;
 }
 
 export interface BanEntry {
-  id: string; // Firestore document ID
-  userId: string; // UID of the banned user
-  userName?: string; // Denormalized name
-  userAvatar?: string | null; // Denormalized avatar
+  id: string; 
+  userId: string; 
+  userName?: string; 
+  userAvatar?: string | null; 
   reason: string;
-  bannedByUid: string; // UID of the admin who banned
-  bannedByName?: string; // Denormalized name of the admin
-  bannedAt: any; // Firestore Timestamp
-  expiresAt?: any | null; // Firestore Timestamp
+  bannedByUid: string; 
+  bannedByName?: string; 
+  bannedAt: any; 
+  expiresAt?: any | null; 
 }
 
 export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
@@ -287,13 +296,30 @@ export interface AwardInstance {
 }
 
 export interface GeneratedBingoCard {
-  id: string; // Firestore document ID
+  id: string; 
   cardNumbers: (number | null)[][];
-  creatorId: string; // UID of who generated it (e.g., admin UID or "system")
-  createdAt: any; // Firestore Timestamp
+  creatorId: string; 
+  createdAt: any; 
   usageHistory: CardUsageInstance[];
   timesAwarded: number;
   awardsHistory: AwardInstance[];
+}
+
+export interface BingoBallLocutorAudio {
+  audioUrl: string;
+  audioStoragePath: string;
+  fileName: string;
+  uploadedAt: any;
+}
+
+export interface BingoBallSetting {
+  ballNumber: number; 
+  imageUrl?: string;
+  imageStoragePath?: string;
+  locutorAudios?: {
+    [locutorId: string]: BingoBallLocutorAudio;
+  };
+  lastUpdatedAt?: any;
 }
 
 export interface AudioSetting {
@@ -311,41 +337,25 @@ export interface AudioSetting {
   createdBy?: string;
 }
 
-export interface BingoBallLocutorAudio {
-  audioUrl: string;
-  audioStoragePath: string;
-  fileName: string;
-  uploadedAt: any;
-}
-
-export interface BingoBallSetting {
-  ballNumber: number; // Document ID in Firestore will be ballNumber.toString()
-  imageUrl?: string;
-  imageStoragePath?: string;
-  locutorAudios?: { // Map of locutorId to their audio for this ball
-    [locutorId: string]: BingoBallLocutorAudio;
-  };
-  lastUpdatedAt?: any;
-}
-
 export interface BingoRoomSetting {
-  id?: string; // Firestore document ID
-  roomId: string; // The actual Kako Live Room ID
+  id?: string; 
+  roomId: string; 
   description?: string;
   isActive: boolean;
-  addedBy?: string; // UID of admin who added it
-  addedAt?: any; // Firestore Timestamp
-  lastCheckedAt?: any; // Firestore Timestamp, for when data was last pulled or connection verified
+  addedBy?: string; 
+  addedAt?: any; 
+  lastCheckedAt?: any; 
 }
 
 export interface UserWallet {
-  id?: string; // Firestore document ID (could be the kakoId or a generated one)
-  kakoId: string; // This should be the Kako User ID (FUID or Show ID, needs consistency)
+  id?: string; 
+  kakoId: string; 
   diamonds: number;
-  lastUpdatedAt?: any; // Firestore Timestamp
+  lastUpdatedAt?: any; 
 }
 
 export interface WalletConfig {
   autoAddDiamondsOnGift: boolean;
-  autoAddThreshold: number; // e.g., 10 diamonds
+  autoAddThreshold: number; 
+  enableDonationsToHostWalletsForLinkedRooms?: boolean;
 }
