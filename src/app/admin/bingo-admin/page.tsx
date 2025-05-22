@@ -19,7 +19,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
+  AlertDialogTitle as AlertDialogTitleComponent, 
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -55,6 +55,7 @@ import {
   orderBy, 
   addDoc, 
   getDocs, 
+  getDoc, // Ensure getDoc is imported
   serverTimestamp, 
   storage, 
   storageRef, 
@@ -213,8 +214,8 @@ type InteractionAudioFormValues = z.infer<typeof interactionAudioSchema>;
 
 const ballAssetSchema = z.object({
     assetFile: z.instanceof(FileList).refine(files => files?.length === 1, "Um arquivo é obrigatório.")
-                   .refine(files => files?.[0]?.size <= 2 * 1024 * 1024, "Arquivo muito grande (máx 2MB).")
-                   .refine(files => files?.[0]?.type.startsWith("image/") || files?.[0]?.type.startsWith("audio/"), "O arquivo deve ser uma imagem ou áudio."),
+                   .refine(files => !files?.[0] || files?.[0]?.size <= 2 * 1024 * 1024, "Arquivo muito grande (máx 2MB).") // Check if file exists before size
+                   .refine(files => !files?.[0] || (files?.[0]?.type.startsWith("image/") || files?.[0]?.type.startsWith("audio/")), "O arquivo deve ser uma imagem ou áudio."), // Check if file exists before type
 });
 type BallAssetFormValues = z.infer<typeof ballAssetSchema>;
 
@@ -248,7 +249,7 @@ export default function AdminBingoAdminPage() {
   const [isLoadingKakoPrizesForGameForm, setIsLoadingKakoPrizesForGameForm] = useState(false);
 
   const [gameEventAudioSettings, setGameEventAudioSettings] = useState<AudioSetting[]>(
-    initialGameEventAudioSettings.map(s => ({ ...s, type: 'gameEvent' })) // Ensure type is set
+    initialGameEventAudioSettings.map(s => ({ ...s, type: 'gameEvent' } as AudioSetting))
   );
   const [interactionAudioSettings, setInteractionAudioSettings] = useState<AudioSetting[]>([]);
   const [isLoadingAudios, setIsLoadingAudios] = useState(false);
@@ -278,22 +279,30 @@ export default function AdminBingoAdminPage() {
     if (audioPlayer) {
       audioPlayer.pause();
       audioPlayer.currentTime = 0;
-      setAudioPlayer(null);
-      if (currentPlayingAudioId === audioId) { // If it's the same audio, just stop it
+      // setAudioPlayer(null); // Do not nullify, we want to reuse if possible or ensure cleanup on end/new play
+      if (currentPlayingAudioId === audioId && audioId) { 
         setCurrentPlayingAudioId(null);
         return;
       }
     }
     if (audioUrl && audioId) {
-      const newPlayer = new Audio(audioUrl);
+      const newPlayer = audioPlayer || new Audio(); // Reuse or create new
+      newPlayer.src = audioUrl;
       newPlayer.play().catch(e => console.error("Error playing audio:", e));
       setAudioPlayer(newPlayer);
       setCurrentPlayingAudioId(audioId);
-      newPlayer.onended = () => setCurrentPlayingAudioId(null);
-      newPlayer.onpause = () => { // Also clear if manually paused elsewhere
-        if (newPlayer.currentTime > 0 && !newPlayer.ended) { /* No specific action here unless needed */ }
-        else if (newPlayer.ended || newPlayer.paused) setCurrentPlayingAudioId(null);
+      
+      const onEndOrPause = () => {
+        if (newPlayer.paused || newPlayer.ended) {
+             if (currentPlayingAudioId === audioId) { // Only clear if it's still the one meant to be playing
+                setCurrentPlayingAudioId(null);
+             }
+        }
+        newPlayer.removeEventListener('ended', onEndOrPause);
+        newPlayer.removeEventListener('pause', onEndOrPause);
       };
+      newPlayer.addEventListener('ended', onEndOrPause);
+      newPlayer.addEventListener('pause', onEndOrPause);
     }
   };
 
@@ -301,10 +310,11 @@ export default function AdminBingoAdminPage() {
     return () => {
       if (audioPlayer) {
         audioPlayer.pause();
-        setAudioPlayer(null);
+        // audioPlayer.src = ''; // Detach src
+        // setAudioPlayer(null); // Clear from state on unmount
       }
     };
-  }, [audioPlayer, activeTab]); // Re-evaluate if activeTab change is still desired here
+  }, [audioPlayer]);
 
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
@@ -440,9 +450,9 @@ export default function AdminBingoAdminPage() {
       const docRef = doc(db, "bingoAudioSettings", initialSetting.id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return { ...initialSetting, ...docSnap.data() } as AudioSetting;
+        return { ...initialSetting, ...docSnap.data(), type: 'gameEvent' } as AudioSetting;
       }
-      return initialSetting as AudioSetting; // Return initial setting if not found in DB
+      return { ...initialSetting, type: 'gameEvent' } as AudioSetting;
     });
     try {
       const fetchedSettings = await Promise.all(settingsPromises);
@@ -472,6 +482,7 @@ export default function AdminBingoAdminPage() {
         fetchedAudios.push({ 
             id: docSnap.id, 
             ...data,
+            type: 'interaction',
             associatedGiftName: associatedGiftName || undefined,
         } as AudioSetting);
       });
@@ -492,7 +503,7 @@ export default function AdminBingoAdminPage() {
         if (docSnap.exists()) {
             return { ballNumber: ballNum, ...docSnap.data() } as BingoBallSetting;
         }
-        return { ballNumber: ballNum } as BingoBallSetting; // Default if not found
+        return { ballNumber: ballNum } as BingoBallSetting;
     });
     try {
         const fetchedSettings = await Promise.all(settingsPromises);
@@ -510,7 +521,7 @@ export default function AdminBingoAdminPage() {
       fetchKakoPrizes(false);
     }
     if (activeTab === 'bingoPartidas' || activeTab === 'bingoAudiosInteracao') {
-      fetchKakoPrizes(true); // For Game Form prize select and Interaction Audio prize select
+      fetchKakoPrizes(true);
     }
     if (activeTab === 'bingoPartidas') fetchBingoGames();
     if (activeTab === 'bingoAudiosPartida') fetchGameEventAudios();
@@ -518,11 +529,11 @@ export default function AdminBingoAdminPage() {
     if (activeTab === 'bingoBolasConfig') fetchBingoBallSettings();
     
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]); // Removed specific fetch functions from deps to avoid loops, activeTab should trigger correctly
+  }, [activeTab]); 
 
   const handleAudioFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-        if (event.target.files[0].size > 2 * 1024 * 1024) { // 2MB limit
+        if (event.target.files[0].size > 2 * 1024 * 1024) {
             toast({ title: "Arquivo Muito Grande", description: "O arquivo de áudio deve ter no máximo 2MB.", variant: "destructive" });
             setSelectedAudioFile(null);
             if (audioFileInputRef.current) audioFileInputRef.current.value = "";
@@ -534,36 +545,30 @@ export default function AdminBingoAdminPage() {
     }
   };
 
-  const handleBallAssetFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (event.target.files && event.target.files[0]) {
-          if (event.target.files[0].size > 2 * 1024 * 1024) { // 2MB limit
-              toast({ title: "Arquivo Muito Grande", description: "O arquivo deve ter no máximo 2MB.", variant: "destructive" });
-              setSelectedBallAssetFile(null);
-              ballAssetForm.setValue("assetFile", null as any);
-              if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
-              return;
-          }
-          setSelectedBallAssetFile(event.target.files[0]);
-          ballAssetForm.setValue("assetFile", event.target.files); // For react-hook-form
-      } else {
-          setSelectedBallAssetFile(null);
-          ballAssetForm.setValue("assetFile", null as any);
-      }
-  };
-
   const handleOpenUploadAudioDialog = (setting: AudioSetting | null, isNewInteraction: boolean = false) => {
-    interactionAudioForm.reset();
+    interactionAudioForm.reset({ displayName: "", keyword: "", associatedGiftId: "", audioFile: undefined });
     setSelectedAudioFile(null);
     if (audioFileInputRef.current) audioFileInputRef.current.value = "";
     
     if (isNewInteraction) {
-        setCurrentAudioSettingToEdit(null); // Ensure it's null for new random audio
+        setCurrentAudioSettingToEdit(null);
         setIsAddInteractionAudioDialogOpen(true);
-        setIsUploadAudioDialogOpen(false); // Ensure the other dialog is closed
+        setIsUploadAudioDialogOpen(false);
     } else {
         setCurrentAudioSettingToEdit(setting);
-        setIsAddInteractionAudioDialogOpen(false);
-        setIsUploadAudioDialogOpen(true);
+        if(setting?.type === 'interaction') {
+            interactionAudioForm.reset({
+                displayName: setting.displayName,
+                keyword: setting.keyword || "",
+                associatedGiftId: setting.associatedGiftId || "",
+                audioFile: undefined 
+            });
+            setIsAddInteractionAudioDialogOpen(true);
+            setIsUploadAudioDialogOpen(false);
+        } else {
+            setIsAddInteractionAudioDialogOpen(false);
+            setIsUploadAudioDialogOpen(true);
+        }
     }
   };
   
@@ -582,14 +587,6 @@ export default function AdminBingoAdminPage() {
           return;
       }
       const fileToUpload = data.assetFile[0];
-      await handleSaveBallAssetInternal(fileToUpload);
-  };
-
-  const handleSaveBallAssetInternal = async (fileToUpload: File) => {
-      if (!currentUser?.uid || !currentBallEditing || !assetTypeToUpload) {
-          toast({ title: "Erro de Autenticação ou Configuração", variant: "destructive" });
-          return;
-      }
       setIsUploadingBallAsset(true);
       setBallAssetUploadProgress(0);
 
@@ -616,16 +613,11 @@ export default function AdminBingoAdminPage() {
               uploadTask.on('state_changed',
                   (snapshot) => setBallAssetUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
                   (error) => reject(error),
-                  async () => {
-                      try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } 
-                      catch (e) { reject(e); }
-                  }
+                  async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { reject(e); } }
               );
           });
 
-          const assetDataToSave: Partial<BingoBallSetting> = {
-              lastUpdatedAt: serverTimestamp(),
-          };
+          const assetDataToSave: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
           if (assetTypeToUpload === 'image') {
               assetDataToSave.imageUrl = downloadURL;
               assetDataToSave.imageStoragePath = newStoragePath;
@@ -638,11 +630,15 @@ export default function AdminBingoAdminPage() {
           await setDoc(docRef, { ballNumber: currentBallEditing.ballNumber, ...assetDataToSave }, { merge: true });
           
           setBingoBallSettings(prev => prev.map(b => 
-              b.ballNumber === currentBallEditing.ballNumber ? { ...b, ...assetDataToSave, lastUpdatedAt: new Date() } : b // Use new Date() for local state consistency
+              b.ballNumber === currentBallEditing!.ballNumber ? { ...b, ...assetDataToSave, lastUpdatedAt: new Date() } : b
           ));
 
           toast({ title: "Asset Salvo!", description: `${assetTypeToUpload === 'image' ? 'Imagem' : 'Áudio'} para bola ${currentBallEditing.ballNumber} salvo.` });
           setIsUploadBallAssetDialogOpen(false);
+          ballAssetForm.reset();
+          setSelectedBallAssetFile(null);
+          if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+
 
       } catch (error: any) {
           console.error("Erro ao salvar asset da bola:", error);
@@ -650,8 +646,6 @@ export default function AdminBingoAdminPage() {
       } finally {
           setIsUploadingBallAsset(false);
           setBallAssetUploadProgress(null);
-          setSelectedBallAssetFile(null);
-          if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
       }
   };
 
@@ -661,14 +655,14 @@ export default function AdminBingoAdminPage() {
     if (!ballSetting) return;
 
     const storagePathToRemove = assetType === 'image' ? ballSetting.imageStoragePath : ballSetting.audioStoragePath;
-    const firestoreUpdate: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
-
+    
+    const fieldsToClear: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
     if (assetType === 'image') {
-        firestoreUpdate.imageUrl = undefined; // Using undefined to trigger field deletion with merge:true
-        firestoreUpdate.imageStoragePath = undefined;
+        fieldsToClear.imageUrl = undefined; 
+        fieldsToClear.imageStoragePath = undefined;
     } else {
-        firestoreUpdate.audioUrl = undefined;
-        firestoreUpdate.audioStoragePath = undefined;
+        fieldsToClear.audioUrl = undefined;
+        fieldsToClear.audioStoragePath = undefined;
     }
 
     try {
@@ -676,16 +670,16 @@ export default function AdminBingoAdminPage() {
             await deleteFileStorage(storageRef(storage, storagePathToRemove));
         }
         const docRef = doc(db, "bingoBallConfigurations", ballNumber.toString());
-        // Use updateDoc with specific fields to delete. If setDoc with merge, null values might be preferred.
-        const fieldsToDelete: Record<string, any> = {};
+        // Use updateDoc and construct an object to delete fields
+        const updateData: Record<string, any> = { lastUpdatedAt: serverTimestamp() };
         if (assetType === 'image') {
-            fieldsToDelete.imageUrl = null;
-            fieldsToDelete.imageStoragePath = null;
+            updateData.imageUrl = null; // Firestore interprets null as delete in merge, or use deleteField()
+            updateData.imageStoragePath = null;
         } else {
-            fieldsToDelete.audioUrl = null;
-            fieldsToDelete.audioStoragePath = null;
+            updateData.audioUrl = null;
+            updateData.audioStoragePath = null;
         }
-        await updateDoc(docRef, { ...fieldsToDelete, lastUpdatedAt: serverTimestamp() });
+        await updateDoc(docRef, updateData);
         
         setBingoBallSettings(prev => prev.map(b => 
             b.ballNumber === ballNumber ? { 
@@ -758,6 +752,7 @@ export default function AdminBingoAdminPage() {
         return;
     }
     let prizeImageUrl = values.imageUrl;
+    let storagePath: string | undefined = undefined;
 
     try {
       if (values.imageFile && values.imageFile.length > 0) {
@@ -776,71 +771,39 @@ export default function AdminBingoAdminPage() {
         const uploadedUrlAndPath = await new Promise<{url: string, path: string}>((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => setPrizeImageUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => {
-              console.error("Upload failed:", error);
-              toast({ title: "Falha no Upload", description: "Não foi possível carregar a imagem.", variant: "destructive" });
-              setPrizeImageUploadProgress(null);
-              reject(error);
-            },
-            async () => {
-              try {
-                const url = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve({ url, path: filePath });
-              } catch (error) {
-                console.error("Failed to get download URL", error);
-                toast({ title: "Falha ao Obter URL", description: "Não foi possível obter o link da imagem.", variant: "destructive" });
-                reject(error);
-              }
-            }
+            (error) => { console.error("Upload failed:", error); reject(error); },
+            async () => { try { const url = await getDownloadURL(uploadTask.snapshot.ref); resolve({ url, path: filePath }); } catch (error) { console.error("Failed to get download URL", error); reject(error); } }
           );
         });
         prizeImageUrl = uploadedUrlAndPath.url;
-        const storagePath = uploadedUrlAndPath.path;
-
-        const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, storagePath?: string } = {
-            name: values.name,
-            imageUrl: prizeImageUrl || undefined,
-            storagePath: storagePath,
-            kakoGiftId: values.kakoGiftId || undefined,
-            valueDisplay: values.valueDisplay || undefined,
-            description: values.description || undefined,
-            type: 'kako_virtual',
-            isActive: true,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            createdBy: currentUser.uid,
-        };
-        await addDoc(collection(db, "bingoPrizes"), newPrizeData);
-
-      } else if (values.imageUrl) { // No file, but URL provided
-        const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any } = {
-            name: values.name,
-            imageUrl: values.imageUrl,
-            kakoGiftId: values.kakoGiftId || undefined,
-            valueDisplay: values.valueDisplay || undefined,
-            description: values.description || undefined,
-            type: 'kako_virtual',
-            isActive: true,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            createdBy: currentUser.uid,
-        };
-        await addDoc(collection(db, "bingoPrizes"), newPrizeData);
-      } else {
+        storagePath = uploadedUrlAndPath.path;
+      } else if (!values.imageUrl) {
          toast({ title: "Informação Faltando", description: "Forneça uma URL da imagem ou um arquivo para upload.", variant: "destructive"});
          return;
       }
+      
+      const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, storagePath?: string } = {
+          name: values.name,
+          imageUrl: prizeImageUrl || undefined,
+          storagePath: storagePath,
+          kakoGiftId: values.kakoGiftId || undefined,
+          valueDisplay: values.valueDisplay || undefined,
+          description: values.description || undefined,
+          type: 'kako_virtual',
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: currentUser.uid,
+      };
+      await addDoc(collection(db, "bingoPrizes"), newPrizeData);
       
       toast({ title: "Prêmio Cadastrado!", description: `O prêmio '${values.name}' foi salvo com sucesso.` });
       setIsAddKakoPrizeDialogOpen(false);
       kakoPrizeForm.reset();
       fetchKakoPrizes(false); 
     } catch (error) {
-        // Error already handled by promise rejection or general catch
         console.error("Erro ao cadastrar prêmio Kako Live:", error);
-        if (prizeImageUploadProgress === null) { // Only show general error if upload didn't start/fail specifically
-            toast({ title: "Erro ao Cadastrar", description: "Não foi possível salvar o prêmio. Tente novamente.", variant: "destructive" });
-        }
+        toast({ title: "Erro ao Cadastrar", description: "Não foi possível salvar o prêmio. Tente novamente.", variant: "destructive" });
     } finally {
       setPrizeImageUploadProgress(null);
     }
@@ -855,18 +818,20 @@ export default function AdminBingoAdminPage() {
     setIsUploadingAudio(true);
     setAudioUploadProgress(0);
 
-    const isInteractionAudio = !!data || (currentAudioSettingToEdit?.type === 'interaction');
+    const isInteractionAudio = currentAudioSettingToEdit?.type === 'interaction' || isAddInteractionAudioDialogOpen;
     const fileToUpload = isInteractionAudio ? data?.audioFile?.[0] : selectedAudioFile;
     const audioDisplayNameForToast = isInteractionAudio ? data?.displayName : currentAudioSettingToEdit?.displayName;
-
+    
     if (!fileToUpload) {
         toast({ title: "Nenhum Arquivo Selecionado", description: "Por favor, selecione um arquivo de áudio.", variant: "destructive" });
         setIsUploadingAudio(false);
+        setAudioUploadProgress(null);
         return;
     }
      if (!audioDisplayNameForToast && isInteractionAudio) {
         toast({ title: "Nome do Áudio Obrigatório", description: "Por favor, defina um nome para o áudio de interação.", variant: "destructive" });
         setIsUploadingAudio(false);
+        setAudioUploadProgress(null);
         return;
     }
 
@@ -875,20 +840,20 @@ export default function AdminBingoAdminPage() {
     let firestoreCollectionName = '';
     let firestoreDocId: string | undefined = undefined;
     let oldStoragePathToDelete: string | undefined = undefined;
-    let dataToSave: Partial<AudioSetting> & { uploadedAt: any, type: 'gameEvent' | 'interaction', displayName?: string, eventName?: string, id?: string };
+    
+    let audioDataToSave: Partial<AudioSetting> & { uploadedAt?: any; type: 'gameEvent' | 'interaction'; displayName?: string; id?: string };
+
 
     if (isInteractionAudio && data) {
         firestoreCollectionName = 'bingoInteractionAudios';
         newStoragePath = `bingoAudios/interaction/${Date.now()}_${sanitizedSelectedFileName}`;
-        // For new interaction audio, Firestore will generate ID if 'currentAudioSettingToEdit' is null (which it should be for new)
-        // If editing an interaction audio, currentAudioSettingToEdit would have its ID
         firestoreDocId = currentAudioSettingToEdit?.id; 
         oldStoragePathToDelete = currentAudioSettingToEdit?.storagePath;
-         dataToSave = {
+         audioDataToSave = {
             displayName: data.displayName,
             keyword: data.keyword,
             associatedGiftId: data.associatedGiftId || undefined,
-            audioUrl: '', // Will be set after upload
+            audioUrl: '', 
             fileName: sanitizedSelectedFileName,
             storagePath: newStoragePath,
             type: 'interaction',
@@ -896,18 +861,17 @@ export default function AdminBingoAdminPage() {
             createdBy: currentUser.uid,
         };
         const prize = availableKakoPrizesForGameForm.find(p => p.id === data.associatedGiftId);
-        if (prize) dataToSave.associatedGiftName = prize.name;
+        if (prize) audioDataToSave.associatedGiftName = prize.name;
 
     } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent') {
         firestoreCollectionName = 'bingoAudioSettings';
         firestoreDocId = currentAudioSettingToEdit.id;
         newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
         oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
-        dataToSave = {
-            id: currentAudioSettingToEdit.id,
+        audioDataToSave = {
+            id: currentAudioSettingToEdit.id, // Used as Firestore doc ID
             type: 'gameEvent',
             displayName: currentAudioSettingToEdit.displayName, // This is the eventName for gameEvent type
-            eventName: currentAudioSettingToEdit.displayName,
             audioUrl: '',
             fileName: sanitizedSelectedFileName,
             storagePath: newStoragePath,
@@ -916,6 +880,7 @@ export default function AdminBingoAdminPage() {
     } else {
         toast({ title: "Erro de Configuração", description: "Contexto de salvamento de áudio inválido.", variant: "destructive" });
         setIsUploadingAudio(false);
+        setAudioUploadProgress(null);
         return;
     }
     
@@ -934,24 +899,24 @@ export default function AdminBingoAdminPage() {
         const downloadURL = await new Promise<string>((resolve, reject) => {
             uploadTask.on('state_changed',
                 (snapshot) => setAudioUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                (error) => reject(error),
-                async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { reject(e); } }
+                (error) => { console.error("Audio upload error:", error); reject(error);},
+                async () => { try { resolve(await getDownloadURL(uploadTask.snapshot.ref)); } catch (e) { console.error("Get DL URL error:", e); reject(e);} }
             );
         });
-        dataToSave.audioUrl = downloadURL;
-        dataToSave.storagePath = newStoragePath; // Ensure storagePath is the new one
+        audioDataToSave.audioUrl = downloadURL;
+        audioDataToSave.storagePath = newStoragePath; 
 
         if (isInteractionAudio) {
             if (firestoreDocId) { // Editing existing interaction audio
-                 await setDoc(doc(db, firestoreCollectionName, firestoreDocId), dataToSave, { merge: true });
-                 setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...dataToSave, uploadedAt: new Date()} : s));
+                 await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
+                 setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
             } else { // Adding new interaction audio
-                const docRef = await addDoc(collection(db, firestoreCollectionName), dataToSave);
-                setInteractionAudioSettings(prev => [{...dataToSave, id: docRef.id, uploadedAt: new Date()}, ...prev ]);
+                const docRef = await addDoc(collection(db, firestoreCollectionName), audioDataToSave);
+                setInteractionAudioSettings(prev => [{...audioDataToSave, id: docRef.id, uploadedAt: new Date()} as AudioSetting, ...prev ]);
             }
-        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) {
-            await setDoc(doc(db, firestoreCollectionName, firestoreDocId), dataToSave, { merge: true });
-             setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...dataToSave, uploadedAt: new Date()} : s));
+        } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { // Game Event Audio
+            await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
+             setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
         }
 
         toast({ title: "Áudio Salvo!", description: `O áudio '${audioDisplayNameForToast}' foi salvo com sucesso.` });
@@ -972,30 +937,31 @@ export default function AdminBingoAdminPage() {
 };
 
 const handleRemoveAudio = async (setting: AudioSetting) => {
-    if (!currentUser?.uid) return;
-    const { id, storagePath, type, displayName } = setting;
-    if (!id) return;
-
-    const confirmDelete = window.confirm(`Tem certeza que deseja remover o áudio "${displayName}"?`);
+    if (!currentUser?.uid || !setting.id) return;
+    
+    const confirmDelete = window.confirm(`Tem certeza que deseja remover o áudio "${setting.displayName}"?`);
     if (!confirmDelete) return;
 
     try {
-        if (storagePath) {
-            await deleteFileStorage(storageRef(storage, storagePath));
+        if (setting.storagePath) {
+            await deleteFileStorage(storageRef(storage, setting.storagePath));
         }
-        if (type === 'gameEvent') {
-            await updateDoc(doc(db, "bingoAudioSettings", id), {
+        if (setting.type === 'gameEvent') {
+            await setDoc(doc(db, "bingoAudioSettings", setting.id), {
+                id: setting.id,
+                displayName: setting.displayName,
+                type: 'gameEvent',
                 audioUrl: null,
                 fileName: null,
                 storagePath: null,
                 uploadedAt: serverTimestamp(),
-            });
-            setGameEventAudioSettings(prev => prev.map(s => s.id === id ? { ...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } : s));
-        } else if (type === 'interaction') {
-            await deleteDoc(doc(db, "bingoInteractionAudios", id));
-            setInteractionAudioSettings(prev => prev.filter(s => s.id !== id));
+            }, { merge: true });
+            setGameEventAudioSettings(prev => prev.map(s => s.id === setting.id ? { ...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } as AudioSetting : s));
+        } else if (setting.type === 'interaction') {
+            await deleteDoc(doc(db, "bingoInteractionAudios", setting.id));
+            setInteractionAudioSettings(prev => prev.filter(s => s.id !== setting.id));
         }
-        toast({ title: "Áudio Removido", description: `Áudio "${displayName}" removido com sucesso.` });
+        toast({ title: "Áudio Removido", description: `Áudio "${setting.displayName}" removido com sucesso.` });
     } catch (error: any) {
         console.error("Erro ao remover áudio:", error);
         toast({ title: "Erro ao Remover Áudio", description: error.message || "Erro desconhecido.", variant: "destructive" });
@@ -1007,12 +973,12 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
     const validTab = bingoSpecificMenuGroups.flatMap(g => g.items).find(item => item.id === hash);
     if (validTab) {
       setActiveTab(hash);
-    } else {
-      const firstItemId = bingoSpecificMenuGroups[0]?.items[0]?.id || 'bingoPartidas';
-      setActiveTab(firstItemId); 
-      if (pathname === '/admin/bingo-admin' && window.location.hash !== `#${firstItemId}` && window.location.hash !== '') {
-         router.replace(`/admin/bingo-admin#${firstItemId}`, { scroll: false });
-      }
+    } else if (bingoSpecificMenuGroups.length > 0 && bingoSpecificMenuGroups[0].items.length > 0) {
+        const firstItemId = bingoSpecificMenuGroups[0].items[0].id;
+        setActiveTab(firstItemId); 
+        if (pathname === '/admin/bingo-admin' && (window.location.hash === '' || window.location.hash === '#')) {
+            router.replace(`/admin/bingo-admin#${firstItemId}`, { scroll: false });
+        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]); 
@@ -1150,7 +1116,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                   </FormControl>
                                   <SelectContent>
                                     {availableKakoPrizesForGameForm.map(prize => (
-                                      <SelectItem key={prize.id} value={prize.id!}>{prize.name}</SelectItem>
+                                      <SelectItem key={prize.id!} value={prize.id!}>{prize.name}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
@@ -1459,7 +1425,13 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             Cadastre e visualize prêmios virtuais do Kako Live para os jogos de bingo.
                         </CardDescription>
                     </div>
-                    <Dialog open={isAddKakoPrizeDialogOpen} onOpenChange={setIsAddKakoPrizeDialogOpen}>
+                    <Dialog open={isAddKakoPrizeDialogOpen} onOpenChange={(open) => {
+                        setIsAddKakoPrizeDialogOpen(open);
+                        if(!open) {
+                            kakoPrizeForm.reset();
+                            setPrizeImageUploadProgress(null);
+                        }
+                    }}>
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Prêmio
@@ -1492,18 +1464,32 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                         name="imageFile"
                                         render={({ field: { onChange, value, ...rest } }) => ( 
                                             <FormItem>
-                                                <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
+                                                <FormLabel>Arquivo da Imagem (Opcional, máx 2MB)</FormLabel>
                                                 <FormControl>
                                                     <Input 
                                                         type="file" 
                                                         accept="image/*"
-                                                        onChange={(e) => onChange(e.target.files)} 
-                                                        {...rest} 
-                                                        ref={el => { // @ts-ignore
+                                                        onChange={(e) => {
+                                                          const files = e.target.files;
+                                                          if (files && files[0] && files[0].size > 2 * 1024 * 1024) {
+                                                              kakoPrizeForm.setError("imageFile", {type: "manual", message: "Imagem muito grande (máx 2MB)."});
+                                                              onChange(null);
+                                                          } else if (files && files[0] && !files[0].type.startsWith("image/")) {
+                                                              kakoPrizeForm.setError("imageFile", {type: "manual", message: "O arquivo deve ser uma imagem."});
+                                                              onChange(null);
+                                                          } else {
+                                                              kakoPrizeForm.clearErrors("imageFile");
+                                                              onChange(files);
+                                                          }
+                                                        }}
+                                                        ref={el => { 
                                                             if(rest.ref && typeof rest.ref === 'function') rest.ref(el); 
                                                             // @ts-ignore
                                                             else if(rest.ref) rest.ref.current = el;
                                                         }}
+                                                        name={rest.name}
+                                                        onBlur={rest.onBlur}
+                                                        disabled={rest.disabled}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -1526,6 +1512,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                 <FormControl>
                                                     <Input placeholder="https://..." {...field} />
                                                 </FormControl>
+                                                <FormDesc>Use se não for fazer upload de um arquivo.</FormDesc>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -1814,7 +1801,14 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
               </CardContent>
             </Card>
              {/* Dialog for Ball Asset Upload */}
-            <Dialog open={isUploadBallAssetDialogOpen} onOpenChange={setIsUploadBallAssetDialogOpen}>
+            <Dialog open={isUploadBallAssetDialogOpen} onOpenChange={(open) => {
+                setIsUploadBallAssetDialogOpen(open);
+                if (!open) {
+                    ballAssetForm.reset();
+                    setSelectedBallAssetFile(null);
+                    if (ballAssetFileInputRef.current) ballAssetFileInputRef.current.value = "";
+                }
+            }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>
@@ -1829,7 +1823,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                              <FormField
                                 control={ballAssetForm.control}
                                 name="assetFile"
-                                render={({ field: { onChange, value, name: formFieldName, ref: fieldRefCallback, ...rest }}) => (
+                                render={({ field }) => ( // field contains onChange, onBlur, value, name, ref
                                 <FormItem>
                                     <FormLabel>Arquivo</FormLabel>
                                     <FormControl>
@@ -1838,32 +1832,36 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                         accept={assetTypeToUpload === 'image' ? "image/*" : "audio/*"}
                                         onChange={(e) => {
                                             const files = e.target.files;
-                                            if (files && files.length > 0 && files[0].size > 2 * 1024 * 1024) {
-                                                ballAssetForm.setError("assetFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
-                                                formOnChange(null); 
-                                            } else if (files && files.length > 0 && assetTypeToUpload === 'image' && !files[0].type.startsWith("image/")) {
-                                                ballAssetForm.setError("assetFile", { type: "manual", message: "O arquivo deve ser uma imagem."});
-                                                formOnChange(null);
-                                            } else if (files && files.length > 0 && assetTypeToUpload === 'audio' && !files[0].type.startsWith("audio/")) {
-                                                ballAssetForm.setError("assetFile", { type: "manual", message: "O arquivo deve ser um áudio."});
-                                                formOnChange(null);
+                                            if (files && files.length > 0) {
+                                                if (files[0].size > 2 * 1024 * 1024) {
+                                                    ballAssetForm.setError("assetFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
+                                                    field.onChange(null); 
+                                                    setSelectedBallAssetFile(null);
+                                                } else {
+                                                    const fileTypeValid = assetTypeToUpload === 'image' ? files[0].type.startsWith("image/") : files[0].type.startsWith("audio/");
+                                                    if (!fileTypeValid) {
+                                                        ballAssetForm.setError("assetFile", { type: "manual", message: assetTypeToUpload === 'image' ? "O arquivo deve ser uma imagem." : "O arquivo deve ser um áudio."});
+                                                        field.onChange(null);
+                                                        setSelectedBallAssetFile(null);
+                                                    } else {
+                                                        ballAssetForm.clearErrors("assetFile");
+                                                        field.onChange(files); 
+                                                        setSelectedBallAssetFile(files[0]);
+                                                    }
+                                                }
+                                            } else {
+                                                field.onChange(null);
+                                                setSelectedBallAssetFile(null);
                                             }
-                                            else {
-                                                ballAssetForm.clearErrors("assetFile");
-                                                formOnChange(files); 
-                                            }
-                                            handleBallAssetFileSelect(e); 
                                         }}
-                                        ref={el => {
-                                            if (typeof fieldRefCallback === 'function') fieldRefCallback(el);
-                                            // @ts-ignore
-                                            else if (fieldRefCallback) fieldRefCallback.current = el;
+                                        ref={el => { // Combine RHF ref with local ref
+                                            field.ref(el); // RHF's ref
                                             if (ballAssetFileInputRef && typeof ballAssetFileInputRef === 'object') {
-                                            ballAssetFileInputRef.current = el;
+                                                ballAssetFileInputRef.current = el;
                                             }
                                         }}
-                                        name={formFieldName}
-                                        {...rest}
+                                        name={field.name} // Use RHF's name
+                                        onBlur={field.onBlur} // Use RHF's onBlur
                                     />
                                     </FormControl>
                                     <FormMessage />
@@ -1933,7 +1931,6 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                 </div>
               </CardContent>
             </Card>
-             {/* Dialog for Uploading Game Event or Interaction Audio */}
             <Dialog open={isUploadAudioDialogOpen || isAddInteractionAudioDialogOpen} onOpenChange={(open) => {
                 if (!open) {
                     setIsUploadAudioDialogOpen(false);
@@ -1942,13 +1939,25 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                     setSelectedAudioFile(null);
                     if (audioFileInputRef.current) audioFileInputRef.current.value = "";
                     interactionAudioForm.reset();
+                } else {
+                     // If opening the dialog and it's for an existing interaction audio, populate the form
+                    if (isAddInteractionAudioDialogOpen && currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'interaction') {
+                        interactionAudioForm.reset({
+                            displayName: currentAudioSettingToEdit.displayName,
+                            keyword: currentAudioSettingToEdit.keyword || "",
+                            associatedGiftId: currentAudioSettingToEdit.associatedGiftId || "",
+                            audioFile: undefined
+                        });
+                    } else if (isAddInteractionAudioDialogOpen && !currentAudioSettingToEdit) { // New interaction audio
+                        interactionAudioForm.reset();
+                    }
                 }
             }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>
                             {isAddInteractionAudioDialogOpen 
-                                ? "Adicionar Novo Áudio de Interação" 
+                                ? (currentAudioSettingToEdit ? `Editar Áudio: ${currentAudioSettingToEdit.displayName}` : "Adicionar Novo Áudio de Interação")
                                 : `Configurar Áudio para: ${currentAudioSettingToEdit?.displayName || 'Evento'}`
                             }
                         </DialogTitle>
@@ -1956,7 +1965,6 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             Selecione um arquivo de áudio (MP3, WAV, etc.). Máximo 2MB.
                         </DialogDescription>
                     </DialogHeader>
-                    {/* Form for Interaction Audio */}
                     {isAddInteractionAudioDialogOpen ? (
                         <Form {...interactionAudioForm}>
                             <form onSubmit={interactionAudioForm.handleSubmit(handleSaveAudio)} className="space-y-4 py-2 pb-4">
@@ -1969,12 +1977,12 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 <FormField control={interactionAudioForm.control} name="associatedGiftId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Presente Associado (Opcional)</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingKakoPrizesForGameForm}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value || ""} disabled={isLoadingKakoPrizesForGameForm}>
                                             <FormControl><SelectTrigger><SelectValue placeholder={isLoadingKakoPrizesForGameForm ? "Carregando..." : "Nenhum presente"} /></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="">Nenhum</SelectItem>
                                                 {availableKakoPrizesForGameForm.map(prize => (
-                                                    <SelectItem key={prize.id} value={prize.id!}>{prize.name}</SelectItem>
+                                                    <SelectItem key={prize.id!} value={prize.id!}>{prize.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -1982,53 +1990,65 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                     </FormItem>
                                 )}/>
                                 <FormField control={interactionAudioForm.control} name="audioFile"
-                                  render={({ field: { onChange: formOnChange, value, name: formFieldName, ref: fieldRefCallback, ...rest }}) => (
+                                  render={({ field }) => ( // field has onChange, onBlur, value, name, ref
                                   <FormItem>
-                                      <FormLabel>Arquivo de Áudio</FormLabel>
+                                      <FormLabel>Arquivo de Áudio (máx 2MB)</FormLabel>
                                       <FormControl>
                                           <Input
                                             type="file" accept="audio/*"
                                             onChange={(e) => {
                                                 const files = e.target.files;
-                                                if (files && files.length > 0 && files[0].size > 2 * 1024 * 1024) {
-                                                    interactionAudioForm.setError("audioFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
-                                                    formOnChange(null); 
-                                                } else if (files && files.length > 0 && !files[0].type.startsWith("audio/")) {
-                                                    interactionAudioForm.setError("audioFile", { type: "manual", message: "O arquivo deve ser um áudio."});
-                                                    formOnChange(null);
+                                                if (files && files.length > 0) {
+                                                    if (files[0].size > 2 * 1024 * 1024) {
+                                                        interactionAudioForm.setError("audioFile", { type: "manual", message: "Arquivo muito grande (máx 2MB)." });
+                                                        field.onChange(null); 
+                                                        setSelectedAudioFile(null);
+                                                    } else if (!files[0].type.startsWith("audio/")) {
+                                                        interactionAudioForm.setError("audioFile", { type: "manual", message: "O arquivo deve ser um áudio."});
+                                                        field.onChange(null);
+                                                        setSelectedAudioFile(null);
+                                                    } else {
+                                                        interactionAudioForm.clearErrors("audioFile");
+                                                        field.onChange(files); 
+                                                        setSelectedAudioFile(files[0]);
+                                                    }
                                                 } else {
-                                                    interactionAudioForm.clearErrors("audioFile");
-                                                    formOnChange(files); 
+                                                    field.onChange(null);
+                                                    setSelectedAudioFile(null);
                                                 }
-                                                handleAudioFileSelect(e); 
                                             }}
-                                            ref={el => {
-                                                if (typeof fieldRefCallback === 'function') fieldRefCallback(el);
-                                                // @ts-ignore
-                                                else if (fieldRefCallback) fieldRefCallback.current = el;
+                                            ref={el => { // RHF ref + local ref
+                                                field.ref(el);
                                                 if (audioFileInputRef && typeof audioFileInputRef === 'object') {
                                                   audioFileInputRef.current = el;
                                                 }
                                             }}
-                                            name={formFieldName}
-                                            {...rest}
+                                            name={field.name}
+                                            onBlur={field.onBlur}
                                           />
                                       </FormControl>
                                       <FormMessage />
                                   </FormItem>
                                 )}/>
-                                {audioUploadProgress !== null && ( /* Common progress bar */
+                                {audioUploadProgress !== null && (
                                   <div className="space-y-1"><Label className="text-xs">Progresso:</Label><Progress value={audioUploadProgress} className="h-2" /><p className="text-xs text-muted-foreground text-center">{Math.round(audioUploadProgress)}%</p></div>
                                 )}
                                 <DialogFooter>
                                     <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                                    <Button type="submit" disabled={isUploadingAudio || !interactionAudioForm.formState.isValid || !interactionAudioForm.getValues('audioFile')?.[0]}>
+                                    <Button 
+                                        type="submit" 
+                                        disabled={
+                                            isUploadingAudio || 
+                                            !interactionAudioForm.formState.isValid || 
+                                            (!interactionAudioForm.getValues('audioFile')?.[0] && !(currentAudioSettingToEdit?.type === 'interaction' && currentAudioSettingToEdit?.audioUrl))
+                                        }
+                                    >
                                         {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
                                     </Button>
                                 </DialogFooter>
                             </form>
                         </Form>
-                    ) : ( /* Form for Game Event Audio */
+                    ) : ( 
                         <form onSubmit={(e) => { e.preventDefault(); handleSaveAudio(); }} className="space-y-4 py-2 pb-4">
                             <div className="space-y-1">
                                 <Label htmlFor="gameEventAudioFileDirect">Arquivo de Áudio (máx 2MB)</Label>
@@ -2040,7 +2060,10 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             )}
                             <DialogFooter>
                                 <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                                <Button type="submit" disabled={isUploadingAudio || !selectedAudioFile}>
+                                <Button 
+                                    type="submit" 
+                                    disabled={isUploadingAudio || (!selectedAudioFile && !currentAudioSettingToEdit?.audioUrl) }
+                                >
                                     {isUploadingAudio ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}Salvar
                                 </Button>
                             </DialogFooter>
@@ -2094,15 +2117,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 onClick={() => {
                                     const fullSetting = interactionAudioSettings.find(s => s.id === audio.id);
                                     if (fullSetting) {
-                                        setCurrentAudioSettingToEdit(fullSetting); // Store the full setting for editing
-                                        interactionAudioForm.reset({ // Populate form for editing
-                                            displayName: fullSetting.displayName,
-                                            keyword: fullSetting.keyword || "",
-                                            associatedGiftId: fullSetting.associatedGiftId || "",
-                                            audioFile: undefined // File input needs to be re-selected
-                                        });
-                                        setIsAddInteractionAudioDialogOpen(true); // Open the dialog in "edit mode" for interaction audio
-                                        setIsUploadAudioDialogOpen(false);
+                                        handleOpenUploadAudioDialog(fullSetting, true);
                                     }
                                 }}>
                                   <Edit2 className="h-4 w-4" />
@@ -2376,3 +2391,6 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
     </>
   );
 }
+
+
+    
