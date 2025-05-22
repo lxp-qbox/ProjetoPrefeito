@@ -26,23 +26,26 @@ import {
   LayoutDashboard, Star, User, UserCog, XCircle, Database, Link as LinkIcon, RefreshCw, ServerOff,
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
-  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap
+  LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIcon, Edit2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize } from '@/types';
-import { format } from 'date-fns';
+import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types'; // Added Game
+import { format, parse, setHours, setMinutes, isValid } from 'date-fns'; // Added parse, setHours, setMinutes, isValid
 import { ptBR } from 'date-fns/locale';
 import NextImage from 'next/image';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription as FormDesc, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label"; 
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp } from "@/lib/firebase"; 
+import { db, collection, query, where, orderBy, addDoc, getDocs, serverTimestamp, storage, storageRef, uploadBytesResumable, getDownloadURL, Timestamp, doc, updateDoc } from "@/lib/firebase"; 
 import LoadingSpinner from '@/components/ui/loading-spinner';
 
 
@@ -60,7 +63,6 @@ interface BingoAdminMenuGroup {
   isBottomSection?: boolean;
 }
 
-// Sample data for GeneratedBingoCard (90-ball)
 const placeholderGenerated90BallCards: GeneratedBingoCard[] = [
   {
     id: 'card-90-001',
@@ -80,36 +82,20 @@ const placeholderGenerated90BallCards: GeneratedBingoCard[] = [
       { gameId: 'gameXYZ', userId: 'player456', timestamp: new Date(Date.now() - 3600000) }
     ]
   },
-  {
-    id: 'card-90-002',
-    cardNumbers: [
-      [1, 20, null, 33, null, 50, 65, null, 88],
-      [null, 15, 25, 35, 45, null, 68, 72, 82],
-      [7, null, 28, null, 48, 58, null, 77, null]
-    ],
-    creatorId: 'system-generator',
-    createdAt: new Date(Date.now() - 86400000), // Yesterday
-    usageHistory: [
-      { userId: 'player789', gameId: 'gameABC', timestamp: new Date(), isWinner: false },
-    ],
-    timesAwarded: 0,
-    awardsHistory: []
-  }
 ];
 
-// Sample data for 75-ball cards
 const placeholderGenerated75BallCards: GeneratedBingoCard[] = [
   {
     id: 'card-75-001',
-    cardNumbers: [ // 5x5 grid
+    cardNumbers: [
       [1, 16, 31, 46, 61],
       [5, 20, 35, 50, 65],
-      [10, 25, null, 55, 70], // N column, middle is free (null)
+      [10, 25, null, 55, 70], 
       [12, 28, 40, 58, 72],
       [15, 30, 45, 60, 75]
     ],
     creatorId: 'user-creator-75A',
-    createdAt: new Date(Date.now() - 172800000), // Two days ago
+    createdAt: new Date(Date.now() - 172800000), 
     usageHistory: [
       { userId: 'playerABC', gameId: 'game75-1', timestamp: new Date(), isWinner: false },
     ],
@@ -134,18 +120,32 @@ const newKakoPrizeSchema = z.object({
   imageUrl: z.string().url({ message: "URL da imagem inválida." }).optional().or(z.literal('')),
   imageFile: z.instanceof(FileList).optional().nullable()
     .refine(files => !files || files.length <= 1, "Apenas um arquivo de imagem é permitido.")
-    .refine(files => !files || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
+    .refine(files => !files || !files?.[0] || files?.[0]?.type.startsWith("image/"), "O arquivo deve ser uma imagem."),
   kakoGiftId: z.string().optional(),
   valueDisplay: z.string().optional(),
   description: z.string().max(200, "Descrição muito longa (máx. 200 caracteres).").optional(),
 });
 type NewKakoPrizeFormValues = z.infer<typeof newKakoPrizeSchema>;
 
+const newGameSchema = z.object({
+  title: z.string().min(3, "Título deve ter pelo menos 3 caracteres.").max(100, "Título muito longo (máx. 100 caracteres)."),
+  bingoType: z.enum(['75-ball', '90-ball'], { required_error: "Selecione o tipo de bingo." }),
+  cardPrice: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? 0 : parseFloat(String(val)), // Default to 0 if empty
+    z.number({ invalid_type_error: "Preço deve ser um número" }).min(0, "Preço deve ser zero ou maior.").optional().default(0)
+  ),
+  prizeDescription: z.string().min(5, "Descrição do prêmio deve ter pelo menos 5 caracteres.").max(250, "Descrição muito longa (máx. 250 caracteres)."),
+  startTimeDate: z.date({ required_error: "Data de início é obrigatória." }),
+  startTimeString: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Hora inválida. Use HH:MM.").min(1, "Hora de início é obrigatória."),
+  notes: z.string().max(500, "Notas muito longas (máx. 500 caracteres).").optional(),
+});
+type NewGameFormValues = z.infer<typeof newGameSchema>;
+
 
 export default function AdminBingoAdminPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useAuth(); 
+  const { currentUser } = useAuth(); 
   const { toast } = useToast();
 
   const bingoSpecificMenuGroups: BingoAdminMenuGroup[] = [
@@ -187,7 +187,23 @@ export default function AdminBingoAdminPage() {
   const [isLoadingKakoPrizes, setIsLoadingKakoPrizes] = useState(true);
   const [isAddKakoPrizeDialogOpen, setIsAddKakoPrizeDialogOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const { currentUser } = useAuth();
+  
+  const [bingoGames, setBingoGames] = useState<Game[]>([]);
+  const [isLoadingGames, setIsLoadingGames] = useState(true);
+  const [isCreateGameDialogOpen, setIsCreateGameDialogOpen] = useState(false);
+
+  const gameForm = useForm<NewGameFormValues>({
+    resolver: zodResolver(newGameSchema),
+    defaultValues: {
+      title: "",
+      bingoType: undefined, 
+      cardPrice: 0,
+      prizeDescription: "",
+      startTimeDate: undefined,
+      startTimeString: "00:00",
+      notes: "",
+    },
+  });
 
   const kakoPrizeForm = useForm<NewKakoPrizeFormValues>({
     resolver: zodResolver(newKakoPrizeSchema),
@@ -220,11 +236,85 @@ export default function AdminBingoAdminPage() {
     }
   }, [toast]);
 
+  const fetchBingoGames = useCallback(async () => {
+    setIsLoadingGames(true);
+    try {
+      const gamesCollectionRef = collection(db, "bingoGames");
+      const q = query(gamesCollectionRef, orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedGames: Game[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedGames.push({ 
+          id: docSnap.id, 
+          ...data,
+          // Convert Firestore Timestamp to Date for startTime if it exists
+          startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
+        } as Game);
+      });
+      setBingoGames(fetchedGames);
+    } catch (error) {
+      console.error("Erro ao buscar partidas de bingo:", error);
+      toast({ title: "Erro ao Carregar Partidas", description: "Não foi possível carregar a lista de partidas.", variant: "destructive" });
+    } finally {
+      setIsLoadingGames(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     if (activeTab === 'bingoPremiosKako') {
       fetchKakoPrizes();
     }
-  }, [activeTab, fetchKakoPrizes]);
+    if (activeTab === 'bingoPartidas') {
+      fetchBingoGames();
+    }
+  }, [activeTab, fetchKakoPrizes, fetchBingoGames]);
+
+   const onSubmitNewGame = async (values: NewGameFormValues) => {
+    if (!currentUser?.uid) {
+      toast({ title: "Erro de Autenticação", description: "Você precisa estar logado.", variant: "destructive" });
+      return;
+    }
+
+    const [hours, minutes] = values.startTimeString.split(':').map(Number);
+    let combinedStartTime = setHours(values.startTimeDate, hours);
+    combinedStartTime = setMinutes(combinedStartTime, minutes);
+
+    if (!isValid(combinedStartTime)) {
+      toast({ title: "Data/Hora Inválida", description: "A data ou hora de início fornecida não é válida.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const newGameData: Omit<Game, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: any, updatedAt: any, startTime: any } = {
+        title: values.title,
+        bingoType: values.bingoType,
+        cardPrice: values.cardPrice || 0,
+        prizeDescription: values.prizeDescription,
+        startTime: Timestamp.fromDate(combinedStartTime),
+        status: 'planejada',
+        notes: values.notes || '',
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        // Initialize other optional fields as needed
+        participantsCount: 0,
+        cardsSold: 0,
+        totalRevenue: 0,
+        drawnBalls: [],
+      };
+
+      await addDoc(collection(db, "bingoGames"), newGameData);
+      toast({ title: "Partida Criada!", description: `A partida '${values.title}' foi criada com sucesso.` });
+      setIsCreateGameDialogOpen(false);
+      gameForm.reset();
+      fetchBingoGames();
+    } catch (error) {
+      console.error("Erro ao criar partida:", error);
+      toast({ title: "Erro ao Criar Partida", description: "Não foi possível salvar a nova partida.", variant: "destructive" });
+    }
+  };
+
 
   const onSubmitNewKakoPrize = async (values: NewKakoPrizeFormValues) => {
     if (!currentUser) {
@@ -236,6 +326,10 @@ export default function AdminBingoAdminPage() {
     try {
       if (values.imageFile && values.imageFile.length > 0) {
         const file = values.imageFile[0];
+        if (!file) {
+          toast({ title: "Arquivo Inválido", description: "Nenhum arquivo selecionado para upload.", variant: "destructive" });
+          return;
+        }
         const filePath = `bingoPrizesImages/${Date.now()}-${file.name}`;
         const fileStorageRef = storageRef(storage, filePath);
         
@@ -247,7 +341,6 @@ export default function AdminBingoAdminPage() {
             (snapshot) => {
               const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
               setUploadProgress(progress);
-              console.log('Upload is ' + progress + '% done');
             },
             (error) => {
               console.error("Upload failed:", error);
@@ -352,32 +445,199 @@ export default function AdminBingoAdminPage() {
 
 
   const renderBingoAdminContent = () => {
-    let contentTitle = "Seção de Bingo";
-    let contentDescription = "Conteúdo em desenvolvimento.";
-
     switch (activeTab) {
       case 'bingoPartidas':
         return (
           <div className="space-y-6 p-6 bg-background h-full">
             <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TicketIcon className="mr-2 h-6 w-6 text-primary" />
-                  Gerenciamento de Partidas e Configurações de Bingo
-                </CardTitle>
-                <CardDescription>
-                  Aqui você poderá gerenciar todos os aspectos dos jogos de bingo ativos, futuros e passados.
-                </CardDescription>
+              <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <TicketIcon className="mr-2 h-6 w-6 text-primary" />
+                    Gerenciamento de Partidas e Configurações de Bingo
+                  </CardTitle>
+                  <CardDescription>
+                    Crie, visualize e gerencie todos os aspectos dos jogos de bingo.
+                  </CardDescription>
+                </div>
+                <Dialog open={isCreateGameDialogOpen} onOpenChange={setIsCreateGameDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <PlusCircle className="mr-2 h-4 w-4" /> Criar Nova Partida
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Criar Nova Partida de Bingo</DialogTitle>
+                      <DialogDescription>
+                        Preencha os detalhes para configurar uma nova partida.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Form {...gameForm}>
+                      <form onSubmit={gameForm.handleSubmit(onSubmitNewGame)} className="space-y-4 py-2 pb-4">
+                        <FormField
+                          control={gameForm.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Título da Partida</FormLabel>
+                              <FormControl><Input placeholder="Ex: Bingo da Sorte Semanal" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={gameForm.control}
+                          name="bingoType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tipo de Bingo</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="90-ball">90 Bolas</SelectItem>
+                                  <SelectItem value="75-ball">75 Bolas</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={gameForm.control}
+                          name="cardPrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Preço da Cartela (0 para grátis)</FormLabel>
+                              <FormControl><Input type="number" step="0.01" placeholder="Ex: 5.00" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={gameForm.control}
+                          name="prizeDescription"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Descrição do Prêmio Principal</FormLabel>
+                              <FormControl><Textarea placeholder="Ex: Cesta de chocolates + R$50 PIX" {...field} rows={3}/></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                            control={gameForm.control}
+                            name="startTimeDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Data de Início</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP", { locale: ptBR })
+                                        ) : (
+                                            <span>Escolha uma data</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} // Disable past dates
+                                        initialFocus
+                                        locale={ptBR}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                          control={gameForm.control}
+                          name="startTimeString"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Hora de Início (HH:MM)</FormLabel>
+                              <FormControl><Input type="time" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={gameForm.control}
+                          name="notes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Notas (Opcional)</FormLabel>
+                              <FormControl><Textarea placeholder="Observações internas sobre a partida..." {...field} rows={2}/></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <DialogFooter>
+                          <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                          <Button type="submit" disabled={gameForm.formState.isSubmitting}>
+                            {gameForm.formState.isSubmitting ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                            Salvar Partida
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
-                <p className="mb-4">Funcionalidades planejadas para Partidas:</p>
-                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/80" /> Visualizar todas as partidas (ativas, futuras, passadas).</li>
-                  <li className="flex items-center"><PlusCircle className="mr-2 h-4 w-4 text-primary/80" /> Criar novas partidas com configurações personalizadas (tipo de bingo, preço da cartela, prêmios).</li>
-                  <li className="flex items-center"><SettingsIconLucide className="mr-2 h-4 w-4 text-primary/80" /> Editar partidas existentes (data, hora, prêmios).</li>
-                  <li className="flex items-center"><BarChart3 className="mr-2 h-4 w-4 text-primary/80" /> Ver estatísticas por partida (participantes, receita, vencedores).</li>
-                   <li className="flex items-center"><XCircle className="mr-2 h-4 w-4 text-destructive/80" /> Cancelar ou adiar partidas.</li>
-                </ul>
+                {isLoadingGames ? (
+                   <div className="flex justify-center items-center h-32"><LoadingSpinner size="md" /><p className="ml-2 text-muted-foreground">Carregando partidas...</p></div>
+                ) : bingoGames.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhuma partida de bingo cadastrada ainda.</p>
+                ) : (
+                  <ScrollArea className="h-[calc(100vh-350px)]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Título</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead>Prêmio</TableHead>
+                        <TableHead>Início</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bingoGames.map((game) => (
+                        <TableRow key={game.id}>
+                          <TableCell className="font-medium">{game.title}</TableCell>
+                          <TableCell>{game.bingoType === '75-ball' ? '75 Bolas' : '90 Bolas'}</TableCell>
+                          <TableCell className="text-right">R$ {game.cardPrice?.toFixed(2) ?? '0.00'}</TableCell>
+                          <TableCell className="max-w-xs truncate" title={game.prizeDescription}>{game.prizeDescription}</TableCell>
+                          <TableCell>{game.startTime ? format(new Date(game.startTime), "dd/MM/yy HH:mm", { locale: ptBR }) : 'N/A'}</TableCell>
+                          <TableCell><Badge variant={game.status === 'planejada' ? 'default' : game.status === 'ativa' ? 'destructive' : 'secondary'} className="capitalize">{game.status}</Badge></TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toast({title: "Editar Partida", description:"Funcionalidade em desenvolvimento."})}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  </ScrollArea>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -571,7 +831,7 @@ export default function AdminBingoAdminPage() {
                                      <FormField
                                         control={kakoPrizeForm.control}
                                         name="imageFile"
-                                        render={({ field: { onChange, value, ...rest } }) => (
+                                        render={({ field: { onChange, value, ...rest } }) => ( // Use specific field props for file input
                                             <FormItem>
                                                 <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
                                                 <FormControl>
@@ -668,7 +928,7 @@ export default function AdminBingoAdminPage() {
                     ) : kakoPrizes.length === 0 ? (
                         <p className="text-center text-muted-foreground py-4">Nenhum prêmio Kako Live cadastrado.</p>
                     ) : (
-                        <ScrollArea className="h-[calc(100vh-350px)]"> {/* Adjust height as needed */}
+                        <ScrollArea className="h-[calc(100vh-350px)]"> 
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -704,17 +964,62 @@ export default function AdminBingoAdminPage() {
             </div>
         );
       case 'bingoPremiosDinheiro':
-        contentTitle = "Gerenciamento de Prêmios - Dinheiro";
-        contentDescription = "Defina e administre prêmios em dinheiro para diferentes tipos de bingo e classificações.";
-        break;
+         return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <DollarSign className="mr-2 h-6 w-6 text-primary" />
+                  Gerenciamento de Prêmios - Dinheiro
+                </CardTitle>
+                <CardDescription>
+                  Defina e administre prêmios em dinheiro para diferentes tipos de bingo e classificações. (Em Desenvolvimento)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Mais detalhes e funcionalidades serão adicionados aqui em breve.</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case 'bingoGanhadores':
-        contentTitle = "Registro de Ganhadores";
-        contentDescription = "Gerencie e visualize o histórico de ganhadores dos jogos de bingo.";
-        break;
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Trophy className="mr-2 h-6 w-6 text-primary" />
+                  Registro de Ganhadores
+                </CardTitle>
+                <CardDescription>
+                  Gerencie e visualize o histórico de ganhadores dos jogos de bingo. (Em Desenvolvimento)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Mais detalhes e funcionalidades serão adicionados aqui em breve.</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case 'bingoBolasSorteadas':
-        contentTitle = "Histórico de Bolas Sorteadas";
-        contentDescription = "Acesse o registro de todas as bolas sorteadas em cada partida.";
-        break;
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Dice5 className="mr-2 h-6 w-6 text-primary" />
+                  Histórico de Bolas Sorteadas
+                </CardTitle>
+                <CardDescription>
+                  Acesse o registro de todas as bolas sorteadas em cada partida. (Em Desenvolvimento)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Mais detalhes e funcionalidades serão adicionados aqui em breve.</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case 'bingoTelaSorteio':
         return (
           <div className="space-y-6 p-6 bg-background h-full">
@@ -801,29 +1106,6 @@ export default function AdminBingoAdminPage() {
             </div>
           );
     }
-
-    // This generic placeholder is unlikely to be hit due to the default case above now rendering a more useful default.
-    // However, keeping it as a fallback.
-    return (
-      <div className="p-6 bg-background h-full">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              {activeTab === 'bingoGanhadores' && <Trophy className="mr-2 h-6 w-6 text-primary" />}
-              {activeTab === 'bingoBolasSorteadas' && <Dice5 className="mr-2 h-6 w-6 text-primary" />}
-              {activeTab === 'bingoPremiosDinheiro' && <DollarSign className="mr-2 h-6 w-6 text-primary" />}
-              {contentTitle}
-            </CardTitle>
-            <CardDescription>
-              {contentDescription}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Mais detalhes e funcionalidades serão adicionados aqui em breve.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
   };
 
   return (
@@ -1058,5 +1340,3 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
-
-    
