@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, PlusCircle, Save, FileJson } from "lucide-react";
+import { Search, Users, Eye, RefreshCw, UserCircle2, Trash2, Gift as GiftIconLucide, DatabaseZap, PlusCircle, Save, FileJson, ChevronDown } from "lucide-react";
 import NextImage from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -20,6 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -84,8 +91,8 @@ export default function AdminKakoLiveDataListPageContent() {
   const [kakoProfiles, setKakoProfiles] = useState<KakoProfile[]>([]);
   const [kakoGifts, setKakoGifts] = useState<KakoGift[]>([]);
   
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false); // No longer fetches from DB on mount
-  const [isLoadingGifts, setIsLoadingGifts] = useState(true); // For gifts list
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false); 
+  const [isLoadingGifts, setIsLoadingGifts] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
@@ -115,7 +122,6 @@ export default function AdminKakoLiveDataListPageContent() {
     if (type === "error") console.error(message);
     else if (type === "info") console.info(message);
     else console.log(message);
-    // We are not using a visual log on this page anymore, but keeping for potential debug
   }, []);
 
 
@@ -129,7 +135,7 @@ export default function AdminKakoLiveDataListPageContent() {
     try {
       const docSnap = await getDoc(profileDocRef);
       const dataToSave: Omit<KakoProfile, 'lastFetchedAt'> & { lastFetchedAt: any } = {
-        id: profileData.id, // FUID
+        id: profileData.id, 
         nickname: profileData.nickname || "N/A",
         avatarUrl: profileData.avatarUrl || "", 
         level: profileData.level,
@@ -149,7 +155,6 @@ export default function AdminKakoLiveDataListPageContent() {
         let hasChanges = false;
         const updates: Partial<Omit<KakoProfile, 'lastFetchedAt'> & { lastFetchedAt: any }> = { lastFetchedAt: serverTimestamp() };
 
-        // Compare relevant fields and add to updates if changed
         if (dataToSave.nickname !== existingData.nickname) { updates.nickname = dataToSave.nickname; hasChanges = true; }
         if (dataToSave.avatarUrl !== existingData.avatarUrl) { updates.avatarUrl = dataToSave.avatarUrl; hasChanges = true; }
         if (dataToSave.level !== existingData.level) { updates.level = dataToSave.level; hasChanges = true; }
@@ -167,7 +172,6 @@ export default function AdminKakoLiveDataListPageContent() {
           toast({ title: "Perfil Kako Atualizado", description: `Perfil de ${dataToSave.nickname} atualizado no Firestore.` });
         } else {
            await updateDoc(profileDocRef, { lastFetchedAt: serverTimestamp() });
-           // No toast for just lastFetchedAt update to avoid clutter
         }
       } else {
         await setDoc(profileDocRef, dataToSave);
@@ -225,7 +229,7 @@ export default function AdminKakoLiveDataListPageContent() {
                 if (parsedJson.user && parsedJson.user.userId) {
                     const userData = parsedJson.user;
                     const profileData: KakoProfile = {
-                        id: userData.userId, // FUID
+                        id: userData.userId, 
                         nickname: userData.nickname || "N/A",
                         avatarUrl: userData.avatar || userData.avatarUrl || "",
                         level: userData.level,
@@ -237,7 +241,7 @@ export default function AdminKakoLiveDataListPageContent() {
                         school: userData.school,
                         roomId: parsedJson.roomId, 
                         isLiving: 'isLiving' in userData ? userData.isLiving : (parsedJson.anchor?.isLiving), 
-                        lastFetchedAt: new Date() 
+                        lastFetchedAt: new Date() // Set a client-side date for immediate display
                     };
                     
                     setKakoProfiles(prevProfiles => {
@@ -313,18 +317,18 @@ export default function AdminKakoLiveDataListPageContent() {
       socketRef.current.onerror = null;
       socketRef.current.onclose = null; 
       socketRef.current.close();
+      // socketRef.current = null; // onclose handler will set this
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
     }
   }, [addLog]);
 
-  // Auto-connect on mount
   useEffect(() => {
     connectWebSocket(); 
     return () => {
       disconnectWebSocket();
     };
-  }, [connectWebSocket, disconnectWebSocket]); // connectWebSocket and disconnectManually are stable due to useCallback
+  }, [connectWebSocket, disconnectWebSocket]);
 
   const fetchKakoGifts = useCallback(async () => {
     setIsLoadingGifts(true);
@@ -525,13 +529,23 @@ export default function AdminKakoLiveDataListPageContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Buscar perfis (Nome, ID, Show ID...)"
+                  placeholder="Buscar perfis (Nome, ID Kako, Show ID...)"
                   className="pl-10 w-full h-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" onClick={() => { socketRef.current?.close(); setTimeout(connectWebSocket, 100); }} className="h-10">
+              <Button variant="outline" onClick={() => { 
+                  if (socketRef.current) {
+                      socketRef.current.onopen = null;
+                      socketRef.current.onmessage = null;
+                      socketRef.current.onerror = null;
+                      socketRef.current.onclose = null;
+                      socketRef.current.close();
+                      socketRef.current = null;
+                  }
+                  setTimeout(connectWebSocket, 100); 
+                }} className="h-10">
                  <RefreshCw className="mr-2 h-4 w-4" />
                 Reconectar WS
               </Button>
@@ -551,7 +565,6 @@ export default function AdminKakoLiveDataListPageContent() {
           <StatCard title="Total de Presentes (DB)" count={kakoGifts.length} icon={GiftIconLucide} bgColorClass="bg-orange-500/10" textColorClass="text-orange-500" />
         </div>
 
-        {/* Profiles List Card */}
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Lista de Perfis do Kako Live</CardTitle>
@@ -640,7 +653,6 @@ export default function AdminKakoLiveDataListPageContent() {
           </CardFooter>
         </Card>
 
-        {/* Gifts List Card */}
         <Card className="flex-grow flex flex-col min-h-0 shadow-lg mt-6">
             <CardHeader className="flex flex-row justify-between items-center">
                 <div>
@@ -819,7 +831,6 @@ export default function AdminKakoLiveDataListPageContent() {
 
       </div>
 
-      {/* Profile Details Dialog */}
       {selectedProfileForDetails && (
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
           <DialogContent className="sm:max-w-md">
@@ -911,7 +922,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </Dialog>
       )}
 
-      {/* Clear Profiles List (Local) Dialog */}
       <AlertDialog open={isConfirmClearProfilesListLocalDialogOpen} onOpenChange={setIsConfirmClearProfilesListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -932,7 +942,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear Profiles from DB Dialog */}
       <AlertDialog open={isConfirmClearProfilesDBDialogOpen} onOpenChange={setIsConfirmClearProfilesDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -957,7 +966,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear Gifts List (Local) Dialog */}
        <AlertDialog open={isConfirmClearGiftsListLocalDialogOpen} onOpenChange={setIsConfirmClearGiftsListLocalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -978,7 +986,6 @@ export default function AdminKakoLiveDataListPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Clear Gifts from DB Dialog */}
       <AlertDialog open={isConfirmClearGiftsDBDialogOpen} onOpenChange={setIsConfirmClearGiftsDBDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1005,5 +1012,3 @@ export default function AdminKakoLiveDataListPageContent() {
     </>
   );
 }
-
-    
