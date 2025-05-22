@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react"; // Ensure React is imported
+import React, { useState, useEffect } from "react";
 import ProtectedPage from "@/components/auth/protected-page";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   UserCog,
   ShieldAlert,
   LayoutDashboard,
-  Settings,
+  Settings as SettingsIconLucide, // Renamed to avoid conflict
   UserCircle2,
   Globe,
   Bell,
@@ -26,32 +26,41 @@ import {
   XCircle,
   Database,
   Link as LinkIcon,
-  Ticket as TicketIcon, // Alias for Bingo Admin menu
+  Ticket as TicketIcon,
+  RefreshCw,
   MailQuestion,
   ServerOff,
-  RefreshCw,
-  ListFilter, 
-  BarChart3,  
-  PlusCircle, 
-  ListChecks, 
-  Settings as SettingsIconLucide,
-  Gift as GiftIconLucide // For "Lista de Presentes" in Kako Live section
+  WalletCards, // Added WalletCards
+  Settings2 // Added Settings2
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from 'react';
-import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import AdminHostsPageContent from "./hosts/page-content";
+import AdminPlayersPageContent from "./users/players/page-content";
+import AdminAdminsPageContent from "./users/admin/page-content";
+import AdminBansPage from "./actions/bans/page";
+import AdminKakoLiveDataListPageContent from "./kako-live/data-list/page-content";
+import AdminKakoLiveUpdateDataChatPageContent from "./kako-live/update-data-chat/page-content";
+import AdminKakoLiveLinkTesterPage from "./kako-live/link-tester/page";
+import AdminKakoLiveGiftsPageContent from "./kako-live/gifts/page-content";
+import AdminMaintenanceOfflinePage from "./maintenance/offline/page";
+
+// Import new wallet pages
+import AdminWalletsListPage from "./wallets/list/page";
+import AdminWalletsConfigPage from "./wallets/config/page";
+
 
 interface AdminMenuItem {
   id: string;
   title: string;
   icon: React.ElementType;
   link?: string;
-  currentValue?: string; 
-  action?: () => void; 
-  separatorAbove?: boolean; 
+  currentValue?: string;
+  action?: () => void;
+  separatorAbove?: boolean;
 }
 
 interface AdminMenuGroup {
@@ -75,9 +84,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     {
       groupTitle: "GERAL",
       items: [
-        { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, link: "/admin" },
-        { id: "language", title: "Idioma", icon: Globe, link: "/admin/language", currentValue: "Português(Brasil)" },
-        { id: "notifications", title: "Configurações de notificação", icon: Bell, link: "/admin/notifications" },
+        { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, link: "/admin/hosts" }, // Default to hosts
+        { id: "language", title: "Idioma", icon: Globe, link: "/admin#language", currentValue: "Português(Brasil)" },
+        { id: "notifications", title: "Configurações de notificação", icon: Bell, link: "/admin#notifications" },
       ],
     },
     {
@@ -92,14 +101,21 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     {
       groupTitle: "KAKO LIVE",
       items: [
-          { id: "kakoDataList", title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
-          { id: "kakoGiftsList", title: "Lista de Presentes", icon: GiftIconLucide, link: "/admin/kako-live/gifts"},
-          { id: "kakoUpdateDataChat", title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" },
-          { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
+        { id: "kakoDataList", title: "Lista de Perfis (DB)", icon: Database, link: "/admin/kako-live/data-list" },
+        { id: "kakoGiftsList", title: "Lista de Presentes", icon: GiftIconLucide, link: "/admin/kako-live/gifts"},
+        { id: "kakoUpdateDataChat", title: "Atualizar Dados (Chat)", icon: RefreshCw, link: "/admin/kako-live/update-data-chat" },
+        { id: "kakoLinkTester", title: "Teste de Link WebSocket", icon: LinkIcon, link: "/admin/kako-live/link-tester" },
       ]
     },
-    { 
-      groupTitle: "BINGO", 
+    {
+      groupTitle: "CARTEIRAS", // New Group
+      items: [
+        { id: "walletsList", title: "Listar Carteiras", icon: WalletCards, link: "/admin/wallets/list" },
+        { id: "walletsConfig", title: "Configurar Carteira", icon: Settings2, link: "/admin/wallets/config" },
+      ]
+    },
+    {
+      groupTitle: "BINGO",
       items: [
         { id: "bingoAdminMain", title: "Administração Bingo", icon: TicketIcon, link: "/admin/bingo-admin"},
       ]
@@ -113,10 +129,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     {
       groupTitle: "SOBRE",
       items: [
-        { id: "userAgreement", title: "Contrato do usuário", icon: FileText, link: "/admin/user-agreement" },
-        { id: "privacyPolicy", title: "Política de privacidade", icon: FileText, link: "/admin/privacy-policy" },
-        { id: "hostAgreement", title: "Contrato de Host", icon: FileText, link: "/admin/host-agreement" },
-        { id: "aboutKako", title: "Sobre Kako Live", icon: Info, link: "/admin/about-kako" },
+        { id: "userAgreement", title: "Contrato do usuário", icon: FileText, link: "/admin#user-agreement" },
+        { id: "privacyPolicy", title: "Política de privacidade", icon: FileText, link: "/admin#privacy-policy" },
+        { id: "hostAgreement", title: "Contrato de Host", icon: FileText, link: "/admin#host-agreement" },
+        { id: "aboutKako", title: "Sobre Kako Live", icon: Info, link: "/admin#about-kako" },
       ],
     },
     {
@@ -137,9 +153,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const handleMenuClick = (item: AdminMenuItem) => {
     if (item.action) {
       item.action();
-    } else if (item.link) {
+    } else if (item.link && !item.link.startsWith("/admin#")) { // Don't change activeLink for placeholder hash links
       router.push(item.link);
       setActiveLink(item.link);
+    } else if (item.link && item.link.startsWith("/admin#")) {
+      // Handle in-page section links if needed, or just do nothing for placeholders
+      console.log("Placeholder link clicked:", item.link);
     }
   };
 
@@ -159,7 +178,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </ProtectedPage>
     );
   }
-
+  
+  // Special handling for /admin/bingo-admin to be full page
   if (pathname === '/admin/bingo-admin') {
     return (
       <ProtectedPage>
@@ -180,7 +200,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           )}>
             <div className="p-4 space-y-4 flex-grow">
               {adminMenuGroups.map((group, groupIndex) => (
-                <div key={group.groupTitle || `group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
+                <div key={group.groupTitle || `admin-group-${groupIndex}`} className={cn(group.isBottomSection && "mt-auto pt-4 border-t")}>
                   {group.groupTitle && !isCollapsed && (
                     <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
                       {group.groupTitle}
@@ -193,7 +213,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   )}
                   <div className={cn("space-y-1", !group.groupTitle && group.isBottomSection && "mt-0 pt-0 border-none")}>
                     {group.items.map((item) => {
-                      const isActive = activeLink === item.link || (item.link === "/admin" && pathname === "/admin/hosts" && activeLink === "/admin");
+                      const isActive = activeLink === item.link;
                       
                       return (
                         <Tooltip key={item.id} disableHoverableContent={!isCollapsed}>
@@ -216,12 +236,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                       <item.icon className={cn(isActive ? "text-primary" : "text-muted-foreground", isCollapsed ? "h-6 w-6" : "h-5 w-5")} />
                                       {!isCollapsed && item.title}
                                   </div>
-                                  {!isCollapsed && !item.action && item.link !== "/support" && item.link !== "/admin/bingo-admin" ? (
+                                  {!isCollapsed && item.link && !item.link.startsWith("/admin#") && !item.action && item.link !== "/support" && (
                                     <div className="flex items-center ml-auto">
                                       {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
                                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </div>
-                                  ) : null }
+                                  )}
                               </div>
                             </Button>
                           </TooltipTrigger>
@@ -250,13 +270,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </div>
           </nav>
 
-          <main className="flex-grow h-full overflow-y-auto">
-            {children}
+          <main className="flex-1 h-full overflow-y-auto">
+             {children}
           </main>
         </div>
       </TooltipProvider>
     </ProtectedPage>
   );
 }
-
-    
