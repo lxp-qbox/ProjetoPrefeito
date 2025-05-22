@@ -28,12 +28,12 @@ import {
   FileText, Info, Headphones, LogOut, ChevronRight, Ticket as TicketIcon, Globe, Bell,
   ListChecks, Settings as SettingsIconLucide, PlusCircle, BarChart3, AlertTriangle,
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIconLucide, Edit2,
-  UploadCloud, Music2, ImageIcon as ImageIconLucide, Volume2, Music3, PlayCircleIcon, PauseCircleIcon, ArrowUpDown
+  UploadCloud, Music2, ImageIcon as ImageIconLucide, Volume2, Music3, PlayCircleIcon, PauseCircleIcon, ArrowUpDown, RadioTower
 } from 'lucide-react';
 import NextImage from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, BingoPrize, Game, AudioSetting, BingoBallSetting, UserProfile } from '@/types';
-import { format, parse, setHours, setMinutes, isValid } from 'date-fns';
+import type { GeneratedBingoCard, BingoPrize, Game, AudioSetting, BingoBallSetting, UserProfile, BingoRoomSetting } from '@/types';
+import { format, parse, setHours, setMinutes, isValid, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,6 +72,7 @@ import {
 } from "@/lib/firebase";
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 
 
 interface BingoAdminMenuItem {
@@ -180,6 +181,12 @@ const ballAssetSchema = z.object({
 });
 type BallAssetFormValues = z.infer<typeof ballAssetSchema>;
 
+const newBingoRoomSchema = z.object({
+  roomId: z.string().min(5, "ID da Sala é obrigatório e deve ter pelo menos 5 caracteres."),
+  description: z.string().optional(),
+});
+type NewBingoRoomFormValues = z.infer<typeof newBingoRoomSchema>;
+
 
 // Helper function to generate a single 90-ball card
 const generateSingle90BallCardNumbers = (): (number | null)[][] => {
@@ -197,9 +204,8 @@ const generateSingle90BallCardNumbers = (): (number | null)[][] => {
     do {
       num = min + Math.floor(Math.random() * max_range_size);
       attempts++;
-      if (attempts > 100) { // Increased safeguard, though should rarely be hit
+      if (attempts > 100) { 
         console.warn(`High attempts for col ${colIndex}, min ${min}, range ${max_range_size}, current numbers:`, Array.from(numbersOnCard));
-        // This indicates a potential issue with logic if it happens frequently
         throw new Error(`Could not generate unique number for column ${colIndex} after 100 attempts.`);
       }
     } while (numbersOnCard.has(num));
@@ -208,7 +214,6 @@ const generateSingle90BallCardNumbers = (): (number | null)[][] => {
     return num;
   };
 
-  // Determine 5 cells to fill in each row
   const cellsToFill: { r: number, c: number }[] = [];
   for (let r = 0; r < 3; r++) {
     const colsInThisRow = new Set<number>();
@@ -218,24 +223,21 @@ const generateSingle90BallCardNumbers = (): (number | null)[][] => {
     Array.from(colsInThisRow).forEach(c => cellsToFill.push({ r, c }));
   }
 
-  // Place numbers in determined cells, ensuring column constraints
   const tempNumbers: { r: number, c: number, val: number }[] = [];
   cellsToFill.forEach(cell => {
     tempNumbers.push({ r: cell.r, c: cell.c, val: getRandomNumberForColumn(cell.c) });
   });
 
-  // Put numbers onto the card based on tempNumbers
   tempNumbers.forEach(item => {
     card[item.r][item.c] = item.val;
   });
 
-  // Sort numbers within each column
   for (let c = 0; c < 9; c++) {
     const colValues: number[] = [];
     for (let r = 0; r < 3; r++) {
       if (card[r][c] !== null) {
         colValues.push(card[r][c] as number);
-        card[r][c] = null; // Clear for re-population after sort
+        card[r][c] = null; 
       }
     }
     colValues.sort((a, b) => a - b);
@@ -316,6 +318,12 @@ export default function AdminBingoAdminPage() {
   const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
   const [currentPlayingAudioId, setCurrentPlayingAudioId] = useState<string | null>(null);
 
+  const [bingoRoomSettings, setBingoRoomSettings] = useState<BingoRoomSetting[]>([]);
+  const [isLoadingBingoRooms, setIsLoadingBingoRooms] = useState(true);
+  const [isAddRoomDialogOpen, setIsAddRoomDialogOpen] = useState(false);
+  const [isConfirmDeleteRoomDialogOpen, setIsConfirmDeleteRoomDialogOpen] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<BingoRoomSetting | null>(null);
+
   const playAudio = (audioUrl?: string, audioId?: string) => {
     if (audioPlayer) {
       audioPlayer.pause();
@@ -385,6 +393,7 @@ export default function AdminBingoAdminPage() {
         { id: "bingoBolasConfig", title: "Bolas do Bingo", icon: SettingsIconLucide, link: "#bingoBolasConfig" },
         { id: "bingoAudiosPartida", title: "Áudios da Partida", icon: Volume2, link: "#bingoAudiosPartida" },
         { id: "bingoAudiosInteracao", title: "Áudios de Interação", icon: Music3, link: "#bingoAudiosInteracao" },
+        { id: "bingoSalas", title: "Salas de Bingo", icon: RadioTower, link: "#bingoSalas" },
       ],
     }
   ];
@@ -434,6 +443,15 @@ export default function AdminBingoAdminPage() {
           assetFile: undefined,
       },
   });
+
+  const newRoomForm = useForm<NewBingoRoomFormValues>({
+    resolver: zodResolver(newBingoRoomSchema),
+    defaultValues: {
+      roomId: "",
+      description: "",
+    },
+  });
+
 
   const fetchGenerated90BallCards = useCallback(async () => {
     setIsLoading90BallCards(true);
@@ -599,7 +617,7 @@ export default function AdminBingoAdminPage() {
             return {
                 ballNumber: ballNum,
                 ...data,
-                lastUpdatedAt: data.lastUpdatedAt instanceof Timestamp ? data.lastUpdatedAt.toDate() : new Date(data.lastUpdatedAt)
+                lastUpdatedAt: data.lastUpdatedAt instanceof Timestamp ? data.lastUpdatedAt.toDate() : (data.lastUpdatedAt ? new Date(data.lastUpdatedAt) : undefined)
             } as BingoBallSetting;
         }
         return { ballNumber: ballNum } as BingoBallSetting;
@@ -612,6 +630,31 @@ export default function AdminBingoAdminPage() {
         toast({ title: "Erro ao Carregar Bolas", description: "Não foi possível buscar as configurações das bolas.", variant: "destructive" });
     } finally {
         setIsLoadingBallSettings(false);
+    }
+  }, [toast]);
+
+  const fetchBingoRoomSettings = useCallback(async () => {
+    setIsLoadingBingoRooms(true);
+    try {
+      const roomsCollectionRef = collection(db, "bingoRoomSettings");
+      const q = query(roomsCollectionRef, orderBy("addedAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedRooms: BingoRoomSetting[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedRooms.push({
+          id: docSnap.id,
+          ...data,
+          addedAt: data.addedAt instanceof Timestamp ? data.addedAt.toDate() : new Date(data.addedAt),
+          lastCheckedAt: data.lastCheckedAt instanceof Timestamp ? data.lastCheckedAt.toDate() : (data.lastCheckedAt ? new Date(data.lastCheckedAt) : undefined),
+        } as BingoRoomSetting);
+      });
+      setBingoRoomSettings(fetchedRooms);
+    } catch (error) {
+      console.error("Erro ao buscar configurações de salas de bingo:", error);
+      toast({ title: "Erro ao Carregar Salas", description: "Não foi possível buscar as configurações das salas.", variant: "destructive" });
+    } finally {
+      setIsLoadingBingoRooms(false);
     }
   }, [toast]);
 
@@ -628,9 +671,11 @@ export default function AdminBingoAdminPage() {
     if (activeTab === 'bingoAudiosPartida') fetchGameEventAudios();
     if (activeTab === 'bingoAudiosInteracao') fetchInteractionAudios();
     if (activeTab === 'bingoBolasConfig') fetchBingoBallSettings();
+    if (activeTab === 'bingoSalas') fetchBingoRoomSettings();
+
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab]); // Removed specific fetch functions from dependencies as they are useCallback memoized
 
   const handleGenerateCards = async (count: number) => {
     if (!currentUser?.uid) {
@@ -646,8 +691,7 @@ export default function AdminBingoAdminPage() {
 
       for (let i = 0; i < count; i++) {
         const cardNumbers = generateSingle90BallCardNumbers();
-        console.log(`Cartela ${i + 1} gerada:`, cardNumbers);
-        const newCardRef = doc(cardsCollectionRef); // Auto-generate ID for Firestore
+        const newCardRef = doc(cardsCollectionRef); 
         const newCardData: Omit<GeneratedBingoCard, 'id'> = {
           cardNumbers,
           creatorId: currentUser.uid,
@@ -659,7 +703,7 @@ export default function AdminBingoAdminPage() {
         currentBatch.set(newCardRef, newCardData);
         operationsInBatch++;
 
-        if (operationsInBatch >= 499) { // Firestore batch limit is 500 operations
+        if (operationsInBatch >= 499) { 
           console.log(`Commitando batch com ${operationsInBatch} operações.`);
           await currentBatch.commit();
           console.log("Batch commitado com sucesso.");
@@ -674,7 +718,7 @@ export default function AdminBingoAdminPage() {
       }
 
       toast({ title: "Cartelas Geradas!", description: `${count} novas cartelas de 90 bolas foram geradas e salvas no banco de dados.` });
-      fetchGenerated90BallCards(); // Refresh the list from DB
+      fetchGenerated90BallCards(); 
     } catch (error) {
       console.error("Erro ao gerar cartelas:", error);
       toast({ title: "Erro ao Gerar Cartelas", description: `Não foi possível gerar as cartelas. Erro: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
@@ -718,7 +762,7 @@ export default function AdminBingoAdminPage() {
             });
             setIsAddInteractionAudioDialogOpen(true);
             setIsUploadAudioDialogOpen(false);
-        } else { // Game Event Audio
+        } else { 
             setIsAddInteractionAudioDialogOpen(false);
             setIsUploadAudioDialogOpen(true);
         }
@@ -750,7 +794,7 @@ export default function AdminBingoAdminPage() {
 
       let oldStoragePathToDelete: string | undefined = undefined;
       if (assetTypeToUpload === 'image') oldStoragePathToDelete = currentBallEditing.imageStoragePath;
-      else if (assetTypeToUpload === 'audio') oldStoragePathToDelete = currentBallEditing.audioStoragePath;
+      else if (assetTypeToUpload === 'audio') oldStoragePathToDelete = currentBallEditing.locutorAudios?.['Padrão']?.audioStoragePath; // Assuming 'Padrão' locutor
 
       if (oldStoragePathToDelete) {
           try {
@@ -772,13 +816,20 @@ export default function AdminBingoAdminPage() {
               );
           });
 
-          const assetDataToSave: Partial<BingoBallSetting> = { lastUpdatedAt: serverTimestamp() };
+          const assetDataToSave: Partial<BingoBallSetting> & { lastUpdatedAt: any } = { lastUpdatedAt: serverTimestamp() };
           if (assetTypeToUpload === 'image') {
               assetDataToSave.imageUrl = downloadURL;
               assetDataToSave.imageStoragePath = newStoragePath;
-          } else {
-              assetDataToSave.audioUrl = downloadURL;
-              assetDataToSave.audioStoragePath = newStoragePath;
+          } else { // audio
+              assetDataToSave.locutorAudios = {
+                  ...(currentBallEditing.locutorAudios || {}),
+                  ['Padrão']: { // Assuming 'Padrão' as default locutor
+                      audioUrl: downloadURL,
+                      audioStoragePath: newStoragePath,
+                      fileName: standardizedFileName,
+                      uploadedAt: serverTimestamp(),
+                  }
+              };
           }
 
           const docRef = doc(db, "bingoBallConfigurations", currentBallEditing.ballNumber.toString());
@@ -799,12 +850,17 @@ export default function AdminBingoAdminPage() {
       }
   };
 
-  const handleRemoveBallAsset = async (ballNumber: number, assetType: 'image' | 'audio') => {
+  const handleRemoveBallAsset = async (ballNumber: number, assetType: 'image' | 'audio', locutorId: string = 'Padrão') => {
     if (!currentUser?.uid) return;
     const ballSetting = bingoBallSettings.find(b => b.ballNumber === ballNumber);
     if (!ballSetting) return;
 
-    const storagePathToRemove = assetType === 'image' ? ballSetting.imageStoragePath : ballSetting.audioStoragePath;
+    let storagePathToRemove: string | undefined = undefined;
+    if (assetType === 'image') {
+        storagePathToRemove = ballSetting.imageStoragePath;
+    } else if (assetType === 'audio') {
+        storagePathToRemove = ballSetting.locutorAudios?.[locutorId]?.audioStoragePath;
+    }
 
     try {
         if (storagePathToRemove) {
@@ -816,23 +872,30 @@ export default function AdminBingoAdminPage() {
         if (assetType === 'image') {
             updateData.imageUrl = deleteField() as unknown as undefined;
             updateData.imageStoragePath = deleteField() as unknown as undefined;
-        } else {
-            updateData.audioUrl = deleteField() as unknown as undefined;
-            updateData.audioStoragePath = deleteField() as unknown as undefined;
+        } else if (assetType === 'audio' && ballSetting.locutorAudios && ballSetting.locutorAudios[locutorId]) {
+            const updatedLocutorAudios = { ...ballSetting.locutorAudios };
+            delete updatedLocutorAudios[locutorId];
+            updateData.locutorAudios = Object.keys(updatedLocutorAudios).length > 0 ? updatedLocutorAudios : deleteField() as unknown as undefined;
         }
         await updateDoc(docRef, updateData);
 
-        setBingoBallSettings(prev => prev.map(b =>
-            b.ballNumber === ballNumber ? {
-                ...b,
-                imageUrl: assetType === 'image' ? undefined : b.imageUrl,
-                imageStoragePath: assetType === 'image' ? undefined : b.imageStoragePath,
-                audioUrl: assetType === 'audio' ? undefined : b.audioUrl,
-                audioStoragePath: assetType === 'audio' ? undefined : b.audioStoragePath,
-                lastUpdatedAt: new Date()
-            } : b
-        ));
-        toast({ title: "Asset Removido", description: `${assetType === 'image' ? 'Imagem' : 'Áudio'} da bola ${ballNumber} removido.` });
+        setBingoBallSettings(prev => prev.map(b => {
+            if (b.ballNumber === ballNumber) {
+                const updatedBall = { ...b, lastUpdatedAt: new Date() };
+                if (assetType === 'image') {
+                    delete updatedBall.imageUrl;
+                    delete updatedBall.imageStoragePath;
+                } else if (assetType === 'audio' && updatedBall.locutorAudios) {
+                    delete updatedBall.locutorAudios[locutorId];
+                    if (Object.keys(updatedBall.locutorAudios).length === 0) {
+                        delete updatedBall.locutorAudios;
+                    }
+                }
+                return updatedBall;
+            }
+            return b;
+        }));
+        toast({ title: "Asset Removido", description: `${assetType === 'image' ? 'Imagem' : `Áudio (${locutorId})`} da bola ${ballNumber} removido.` });
     } catch (error: any) {
         console.error(`Erro ao remover asset da bola ${ballNumber}:`, error);
         toast({ title: "Erro ao Remover Asset", description: error.message || "Erro desconhecido.", variant: "destructive" });
@@ -919,8 +982,8 @@ export default function AdminBingoAdminPage() {
         prizeImageUrl = uploadedUrlAndPath.url;
         storagePath = uploadedUrlAndPath.path;
       } else if (!values.imageUrl) {
-         toast({ title: "Informação Faltando", description: "Forneça uma URL da imagem ou um arquivo para upload.", variant: "destructive"});
-         return;
+         // toast({ title: "Informação Faltando", description: "Forneça uma URL da imagem ou um arquivo para upload.", variant: "destructive"});
+         // return; // Keep this commented if image is truly optional
       }
 
       const newPrizeData: Omit<BingoPrize, 'id' | 'createdAt' | 'updatedAt'| 'createdBy'> & { createdAt: any, updatedAt: any, storagePath?: string, createdBy: string } = {
@@ -988,15 +1051,15 @@ export default function AdminBingoAdminPage() {
     if (isInteractionAudio && data) {
         firestoreCollectionName = 'bingoInteractionAudios';
         newStoragePath = `bingoAudios/interaction/${Date.now()}_${sanitizedSelectedFileName}`;
-        firestoreDocId = currentAudioSettingToEdit?.id;
+        firestoreDocId = currentAudioSettingToEdit?.id; // If editing
         oldStoragePathToDelete = currentAudioSettingToEdit?.storagePath;
         audioDataToSave = {
             displayName: data.displayName,
             keyword: data.keyword,
             associatedGiftId: data.associatedGiftId || undefined,
-            audioUrl: '',
+            audioUrl: '', // To be filled by upload
             fileName: sanitizedSelectedFileName,
-            storagePath: newStoragePath,
+            storagePath: newStoragePath, // To be used by upload and then saved
             type: 'interaction',
             uploadedAt: serverTimestamp(),
             createdBy: currentUser.uid,
@@ -1009,13 +1072,13 @@ export default function AdminBingoAdminPage() {
         firestoreDocId = currentAudioSettingToEdit.id;
         newStoragePath = `bingoAudios/partida/${firestoreDocId}/${sanitizedSelectedFileName}`;
         oldStoragePathToDelete = currentAudioSettingToEdit.storagePath;
-        audioDisplayNameForToast = currentAudioSettingToEdit.displayName;
+        audioDisplayNameForToast = currentAudioSettingToEdit.displayName; // Ensure displayName is correct
         audioDataToSave = {
             id: currentAudioSettingToEdit.id,
             type: 'gameEvent',
             displayName: currentAudioSettingToEdit.displayName,
-            eventName: currentAudioSettingToEdit.eventName || currentAudioSettingToEdit.displayName, // Ensure eventName is populated
-            audioUrl: '',
+            eventName: currentAudioSettingToEdit.eventName || currentAudioSettingToEdit.displayName,
+            audioUrl: '', 
             fileName: sanitizedSelectedFileName,
             storagePath: newStoragePath,
             uploadedAt: serverTimestamp(),
@@ -1027,9 +1090,10 @@ export default function AdminBingoAdminPage() {
         return;
     }
 
-    if (oldStoragePathToDelete && fileToUpload) {
+    if (oldStoragePathToDelete && fileToUpload) { // Only attempt delete if a new file is being uploaded
         try {
             await deleteFileStorage(storageRef(storage, oldStoragePathToDelete));
+            console.log("Old audio file deleted:", oldStoragePathToDelete);
         } catch (delError: any) {
             if (delError.code !== 'storage/object-not-found') console.warn("Erro ao deletar áudio antigo do Storage (prosseguindo com upload):", delError);
         }
@@ -1047,19 +1111,19 @@ export default function AdminBingoAdminPage() {
             );
         });
         audioDataToSave.audioUrl = downloadURL;
-        audioDataToSave.storagePath = newStoragePath;
+        audioDataToSave.storagePath = newStoragePath; // Ensure storagePath is also correctly set here
 
         if (isInteractionAudio) {
             if (firestoreDocId) { // Editing existing interaction audio
                  await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
-                 setInteractionAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
             } else { // Adding new interaction audio
                 const docRef = await addDoc(collection(db, firestoreCollectionName), audioDataToSave);
-                setInteractionAudioSettings(prev => [{...audioDataToSave, id: docRef.id, uploadedAt: new Date()} as AudioSetting, ...prev ]);
+                firestoreDocId = docRef.id; // Get the new ID for local state update
             }
+            fetchInteractionAudios(); // Refresh list
         } else if (currentAudioSettingToEdit && currentAudioSettingToEdit.type === 'gameEvent' && firestoreDocId) { // Game Event Audio
             await setDoc(doc(db, firestoreCollectionName, firestoreDocId), audioDataToSave, { merge: true });
-             setGameEventAudioSettings(prev => prev.map(s => s.id === firestoreDocId ? {...s, ...audioDataToSave, uploadedAt: new Date()} as AudioSetting : s));
+            fetchGameEventAudios(); // Refresh list
         }
 
         toast({ title: "Áudio Salvo!", description: `O áudio '${audioDisplayNameForToast}' foi salvo com sucesso.` });
@@ -1072,7 +1136,7 @@ export default function AdminBingoAdminPage() {
 
     } catch (error: any) {
         console.error("Erro ao salvar áudio:", error);
-        toast({ title: "Erro ao Salvar Áudio", description: `${error.message || "Erro desconhecido."} (Código: ${error.code || 'N/A'})`, variant: "destructive" });
+        toast({ title: "Erro ao Salvar Áudio", description: `${error.message || "Erro desconhecido."} Código: ${error.code || 'N/A'}`, variant: "destructive" });
     } finally {
         setIsUploadingAudio(false);
         setAudioUploadProgress(null);
@@ -1090,20 +1154,16 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             await deleteFileStorage(storageRef(storage, setting.storagePath));
         }
         if (setting.type === 'gameEvent') {
-            await setDoc(doc(db, "bingoAudioSettings", setting.id), {
-                id: setting.id,
-                displayName: setting.displayName,
-                type: 'gameEvent',
-                eventName: setting.eventName || setting.displayName,
+            await updateDoc(doc(db, "bingoAudioSettings", setting.id), {
                 audioUrl: deleteField(),
                 fileName: deleteField(),
                 storagePath: deleteField(),
                 uploadedAt: serverTimestamp(),
-            }, { merge: true });
-            setGameEventAudioSettings(prev => prev.map(s => s.id === setting.id ? { ...s, audioUrl: undefined, fileName: undefined, storagePath: undefined, uploadedAt: new Date() } as AudioSetting : s));
+            });
+            fetchGameEventAudios();
         } else if (setting.type === 'interaction') {
             await deleteDoc(doc(db, "bingoInteractionAudios", setting.id));
-            setInteractionAudioSettings(prev => prev.filter(s => s.id !== setting.id));
+            fetchInteractionAudios();
         }
         toast({ title: "Áudio Removido", description: `Áudio "${setting.displayName}" removido com sucesso.` });
     } catch (error: any) {
@@ -1111,6 +1171,69 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
         toast({ title: "Erro ao Remover Áudio", description: error.message || "Erro desconhecido.", variant: "destructive" });
     }
 };
+
+  const onSubmitNewBingoRoom = async (values: NewBingoRoomFormValues) => {
+    if (!currentUser?.uid) {
+      toast({ title: "Erro de Autenticação", variant: "destructive" });
+      return;
+    }
+    try {
+      const newRoomData: Omit<BingoRoomSetting, 'id' | 'addedAt' | 'lastCheckedAt'> & { addedAt: any; addedBy: string; isActive: boolean } = {
+        roomId: values.roomId,
+        description: values.description || "",
+        isActive: true,
+        addedBy: currentUser.uid,
+        addedAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, "bingoRoomSettings"), newRoomData);
+      toast({ title: "Nova Sala Adicionada!", description: `Sala com ID ${values.roomId} adicionada com sucesso.` });
+      setIsAddRoomDialogOpen(false);
+      newRoomForm.reset();
+      fetchBingoRoomSettings();
+    } catch (error) {
+      console.error("Erro ao adicionar nova sala:", error);
+      toast({ title: "Erro ao Adicionar Sala", description: "Não foi possível salvar a nova sala.", variant: "destructive" });
+    }
+  };
+
+  const handleToggleRoomStatus = async (roomSetting: BingoRoomSetting) => {
+    if (!roomSetting.id) return;
+    try {
+      const roomDocRef = doc(db, "bingoRoomSettings", roomSetting.id);
+      await updateDoc(roomDocRef, {
+        isActive: !roomSetting.isActive,
+        lastCheckedAt: serverTimestamp(), // Optionally update lastCheckedAt on status change
+      });
+      setBingoRoomSettings(prev => 
+        prev.map(r => r.id === roomSetting.id ? { ...r, isActive: !r.isActive } : r)
+      );
+      toast({ title: "Status da Sala Atualizado", description: `Sala ${roomSetting.roomId} está agora ${!roomSetting.isActive ? 'Ativa' : 'Inativa'}.` });
+    } catch (error) {
+      console.error("Erro ao atualizar status da sala:", error);
+      toast({ title: "Erro ao Atualizar Status", description: "Não foi possível atualizar o status da sala.", variant: "destructive" });
+    }
+  };
+
+  const handleRequestDeleteRoom = (roomSetting: BingoRoomSetting) => {
+    setRoomToDelete(roomSetting);
+    setIsConfirmDeleteRoomDialogOpen(true);
+  };
+
+  const handleConfirmDeleteRoom = async () => {
+    if (!roomToDelete || !roomToDelete.id) return;
+    try {
+      await deleteDoc(doc(db, "bingoRoomSettings", roomToDelete.id));
+      setBingoRoomSettings(prev => prev.filter(r => r.id !== roomToDelete.id));
+      toast({ title: "Sala Removida", description: `Sala ${roomToDelete.roomId} removida com sucesso.` });
+    } catch (error) {
+      console.error("Erro ao remover sala:", error);
+      toast({ title: "Erro ao Remover Sala", description: "Não foi possível remover a sala.", variant: "destructive" });
+    } finally {
+      setIsConfirmDeleteRoomDialogOpen(false);
+      setRoomToDelete(null);
+    }
+  };
+
 
   useEffect(() => {
     const hash = window.location.hash.substring(1);
@@ -1286,13 +1409,14 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Prêmio Virtual Kako</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingKakoPrizesForGameForm}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value || ""} disabled={isLoadingKakoPrizesForGameForm}>
                                   <FormControl>
                                     <SelectTrigger>
                                       <SelectValue placeholder={isLoadingKakoPrizesForGameForm ? "Carregando prêmios..." : "Selecione um prêmio Kako"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
+                                    <SelectItem value="">Nenhum</SelectItem>
                                     {availableKakoPrizesForGameForm.map(prize => (
                                       <SelectItem key={prize.id!} value={prize.id!}>{prize.name}</SelectItem>
                                     ))}
@@ -1682,7 +1806,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                                               onChange(files);
                                                           }
                                                         }}
-                                                        {...rest} // Spread remaining field props
+                                                        {...rest} 
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -1970,9 +2094,9 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                              </Button>
                           )}
 
-                          {ballSetting.audioUrl ? (
-                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(ballSetting.audioUrl, `ball-${ballSetting.ballNumber}`)}>
-                                  {currentPlayingAudioId === `ball-${ballSetting.ballNumber}` ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
+                          {ballSetting.locutorAudios?.['Padrão']?.audioUrl ? (
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playAudio(ballSetting.locutorAudios?.['Padrão']?.audioUrl, `ball-${ballSetting.ballNumber}-Padrão`)}>
+                                  {currentPlayingAudioId === `ball-${ballSetting.ballNumber}-Padrão` ? <PauseCircleIcon className="h-4 w-4"/> : <PlayCircleIcon className="h-4 w-4" />}
                               </Button>
                           ) : (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled>
@@ -1982,8 +2106,8 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleOpenBallAssetDialog(ballSetting, 'audio')}>
                              <Music2 className="mr-1.5 h-3 w-3" /> Áudio
                           </Button>
-                           {ballSetting.audioStoragePath && (
-                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveBallAsset(ballSetting.ballNumber, 'audio')}>
+                           {ballSetting.locutorAudios?.['Padrão']?.audioStoragePath && (
+                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveBallAsset(ballSetting.ballNumber, 'audio', 'Padrão')}>
                                <Trash2 className="h-4 w-4" />
                              </Button>
                           )}
@@ -2328,6 +2452,116 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             </Card>
           </div>
         );
+       case 'bingoSalas':
+        return (
+          <div className="space-y-6 p-6 bg-background h-full">
+            <Card className="shadow-lg">
+              <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center">
+                    <RadioTower className="mr-2 h-6 w-6 text-primary" />
+                    Gerenciamento de Salas de Bingo
+                  </CardTitle>
+                  <CardDescription>
+                    Adicione e gerencie os RoomIDs do Kako Live para coleta de dados.
+                  </CardDescription>
+                </div>
+                 <Dialog open={isAddRoomDialogOpen} onOpenChange={setIsAddRoomDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Sala
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Adicionar Nova Sala de Bingo</DialogTitle>
+                            <DialogDescription>
+                                Insira o RoomID do Kako Live e uma descrição opcional.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...newRoomForm}>
+                            <form onSubmit={newRoomForm.handleSubmit(onSubmitNewBingoRoom)} className="space-y-4 py-4">
+                                <FormField
+                                    control={newRoomForm.control}
+                                    name="roomId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Room ID Kako Live</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Ex: 67b9ed5fa4e716a084a23765" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={newRoomForm.control}
+                                    name="description"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Descrição (Opcional)</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder="Ex: Sala principal para eventos de Sábado" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="outline">Cancelar</Button>
+                                    </DialogClose>
+                                    <Button type="submit" disabled={newRoomForm.formState.isSubmitting}>
+                                        {newRoomForm.formState.isSubmitting ? <LoadingSpinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                        Salvar Sala
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                 {isLoadingBingoRooms ? (
+                    <div className="flex justify-center items-center h-32"><LoadingSpinner /> <p className="ml-2 text-muted-foreground">Carregando salas...</p></div>
+                ) : bingoRoomSettings.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">Nenhuma sala de bingo configurada.</p>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Room ID</TableHead><TableHead>Descrição</TableHead><TableHead>Status</TableHead><TableHead>Adicionado Por</TableHead><TableHead>Adicionado Em</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {bingoRoomSettings.map((room) => (
+                        <TableRow key={room.id}>
+                          <TableCell className="font-mono text-xs">{room.roomId}</TableCell>
+                          <TableCell className="text-xs max-w-sm truncate" title={room.description}>{room.description || "N/A"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id={`room-status-${room.id}`}
+                                    checked={room.isActive}
+                                    onCheckedChange={() => handleToggleRoomStatus(room)}
+                                />
+                                <Label htmlFor={`room-status-${room.id}`} className="text-xs">
+                                    {room.isActive ? "Ativa" : "Inativa"}
+                                </Label>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">{room.addedBy ? (usersData[room.addedBy] || room.addedBy.substring(0,6)+ '...') : "N/A"}</TableCell>
+                          <TableCell className="text-xs">{room.addedAt ? format(new Date(room.addedAt), "dd/MM/yy HH:mm", { locale: ptBR }) : "N/A"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRequestDeleteRoom(room)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
       default:
         const currentItem = bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab);
         return (
@@ -2350,6 +2584,39 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
           );
     }
   };
+
+  const [usersData, setUsersData] = useState<Record<string, string>>({});
+
+  const fetchUserDisplayNames = useCallback(async (userIds: string[]) => {
+      if (userIds.length === 0) return;
+      const uniqueUserIds = Array.from(new Set(userIds.filter(id => id && !usersData[id])));
+      if (uniqueUserIds.length === 0) return;
+
+      try {
+          const newUsersData: Record<string, string> = {};
+          // Fetch in chunks of 10 if needed, though for a few UIDs direct getDoc is fine
+          for (const userId of uniqueUserIds) {
+              const userDocRef = doc(db, "accounts", userId);
+              const userDocSnap = await getDoc(userDocRef);
+              if (userDocSnap.exists()) {
+                  const userData = userDocSnap.data() as UserProfile;
+                  newUsersData[userId] = userData.profileName || userData.displayName || userId.substring(0,6) + '...';
+              } else {
+                  newUsersData[userId] = userId.substring(0,6) + '...';
+              }
+          }
+          setUsersData(prev => ({ ...prev, ...newUsersData }));
+      } catch (error) {
+          console.error("Error fetching user display names:", error);
+      }
+  }, [usersData]); // Added usersData dependency
+
+  useEffect(() => {
+      const roomCreatorIds = bingoRoomSettings.map(room => room.addedBy).filter(Boolean) as string[];
+      fetchUserDisplayNames(roomCreatorIds);
+  }, [bingoRoomSettings, fetchUserDisplayNames]);
+
+
 
   return (
     <>
@@ -2443,7 +2710,7 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
                                 key={`detail-card-75-${rowIndex}-${colIndex}`}
                                 className={cn(
                                   "flex items-center justify-center h-12 text-lg font-semibold",
-                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary'
+                                  cell === null ? 'bg-yellow-300 text-yellow-700' : 'bg-card text-primary' // Updated free space style
                                 )}
                               >
                                 {cell !== null ? cell : <Star className="h-5 w-5 text-yellow-600" />}
@@ -2580,6 +2847,27 @@ const handleRemoveAudio = async (setting: AudioSetting) => {
             >
               {isDeleting75BallCards ? <LoadingSpinner size="sm" className="mr-2"/> : null}
               Apagar Tudo (75 Bolas - DB)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConfirmDeleteRoomDialogOpen} onOpenChange={setIsConfirmDeleteRoomDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitleComponent>Confirmar Remoção de Sala</AlertDialogTitleComponent>
+            <AlertDialogDescription>
+              Você tem certeza que deseja remover a sala <span className="font-semibold">{roomToDelete?.roomId}</span>? Esta ação é irreversível.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmDeleteRoomDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteRoom}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={!roomToDelete}
+            >
+              Remover Sala
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -96,7 +96,6 @@ export interface UserProfile {
   photoURL?: string | null; // App's internal avatar, fallback or synced from Kako avatar  
   level?: number; // Synced from KakoProfile if linked
   
-  // profileHeader?: string; // No longer used in current profile design
   bio?: string;              
   isVerified?: boolean;      
   followerCount?: number;    
@@ -112,7 +111,6 @@ export interface UserProfile {
   banReason?: string;
   bannedBy?: string; 
   bannedAt?: any; 
-  // civilStatus?: 'single' | 'married' | 'divorced' | 'widowed' | 'other' | 'preferNotToSay'; // Not currently used
   socialLinks?: {
     twitter?: string;
     instagram?: string;
@@ -164,10 +162,7 @@ export interface ChatMessage {
   timestamp: string;
   rawData?: string;
   displayFormatted: boolean; 
-  // extractedRoomId?: string; // Not directly needed on ChatMessage type if filtering happens before state update
-  userId?: string; 
-  userLevel?: number; 
-  gender?: number; 
+  gender?: number;
 }
 
 export interface ConversationPreview {
@@ -307,7 +302,7 @@ export interface BingoPrize {
   description?: string; 
   type: 'kako_virtual' | 'cash' | 'physical_item' | 'other'; 
   imageUrl?: string; 
-  storagePath?: string; // Added for Firebase Storage path
+  storagePath?: string;
   valueDisplay?: string; 
   
   kakoGiftId?: string; 
@@ -325,22 +320,39 @@ export interface BingoPrize {
 export interface AudioSetting {
   id: string; 
   type: 'gameEvent' | 'interaction';
-  eventName?: string; // e.g., 'gameStart', 'winnerSound' - for type 'gameEvent'
+  eventName?: string; 
   displayName: string; 
   audioUrl?: string;
   fileName?: string;
   storagePath?: string;
   uploadedAt?: any; 
-  keyword?: string; // for type 'interaction'
-  associatedGiftId?: string; // for type 'interaction'
-  associatedGiftName?: string; // for type 'interaction', denormalized
+  keyword?: string; 
+  associatedGiftId?: string; 
+  associatedGiftName?: string; 
+  createdBy?: string; 
 }
 
 export interface BingoBallSetting {
   ballNumber: number;
   imageUrl?: string;
   imageStoragePath?: string;
-  audioUrl?: string;
-  audioStoragePath?: string;
-  lastUpdatedAt?: any; // Firestore Timestamp
+  locutorAudios?: { // Changed from audioUrl and audioStoragePath
+    [locutorId: string]: {
+      audioUrl: string;
+      audioStoragePath: string;
+      fileName: string;
+      uploadedAt: any;
+    };
+  };
+  lastUpdatedAt?: any; 
+}
+
+export interface BingoRoomSetting {
+  id?: string; // Firestore document ID
+  roomId: string;
+  description?: string;
+  isActive: boolean;
+  addedBy?: string;
+  addedAt?: any; // Firestore Timestamp
+  lastCheckedAt?: any; // Firestore Timestamp, for when data was last pulled or connection attempted
 }
