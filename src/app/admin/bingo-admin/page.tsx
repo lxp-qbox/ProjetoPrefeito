@@ -506,7 +506,7 @@ export default function AdminBingoAdminPage() {
                 <div>
                   <CardTitle className="flex items-center">
                     <TicketIcon className="mr-2 h-6 w-6 text-primary" />
-                    Gerenciamento de Partidas e Configurações de Bingo
+                    Gerenciamento de Partidas
                   </CardTitle>
                   <CardDescription>
                     Crie, visualize e gerencie todos os aspectos dos jogos de bingo.
