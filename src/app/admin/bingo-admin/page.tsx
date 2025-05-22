@@ -29,8 +29,8 @@ import {
   LayoutGrid, Trophy, Dice5, PlaySquare, FileJson, ShieldQuestion, Trash2, Gift, DollarSign, Save, CircleAlert, Grid2X2, Grid3X3, Zap, Calendar as CalendarIcon, Edit2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types'; // Added Game
-import { format, parse, setHours, setMinutes, isValid } from 'date-fns'; // Added parse, setHours, setMinutes, isValid
+import type { GeneratedBingoCard, CardUsageInstance, AwardInstance, BingoPrize, Game } from '@/types';
+import { format, parse, setHours, setMinutes, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import NextImage from 'next/image';
 import { useForm, Controller } from "react-hook-form";
@@ -131,13 +131,41 @@ const newGameSchema = z.object({
   title: z.string().min(3, "Título deve ter pelo menos 3 caracteres.").max(100, "Título muito longo (máx. 100 caracteres)."),
   bingoType: z.enum(['75-ball', '90-ball'], { required_error: "Selecione o tipo de bingo." }),
   cardPrice: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined) ? 0 : parseFloat(String(val)), // Default to 0 if empty
+    (val) => (val === "" || val === null || val === undefined) ? 0 : parseFloat(String(val)),
     z.number({ invalid_type_error: "Preço deve ser um número" }).min(0, "Preço deve ser zero ou maior.").optional().default(0)
   ),
-  prizeDescription: z.string().min(5, "Descrição do prêmio deve ter pelo menos 5 caracteres.").max(250, "Descrição muito longa (máx. 250 caracteres)."),
+  prizeType: z.enum(['kako_virtual', 'cash', 'other'], { required_error: "Selecione o tipo de prêmio."}),
+  prizeKakoVirtualId: z.string().optional(),
+  prizeCashAmount: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : parseFloat(String(val)),
+    z.number({ invalid_type_error: "Valor deve ser um número" }).min(0, "Valor deve ser positivo.").optional()
+  ),
+  prizeDescription: z.string().min(1, "Descrição do prêmio é obrigatória.").max(250, "Descrição muito longa (máx. 250 caracteres)."),
   startTimeDate: z.date({ required_error: "Data de início é obrigatória." }),
   startTimeString: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Hora inválida. Use HH:MM.").min(1, "Hora de início é obrigatória."),
   notes: z.string().max(500, "Notas muito longas (máx. 500 caracteres).").optional(),
+}).superRefine((data, ctx) => {
+  if (data.prizeType === 'kako_virtual' && !data.prizeKakoVirtualId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selecione um prêmio virtual Kako.",
+      path: ['prizeKakoVirtualId'],
+    });
+  }
+  if (data.prizeType === 'cash' && !data.prizeCashAmount && !data.prizeDescription) {
+     ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Informe o valor do prêmio em dinheiro ou uma descrição.",
+      path: ['prizeCashAmount'], // Or prizeDescription, depending on desired focus
+    });
+  }
+   if (data.prizeType === 'other' && !data.prizeDescription) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Descrição é obrigatória para prêmios do tipo 'Outro'.",
+      path: ['prizeDescription'],
+    });
+  }
 });
 type NewGameFormValues = z.infer<typeof newGameSchema>;
 
@@ -191,6 +219,9 @@ export default function AdminBingoAdminPage() {
   const [bingoGames, setBingoGames] = useState<Game[]>([]);
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [isCreateGameDialogOpen, setIsCreateGameDialogOpen] = useState(false);
+  const [availableKakoPrizes, setAvailableKakoPrizes] = useState<BingoPrize[]>([]);
+  const [isLoadingKakoPrizesForGameForm, setIsLoadingKakoPrizesForGameForm] = useState(false);
+
 
   const gameForm = useForm<NewGameFormValues>({
     resolver: zodResolver(newGameSchema),
@@ -198,12 +229,17 @@ export default function AdminBingoAdminPage() {
       title: "",
       bingoType: undefined, 
       cardPrice: 0,
+      prizeType: undefined,
+      prizeKakoVirtualId: "",
+      prizeCashAmount: undefined,
       prizeDescription: "",
       startTimeDate: undefined,
       startTimeString: "00:00",
       notes: "",
     },
   });
+
+  const watchedPrizeType = gameForm.watch("prizeType");
 
   const kakoPrizeForm = useForm<NewKakoPrizeFormValues>({
     resolver: zodResolver(newKakoPrizeSchema),
@@ -217,8 +253,12 @@ export default function AdminBingoAdminPage() {
     },
   });
 
-  const fetchKakoPrizes = useCallback(async () => {
-    setIsLoadingKakoPrizes(true);
+  const fetchKakoPrizes = useCallback(async (forGameForm: boolean = false) => {
+    if (forGameForm) {
+      setIsLoadingKakoPrizesForGameForm(true);
+    } else {
+      setIsLoadingKakoPrizes(true);
+    }
     try {
       const prizesCollectionRef = collection(db, "bingoPrizes");
       const q = query(prizesCollectionRef, where("type", "==", "kako_virtual"), orderBy("createdAt", "desc"));
@@ -227,12 +267,20 @@ export default function AdminBingoAdminPage() {
       querySnapshot.forEach((docSnap) => {
         fetchedPrizes.push({ id: docSnap.id, ...docSnap.data() } as BingoPrize);
       });
-      setKakoPrizes(fetchedPrizes);
+      if (forGameForm) {
+        setAvailableKakoPrizes(fetchedPrizes);
+      } else {
+        setKakoPrizes(fetchedPrizes);
+      }
     } catch (error) {
       console.error("Erro ao buscar prêmios Kako Live:", error);
       toast({ title: "Erro ao Carregar Prêmios", description: "Não foi possível carregar a lista de prêmios Kako Live.", variant: "destructive" });
     } finally {
-      setIsLoadingKakoPrizes(false);
+      if (forGameForm) {
+        setIsLoadingKakoPrizesForGameForm(false);
+      } else {
+        setIsLoadingKakoPrizes(false);
+      }
     }
   }, [toast]);
 
@@ -248,7 +296,6 @@ export default function AdminBingoAdminPage() {
         fetchedGames.push({ 
           id: docSnap.id, 
           ...data,
-          // Convert Firestore Timestamp to Date for startTime if it exists
           startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
         } as Game);
       });
@@ -263,10 +310,11 @@ export default function AdminBingoAdminPage() {
 
   useEffect(() => {
     if (activeTab === 'bingoPremiosKako') {
-      fetchKakoPrizes();
+      fetchKakoPrizes(false);
     }
     if (activeTab === 'bingoPartidas') {
       fetchBingoGames();
+      fetchAvailableKakoPrizes(true); // Fetch for the form when partidas tab is active
     }
   }, [activeTab, fetchKakoPrizes, fetchBingoGames]);
 
@@ -290,6 +338,9 @@ export default function AdminBingoAdminPage() {
         title: values.title,
         bingoType: values.bingoType,
         cardPrice: values.cardPrice || 0,
+        prizeType: values.prizeType,
+        prizeKakoVirtualId: values.prizeType === 'kako_virtual' ? values.prizeKakoVirtualId : undefined,
+        prizeCashAmount: values.prizeType === 'cash' ? values.prizeCashAmount : undefined,
         prizeDescription: values.prizeDescription,
         startTime: Timestamp.fromDate(combinedStartTime),
         status: 'planejada',
@@ -297,7 +348,6 @@ export default function AdminBingoAdminPage() {
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        // Initialize other optional fields as needed
         participantsCount: 0,
         cardsSold: 0,
         totalRevenue: 0,
@@ -514,13 +564,69 @@ export default function AdminBingoAdminPage() {
                             </FormItem>
                           )}
                         />
+                         <FormField
+                          control={gameForm.control}
+                          name="prizeType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tipo de Prêmio</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo de prêmio" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="kako_virtual">Prêmio Virtual Kako</SelectItem>
+                                  <SelectItem value="cash">Dinheiro</SelectItem>
+                                  <SelectItem value="other">Outro (Descrever)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {watchedPrizeType === 'kako_virtual' && (
+                          <FormField
+                            control={gameForm.control}
+                            name="prizeKakoVirtualId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Prêmio Virtual Kako</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingKakoPrizesForGameForm}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={isLoadingKakoPrizesForGameForm ? "Carregando prêmios..." : "Selecione um prêmio Kako"} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {availableKakoPrizes.map(prize => (
+                                      <SelectItem key={prize.id} value={prize.id!}>{prize.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                        {watchedPrizeType === 'cash' && (
+                           <FormField
+                            control={gameForm.control}
+                            name="prizeCashAmount"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Valor do Prêmio em Dinheiro (R$)</FormLabel>
+                                <FormControl><Input type="number" step="0.01" placeholder="Ex: 100.00" {...field} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
                         <FormField
                           control={gameForm.control}
                           name="prizeDescription"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Descrição do Prêmio Principal</FormLabel>
-                              <FormControl><Textarea placeholder="Ex: Cesta de chocolates + R$50 PIX" {...field} rows={3}/></FormControl>
+                              <FormLabel>Descrição Detalhada do Prêmio</FormLabel>
+                              <FormControl><Textarea placeholder="Ex: PIX de R$100 + Presente Surpresa" {...field} rows={3}/></FormControl>
+                              <FormDesc>Para prêmios 'Outro', esta é a descrição principal. Para outros tipos, pode ser um complemento.</FormDesc>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -555,7 +661,7 @@ export default function AdminBingoAdminPage() {
                                         mode="single"
                                         selected={field.value}
                                         onSelect={field.onChange}
-                                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} // Disable past dates
+                                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
                                         initialFocus
                                         locale={ptBR}
                                     />
@@ -831,7 +937,7 @@ export default function AdminBingoAdminPage() {
                                      <FormField
                                         control={kakoPrizeForm.control}
                                         name="imageFile"
-                                        render={({ field: { onChange, value, ...rest } }) => ( // Use specific field props for file input
+                                        render={({ field: { onChange, value, ...rest } }) => (
                                             <FormItem>
                                                 <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
                                                 <FormControl>
@@ -1340,3 +1446,4 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
+

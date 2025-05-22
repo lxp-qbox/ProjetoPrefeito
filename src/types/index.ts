@@ -6,9 +6,10 @@ export interface Game {
   bingoType: '75-ball' | '90-ball';
   cardPrice?: number; // Price per card, 0 for free
   
-  // Option 1: Embed simplified prize info or link to complex prize objects
-  prizeDescription?: string; // Simple text description of main prize(s)
-  prizeIds?: string[]; // Array of IDs linking to a 'bingoPrizes' collection
+  prizeType?: 'kako_virtual' | 'cash' | 'other';
+  prizeKakoVirtualId?: string; // ID of the BingoPrize document if type is kako_virtual
+  prizeCashAmount?: number; // Amount if type is cash
+  prizeDescription: string; // General description, or main description for 'other'/'cash'
 
   startTime: any; // Firestore Timestamp for scheduled start
   actualStartTime?: any; // Firestore Timestamp for when it actually started
@@ -93,12 +94,12 @@ export interface UserProfile {
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
   showId?: string;          
-  kakoLiveId?: string;     
+  kakoLiveId?: string;     // FUID from Kako
 
   profileName?: string;      
   displayName?: string | null; 
   photoURL?: string | null;    
-  level?: number;            
+  level?: number; // Populated from linked KakoProfile if available
   
   profileHeader?: string;    
   bio?: string;              
@@ -133,23 +134,23 @@ export interface UserProfile {
 }
 
 export interface KakoProfile { 
-  id: string; 
+  id: string; // FUID - Firestore Document ID
   numId?: number; 
   nickname: string;
-  avatarUrl: string; 
+  avatarUrl: string; // Mapped from 'avatar'
   level?: number;
   signature?: string; 
   gender?: number; 
   area?: string;
   school?: string;
-  showId: string; 
+  showId: string; // User-facing Show ID
   isLiving?: boolean; 
   roomId?: string; 
   lastFetchedAt?: any; 
 }
 
 export interface KakoGift {
-  id: string; 
+  id: string; // Gift ID from Kako API, used as Firestore Document ID
   name: string; 
   imageUrl: string; 
   diamond?: number | null; 
@@ -187,34 +188,35 @@ export interface ConversationPreview {
 }
 
 export interface AppMessage { 
-  id: string;
+  id: string; // Firestore document ID
   conversationId: string;
   senderId: string; 
   senderName: string;
-  senderAvatar: string;
+  senderAvatar?: string | null; // Made optional
   text: string;
-  timestamp: any; 
-  isCurrentUser?: boolean; 
-  status?: 'sent' | 'delivered' | 'read';
+  timestamp: any; // Firestore Server Timestamp or Date
+  isCurrentUser?: boolean; // Client-side only
+  status?: 'sent' | 'delivered' | 'read'; // For current user's messages
 }
 
 export interface FirestoreConversation {
   id?: string; 
-  participants: string[]; 
-  participantNames: { [uid: string]: string }; 
-  participantAvatars: { [uid: string]: string | null }; 
+  participants: string[]; // Array of UIDs
+  participantNames: { [uid: string]: string }; // Denormalized for quick display
+  participantAvatars: { [uid: string]: string | null }; // Denormalized
   lastMessageText?: string;
-  lastMessageTimestamp?: any; 
+  lastMessageTimestamp?: any; // Firestore Server Timestamp
   lastMessageSenderId?: string; 
-  createdAt: any; 
-  updatedAt: any; 
+  unreadCounts?: { [uid: string]: number }; // Unread count for each participant
+  createdAt: any; // Firestore Server Timestamp
+  updatedAt: any; // Firestore Server Timestamp
 }
 
 export interface FirestoreMessage { 
-  id?: string; 
+  id?: string; // Firestore document ID
   senderId: string; 
   text: string;     
-  timestamp: any;   
+  timestamp: any;   // Firestore Server Timestamp
   imageUrl?: string; 
 }
 
@@ -224,7 +226,7 @@ export interface FeedPost {
   user: UserSummary; 
   postTitle?: string;
   content: string;
-  timestamp: any; 
+  timestamp: any; // Firestore Timestamp or Date
   imageUrl?: string;
   imageAiHint?: string;
   stats: {
@@ -252,7 +254,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; 
+  handle: string; // Can be description like "CEO of Apple"
   avatarUrl: string;
   dataAiHint?: string;
 }
@@ -269,6 +271,10 @@ export interface BanEntry {
   expiresAt?: any | null; 
 }
 
+// For Maintenance Rules
+export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
+export type MinimumAccessLevel = UserRole | 'nobody';
+
 export interface SiteModule {
   id: string;
   name: string;
@@ -277,8 +283,7 @@ export interface SiteModule {
   isHiddenFromMenu: boolean;
   minimumAccessLevelWhenOffline: MinimumAccessLevel;
 }
-export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
-export type MinimumAccessLevel = UserRole | 'nobody';
+// End for Maintenance Rules
 
 
 export interface CardUsageInstance {
@@ -297,8 +302,9 @@ export interface AwardInstance {
 export interface GeneratedBingoCard {
   id: string; 
   cardNumbers: (number | null)[][]; 
-  creatorId: string; 
+  creatorId: string; // ID of user who created/generated the card
   createdAt: any; 
+  // removed generatedByIpAddress
   usageHistory: CardUsageInstance[]; 
   timesAwarded: number; 
   awardsHistory: AwardInstance[]; 
@@ -310,30 +316,16 @@ export interface BingoPrize {
   description?: string; 
   type: 'kako_virtual' | 'cash' | 'physical_item' | 'other'; 
   imageUrl?: string; 
-  valueDisplay?: string; 
+  valueDisplay?: string; // E.g., "10.000 Diamantes", "R$ 50,00"
   
-  kakoGiftId?: string; 
-  kakoGiftName?: string; 
-  kakoGiftImageUrl?: string; 
+  kakoGiftId?: string; // Specific ID from Kako Live API if it's a Kako gift
+  kakoGiftName?: string; // Name from Kako Live API
+  kakoGiftImageUrl?: string; // Image URL from Kako Live API
 
   isActive: boolean; 
-  quantityAvailable?: number | null; 
+  quantityAvailable?: number | null; // null for unlimited
   
-  createdAt: any; 
-  updatedAt: any; 
-  createdBy?: string; 
+  createdAt: any; // Firestore Server Timestamp
+  updatedAt: any; // Firestore Server Timestamp
+  createdBy?: string; // UID of admin who created it
 }
-
-export interface SidebarNavItem {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  href?: string;
-  action?: () => void;
-  adminOnly?: boolean;
-  separatorAbove?: boolean;
-  new?: boolean; 
-}
-
-export type SidebarFooterItem = SidebarNavItem; 
-
