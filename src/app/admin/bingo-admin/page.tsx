@@ -944,14 +944,14 @@ export default function AdminBingoAdminPage() {
                                      <FormField
                                         control={kakoPrizeForm.control}
                                         name="imageFile"
-                                        render={({ field: { onChange, value, ...rest } }) => ( // Use field.onChange for FileList
+                                        render={({ field: { onChange, value, ...rest } }) => ( 
                                             <FormItem>
                                                 <FormLabel>Arquivo da Imagem (Opcional)</FormLabel>
                                                 <FormControl>
                                                     <Input 
                                                         type="file" 
                                                         accept="image/*"
-                                                        onChange={(e) => onChange(e.target.files)} // Pass FileList to RHF
+                                                        onChange={(e) => onChange(e.target.files)} 
                                                         {...rest} 
                                                     />
                                                 </FormControl>
@@ -1206,66 +1206,43 @@ export default function AdminBingoAdminPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <SettingsIconLucide className="mr-2 h-6 w-6 text-primary" />
-                  Configurações de Bingo
+                  Configuração das Bolas (1-90)
                 </CardTitle>
                 <CardDescription>
-                  Ajuste as configurações globais do sistema de bingo.
+                  Personalize o áudio e a imagem para cada bola de bingo. (Funcionalidade de upload em desenvolvimento)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="bolas" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4"> {/* Adjust grid-cols if more tabs are added */}
-                    <TabsTrigger value="bolas">Bolas</TabsTrigger>
-                    <TabsTrigger value="outras" disabled>Outras Configurações (Em breve)</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="bolas">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Configuração das Bolas (1-90)</CardTitle>
-                        <CardDescription>
-                          Personalize o áudio e a imagem para cada bola de bingo. (Funcionalidade de upload em desenvolvimento)
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[calc(100vh-450px)]"> {/* Adjust height as needed */}
-                          <div className="space-y-3 pr-2">
-                            {Array.from({ length: 90 }, (_, i) => i + 1).map((ballNumber) => (
-                              <div key={ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                                <div className="flex items-center">
-                                  <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-semibold mr-3">
-                                    {String(ballNumber).padStart(2, '0')}
-                                  </div>
-                                  <span className="font-medium">Bola {String(ballNumber).padStart(2, '0')}</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
-                                    <ImageIconLucide className="h-5 w-5" />
-                                  </div>
-                                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Imagem", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
-                                    <UploadCloud className="mr-1.5 h-3 w-3" /> Imagem
-                                  </Button>
-                                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Áudio", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
-                                     <Music2 className="mr-1.5 h-3 w-3" /> Áudio
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                <ScrollArea className="h-[calc(100vh-350px)]"> 
+                  <div className="space-y-3 pr-2">
+                    {Array.from({ length: 90 }, (_, i) => i + 1).map((ballNumber) => (
+                      <div key={ballNumber} className="flex items-center justify-between p-3 border rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center">
+                          <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-semibold mr-3">
+                            {String(ballNumber).padStart(2, '0')}
                           </div>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                  <TabsContent value="outras">
-                     <p className="text-muted-foreground">Mais configurações globais do bingo aparecerão aqui.</p>
-                  </TabsContent>
-                </Tabs>
+                          <span className="font-medium">Bola {String(ballNumber).padStart(2, '0')}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="h-10 w-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
+                            <ImageIconLucide className="h-5 w-5" />
+                          </div>
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Imagem", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                            <UploadCloud className="mr-1.5 h-3 w-3" /> Imagem
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => toast({title: "Definir Áudio", description: `Funcionalidade para bola ${ballNumber} em breve.`})}>
+                             <Music2 className="mr-1.5 h-3 w-3" /> Áudio
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </div>
         );
       default:
-        // Fallback content, ensuring it's wrapped in a similar structure
-        // to avoid layout shifts if a tab doesn't have specific content yet.
         const currentItem = bingoSpecificMenuGroups.flatMap(g => g.items).find(i => i.id === activeTab);
         return (
             <div className="space-y-6 p-6 bg-background h-full">
@@ -1520,9 +1497,3 @@ export default function AdminBingoAdminPage() {
     </>
   );
 }
-
-    
-
-    
-
-    
