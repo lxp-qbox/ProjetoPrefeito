@@ -1,4 +1,5 @@
 
+
 export interface Game {
   id?: string; // Firestore document ID
   title: string;
@@ -91,13 +92,15 @@ export interface UserProfile {
   role?: 'player' | 'host'; 
   adminLevel?: 'master' | 'admin' | 'suporte' | null; 
   
-  showId?: string;        
-  kakoLiveId?: string; // FUID from Kako, technical key if profile is linked
+  showId?: string; // User-facing Kako Show ID
+  kakoLiveId?: string; // FUID from Kako, technical key from linked KakoProfile
+  
+  profileName?: string; // App's name, potentially synced from KakoProfile.nickname or Firebase Auth displayName    
+  displayName?: string | null; // From Firebase Auth, often an initial fallback
+  photoURL?: string | null;  // App's avatar, potentially synced from KakoProfile.avatarUrl or Firebase Auth photoURL
+  level?: number; // Populated dynamically from linked KakoProfile
 
-  profileName?: string;     
-  displayName?: string | null; 
-  photoURL?: string | null;  
-  level?: number; // Populated dynamically from linked KakoProfile via AuthContext
+  hostStatus?: 'approved' | 'pending_review' | 'banned'; 
   
   bio?: string;              
   isVerified?: boolean;      
@@ -109,7 +112,6 @@ export interface UserProfile {
   birthDate?: string;       
   country?: string;
   phoneNumber?: string;
-  hostStatus?: 'approved' | 'pending_review' | 'banned'; 
   isBanned?: boolean; 
   banReason?: string;
   bannedBy?: string; 
@@ -130,16 +132,16 @@ export interface UserProfile {
 }
 
 export interface KakoProfile { 
-  id: string; // FUID - Firestore Document ID
+  id: string; // FUID - Firestore Document ID for kakoProfiles collection
   numId?: number; 
   nickname: string;
-  avatarUrl: string; // Mapped from 'avatar'
-  level?: number;
+  avatarUrl: string; // Mapped from 'avatar' in Kako API
+  level: number; 
   signature?: string; 
-  gender?: number; 
+  gender?: number; // 1 for male, 2 for female (based on Kako API)
   area?: string;
   school?: string;
-  showId: string; // User-facing Show ID
+  showId: string; // User-facing Show ID from Kako
   isLiving?: boolean; 
   roomId?: string; 
   lastFetchedAt?: any; 
@@ -152,7 +154,7 @@ export interface KakoGift {
   diamond?: number | null; 
   display?: boolean; // If it should be generally available/shown in your app's prize lists
   createdAt?: any; // Firestore Timestamp when it was first added to your DB
-  dataAiHint?: string;
+  dataAiHint?: string; 
 }
 
 
@@ -181,12 +183,17 @@ export interface FirestoreConversation {
   updatedAt: any; 
 }
 
-export interface FirestoreMessage { 
+export interface AppMessage { 
   id?: string; 
+  conversationId: string;
   senderId: string; 
+  senderName: string;
+  senderAvatar?: string;
   text: string;     
-  timestamp: any;   
+  timestamp: any;   // Firestore Server Timestamp (for ordering) or string for optimistic
   imageUrl?: string; 
+  isCurrentUser?: boolean;
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 export interface FeedPost {
@@ -195,7 +202,7 @@ export interface FeedPost {
   user: UserSummary; 
   postTitle?: string;
   content: string;
-  timestamp: any; 
+  timestamp: any; // Can be Firestore Timestamp or string
   imageUrl?: string;
   imageAiHint?: string;
   stats: {
@@ -223,7 +230,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; 
+  handle: string; // Can be @username or a description like "CEO of Apple"
   avatarUrl: string;
   dataAiHint?: string;
 }
@@ -299,16 +306,24 @@ export interface BingoPrize {
 export interface AudioSetting {
   id: string; 
   type: 'gameEvent' | 'interaction';
-  eventName?: string; 
-  displayName: string; 
+  eventName?: string; // e.g., 'gameStart', 'winnerSound'
+  displayName: string; // e.g., "Início da Partida" or a custom name for interaction audio
   audioUrl?: string;
   fileName?: string;
   storagePath?: string;
   uploadedAt?: any; 
+  // For interaction audios:
   keyword?: string; 
-  associatedGiftId?: string; 
-  associatedGiftName?: string; 
-  createdBy?: string; 
+  associatedGiftId?: string; // ID of a BingoPrize
+  associatedGiftName?: string; // Denormalized name
+  createdBy?: string; // UID of admin who added it
+}
+
+export interface BingoBallLocutorAudio {
+  audioUrl: string;
+  audioStoragePath: string;
+  fileName: string;
+  uploadedAt: any;
 }
 
 export interface BingoBallSetting {
@@ -316,12 +331,7 @@ export interface BingoBallSetting {
   imageUrl?: string;
   imageStoragePath?: string;
   locutorAudios?: { 
-    [locutorId: string]: {
-      audioUrl: string;
-      audioStoragePath: string;
-      fileName: string;
-      uploadedAt: any;
-    };
+    [locutorId: string]: BingoBallLocutorAudio; // Key is locutor name/ID, value is the audio data for that locutor
   };
   lastUpdatedAt?: any; 
 }
@@ -335,3 +345,4 @@ export interface BingoRoomSetting {
   addedAt?: any; // Firestore Timestamp
   lastCheckedAt?: any; // Firestore Timestamp, for when data was last pulled or connection attempted
 }
+

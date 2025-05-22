@@ -96,6 +96,7 @@ export default function AdminKakoLiveGiftsPageContent() {
         fetchedGifts.push({ id: docSnap.id, ...docSnap.data() } as KakoGift);
       });
       setKakoGifts(fetchedGifts);
+      console.log("Fetched Kako Gifts:", fetchedGifts);
     } catch (error) {
       console.error("Erro ao buscar presentes do Firestore:", error);
       toast({ title: "Erro ao Carregar Presentes", description: "Não foi possível carregar a lista de presentes.", variant: "destructive" });
@@ -111,7 +112,8 @@ export default function AdminKakoLiveGiftsPageContent() {
   const handleConfirmClearAllGiftsFromDB = async () => {
     setIsDeletingGiftsDB(true);
     try {
-      const querySnapshot = await getDocs(collection(db, "kakoGifts"));
+      const giftsCollectionRef = collection(db, "kakoGifts");
+      const querySnapshot = await getDocs(giftsCollectionRef);
       if (querySnapshot.empty) {
         toast({ title: "Nada para Apagar", description: "A coleção 'kakoGifts' já está vazia." });
         setIsConfirmClearGiftsDBDialogOpen(false);
@@ -119,8 +121,13 @@ export default function AdminKakoLiveGiftsPageContent() {
         return;
       }
       const batch = writeBatch(db);
+      let count = 0;
       querySnapshot.docs.forEach((docSnap) => {
         batch.delete(docSnap.ref);
+        count++;
+        if (count % 499 === 0) { // Firestore batch limit
+          // Consider committing partial batches if needed for very large collections
+        }
       });
       await batch.commit();
       setKakoGifts([]); 
@@ -218,7 +225,10 @@ export default function AdminKakoLiveGiftsPageContent() {
                     <CardDescription>Presentes recuperados do banco de dados 'kakoGifts'.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Dialog open={isAddGiftDialogOpen} onOpenChange={setIsAddGiftDialogOpen}>
+                    <Dialog open={isAddGiftDialogOpen} onOpenChange={(open) => {
+                        setIsAddGiftDialogOpen(open);
+                        if (!open) giftForm.reset();
+                    }}>
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9">
                                 <PlusCircle className="mr-2 h-4 w-4" /> Novo Presente
@@ -320,17 +330,17 @@ export default function AdminKakoLiveGiftsPageContent() {
                         </DialogContent>
                     </Dialog>
                     <Button variant="outline" size="sm" onClick={fetchKakoGifts} disabled={isLoadingGifts} className="h-9">
-                        <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
+                        <RefreshCw className="mr-2 h-4 w-4" /> Atualizar Lista
                     </Button>
-                     <Button variant="outline" size="sm" onClick={() => setIsConfirmClearGiftsListLocalDialogOpen(true)} className="h-9" disabled={kakoGifts.length === 0}>
+                     <Button variant="outline" size="sm" onClick={() => setIsConfirmClearGiftsListLocalDialogOpen(true)} className="h-9" disabled={kakoGifts.length === 0 || isLoadingGifts}>
                         <Trash2 className="mr-2 h-4 w-4" /> Limpar Tela
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setIsConfirmClearGiftsDBDialogOpen(true)} className="h-9" disabled={isDeletingGiftsDB || kakoGifts.length === 0}>
+                    <Button variant="destructive" size="sm" onClick={() => setIsConfirmClearGiftsDBDialogOpen(true)} className="h-9" disabled={isDeletingGiftsDB || kakoGifts.length === 0 || isLoadingGifts}>
                         {isDeletingGiftsDB ? <LoadingSpinner size="sm" className="mr-2"/> : <DatabaseZap className="mr-2 h-4 w-4" />} Zerar DB
                     </Button>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow p-0">
+            <CardContent className="flex-grow p-0 overflow-y-auto min-h-0">
                 <div className="overflow-x-auto h-full">
                     {isLoadingGifts ? (
                         <div className="flex justify-center items-center h-full">
@@ -368,7 +378,7 @@ export default function AdminKakoLiveGiftsPageContent() {
                                                         width={40}
                                                         height={40}
                                                         className="rounded-md object-contain"
-                                                        data-ai-hint="gift icon"
+                                                        data-ai-hint={gift.dataAiHint || "gift icon"}
                                                     />
                                                 )}
                                             </TableCell>
@@ -382,8 +392,8 @@ export default function AdminKakoLiveGiftsPageContent() {
                     )}
                 </div>
             </CardContent>
-            <CardFooter className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground">Mostrando {kakoGifts.length} presentes.</p>
+            <CardFooter className="pt-2 border-t flex justify-center">
+                <p className="text-xs text-muted-foreground">Mostrando {kakoGifts.length} presentes cadastrados.</p>
             </CardFooter>
         </Card>
       </div>
@@ -434,3 +444,4 @@ export default function AdminKakoLiveGiftsPageContent() {
     </>
   );
 }
+
