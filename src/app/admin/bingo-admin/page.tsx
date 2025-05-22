@@ -296,6 +296,7 @@ export default function AdminBingoAdminPage() {
         fetchedGames.push({ 
           id: docSnap.id, 
           ...data,
+          // Ensure startTime is converted to Date if it's a Firestore Timestamp
           startTime: data.startTime instanceof Timestamp ? data.startTime.toDate() : new Date(data.startTime),
         } as Game);
       });
@@ -314,7 +315,7 @@ export default function AdminBingoAdminPage() {
     }
     if (activeTab === 'bingoPartidas') {
       fetchBingoGames();
-      fetchAvailableKakoPrizes(true); // Fetch for the form when partidas tab is active
+      fetchKakoPrizes(true); // Fetch for the form when partidas tab is active
     }
   }, [activeTab, fetchKakoPrizes, fetchBingoGames]);
 
@@ -433,8 +434,9 @@ export default function AdminBingoAdminPage() {
       });
       setIsAddKakoPrizeDialogOpen(false);
       kakoPrizeForm.reset();
-      fetchKakoPrizes(); 
+      fetchKakoPrizes(false); 
     } catch (error) {
+      // Only show generic error if upload specific error wasn't shown
       if (uploadProgress === null) { 
          console.error("Erro ao cadastrar prêmio Kako Live:", error);
          toast({
@@ -444,7 +446,7 @@ export default function AdminBingoAdminPage() {
          });
       }
     } finally {
-      setUploadProgress(null); 
+      setUploadProgress(null); // Ensure progress is cleared
     }
   };
 
@@ -455,14 +457,16 @@ export default function AdminBingoAdminPage() {
     if (validTab) {
       setActiveTab(hash);
     } else {
+      // Default to the first item of the first group if no valid hash
       const firstItemId = bingoSpecificMenuGroups[0]?.items[0]?.id || 'bingoPartidas';
       setActiveTab(firstItemId); 
       if (pathname === '/admin/bingo-admin' && window.location.hash !== `#${firstItemId}` && window.location.hash !== '') {
+         // Correct the URL if it's on the base page but hash is wrong or empty
          router.replace(`/admin/bingo-admin#${firstItemId}`, { scroll: false });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); 
+  }, [pathname]); // Only run on pathname change, router will be stable
 
   const handleMenuClick = (item: BingoAdminMenuItem) => {
     if (item.action) {
@@ -472,6 +476,7 @@ export default function AdminBingoAdminPage() {
       setActiveTab(newTabId);
       router.push(`/admin/bingo-admin#${newTabId}`, { scroll: false });
     } else if (item.link) {
+        // Handle full navigation if item.link is a complete path
         router.push(item.link); 
     }
   };
