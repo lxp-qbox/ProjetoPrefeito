@@ -34,7 +34,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={`${poppins.variable} font-sans antialiased flex flex-col min-h-screen bg-background`}>
+      <body className={`${poppins.variable} font-sans antialiased flex flex-col min-h-screen bg-background`} suppressHydrationWarning>
         <AuthProvider>
           <AppContentWrapper>{children}</AppContentWrapper>
         </AuthProvider>
