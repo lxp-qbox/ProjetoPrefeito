@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -27,14 +28,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { format, subYears, isValid, parse } from "date-fns"; // Removed parseISO as it's not strictly needed here
+import { format, subYears, isValid, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -46,14 +47,14 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   let formatted = "+";
   if (len <= 2) formatted += digitsOnly;
   else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  else if (len <= 9) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
+  else if (len <= 8) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
+  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
   return formatted;
 };
 
 
 export default function AgeVerificationPage() {
-  const [selectedCountry, setSelectedCountry] = useState<string>("Brasil"); // Default to Brasil
+  const [selectedCountry, setSelectedCountry] = useState<string>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
@@ -91,10 +92,6 @@ export default function AgeVerificationPage() {
       return;
     }
 
-    if (!phoneNumber.trim()) {
-      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
-      return;
-    }
     if (!selectedGender) {
       toast({ title: "Atenção", description: "Por favor, selecione seu sexo.", variant: "destructive" });
       return;
@@ -103,8 +100,12 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione sua data de nascimento.", variant: "destructive" });
       return;
     }
-    if (!selectedCountry) {
+     if (!selectedCountry) {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
 
@@ -119,10 +120,10 @@ export default function AgeVerificationPage() {
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
-        country: selectedCountry || null, // Ensure null if selectedCountry could be ""
-        gender: selectedGender || null,   // Ensure null if selectedGender is undefined
+        country: selectedCountry,
+        gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim() || null, // Ensure null if empty
+        phoneNumber: phoneNumber.trim(),
         updatedAt: serverTimestamp(),
       };
 
@@ -137,6 +138,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Fallback if role is somehow not set, though previous steps should ensure it
         router.push("/profile"); 
       }
     } catch (error) {
@@ -182,27 +184,11 @@ export default function AgeVerificationPage() {
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
           <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
-            </Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+00 (00) 00000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                    className="pl-10 h-12"
-                />
-            </div>
-          </div>
-          <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
             </Label>
             <Select
-              value={selectedGender || undefined} // Ensure undefined if not set
+              value={selectedGender || undefined} 
               onValueChange={(value) => setSelectedGender(value as UserProfile['gender'])}
             >
               <SelectTrigger id="gender-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
@@ -249,14 +235,13 @@ export default function AgeVerificationPage() {
                   captionLayout="dropdown-buttons"
                   fromYear={minCalendarDate.getFullYear()}
                   toYear={maxCalendarDate.getFullYear()}
-                  defaultMonth={subYears(new Date(), 18)}
+                  defaultMonth={selectedDate || subYears(new Date(), 18)}
                   disabled={(date) => date > maxCalendarDate || date < minCalendarDate }
                 />
               </PopoverContent>
             </Popover>
           </div>
-
-          <div>
+           <div>
             <Label htmlFor="country-select" className="text-sm font-medium mb-1 block text-left">
               País
             </Label>
@@ -278,6 +263,23 @@ export default function AgeVerificationPage() {
             </Select>
           </div>
 
+          <div>
+            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+              Celular (WhatsApp)
+            </Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+00 (00) 00000-0000"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                    className="pl-10 h-12"
+                />
+            </div>
+          </div>
+
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -290,7 +292,7 @@ export default function AgeVerificationPage() {
         </div>
          <Button
           onClick={handleContinue}
-          className="w-full mt-4" // Adjusted margin for the button
+          className="w-full mt-4" 
           disabled={!selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
         >
           {isLoading ? (
@@ -302,7 +304,7 @@ export default function AgeVerificationPage() {
         </Button>
       </CardContent>
       <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </>
   );

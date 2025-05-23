@@ -41,7 +41,7 @@ Este é um texto de placeholder. Em uma aplicação real, este seria substituíd
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
   `.trim().repeat(3);
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function TermsPage() {
   const [agreed, setAgreed] = useState(false);
@@ -63,13 +63,13 @@ export default function TermsPage() {
 
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
+      const userDocRef = doc(db, "accounts", currentUser.uid);
       await updateDoc(userDocRef, {
         agreedToTermsAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/role-selection");
+      router.push("/onboarding/role-selection"); // Next step is role selection
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -90,7 +90,7 @@ export default function TermsPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-hidden">
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
           <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
         </ScrollArea>
@@ -106,7 +106,7 @@ export default function TermsPage() {
         </Button>
       </CardContent>
       <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
     </>
   );

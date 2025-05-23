@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-import { Progress } from "@/components/ui/progress"; // Added Progress import
+import { Progress } from "@/components/ui/progress";
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -75,6 +75,7 @@ function VerifyEmailNoticeContent() {
       await auth.currentUser.reload(); 
       if (auth.currentUser.emailVerified) {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
+        // This will trigger the onboarding sequence checks in login/page.tsx or login-form.tsx
         router.replace("/login?verified=true"); 
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
@@ -88,12 +89,12 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    await logout(); 
+    // No need to logout if user is not verified and is trying to switch accounts
     router.push("/login");
   };
 
 
-  if (authLoading && !appUser) { 
+  if (authLoading && !appUser && !emailForDisplay) { 
     return (
       <div className={cn(
         "flex justify-center items-center h-screen overflow-hidden",
@@ -136,7 +137,7 @@ function VerifyEmailNoticeContent() {
             {isLoadingCheck ? (
               <div className="flex flex-col items-center space-y-3 text-center">
                 <p className="text-sm text-muted-foreground">Verificando status do seu email...</p>
-                <Progress value={50} className="w-full" aria-label="Verificando status do email" />
+                <Progress value={50} className="w-full h-1.5" aria-label="Verificando status do email" />
               </div>
             ) : (
               <>
@@ -169,11 +170,13 @@ function VerifyEmailNoticeContent() {
 
 
 export default function VerifyEmailNoticePage() {
+  const isMobile = useIsMobile();
   return (
     <Suspense fallback={
       <div className={cn(
           "flex justify-center items-center h-screen overflow-hidden",
-          "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900" 
+           !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+           isMobile && "bg-white p-0" 
         )}>
           <LoadingSpinner size="lg"/>
         </div>
@@ -182,3 +185,4 @@ export default function VerifyEmailNoticePage() {
     </Suspense>
   );
 }
+

@@ -4,8 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Card as ChoiceCard } from "@/components/ui/card"; // Renamed to avoid conflict
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Users, Gamepad2, Star, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,7 +15,7 @@ import Link from "next/link";
 import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +37,7 @@ export default function RoleSelectionPage() {
     setLoadingRole(role);
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "accounts", currentUser.uid); // Changed 'users' to 'accounts'
+      const userDocRef = doc(db, "accounts", currentUser.uid); 
       await updateDoc(userDocRef, {
         role: role,
         updatedAt: serverTimestamp(),
@@ -76,7 +75,7 @@ export default function RoleSelectionPage() {
             </Link>
         </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Star className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
@@ -86,8 +85,8 @@ export default function RoleSelectionPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
+      <CardContent className="flex-grow px-6 pt-6 pb-6 flex flex-col overflow-y-auto">
+        <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
             onClick={() => !isLoading && handleRoleSelect('host')}
@@ -97,7 +96,9 @@ export default function RoleSelectionPage() {
             aria-disabled={isLoading || (isLoading && loadingRole !== 'host')}
           >
             {isLoading && loadingRole === 'host' ? (
-              <LoadingSpinner size="md" className="my-3" />
+              <div className="h-[104px] flex items-center justify-center"> {/* Approx height of content */}
+                <LoadingSpinner size="md" />
+              </div>
             ) : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-4">
@@ -120,7 +121,9 @@ export default function RoleSelectionPage() {
             aria-disabled={isLoading || (isLoading && loadingRole !== 'player')}
           >
             {isLoading && loadingRole === 'player' ? (
-              <LoadingSpinner size="md" className="my-3" />
+               <div className="h-[104px] flex items-center justify-center"> {/* Approx height of content */}
+                <LoadingSpinner size="md" />
+              </div>
             ) : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-4">
@@ -136,7 +139,7 @@ export default function RoleSelectionPage() {
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </>
   );

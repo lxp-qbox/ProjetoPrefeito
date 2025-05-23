@@ -4,8 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Card as ChoiceCard } from "@/components/ui/card"; // Renamed to avoid conflict
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
@@ -16,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
@@ -49,9 +48,10 @@ export default function KakoAccountCheckPage() {
     setLoadingAction('createWithoutId');
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid);
       await updateDoc(userDocRef, {
         kakoLiveId: "",
+        showId: "",
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
@@ -95,7 +95,7 @@ export default function KakoAccountCheckPage() {
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+      <CardContent className="flex-grow px-6 pt-6 pb-6 flex flex-col overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
@@ -105,7 +105,11 @@ export default function KakoAccountCheckPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
             aria-disabled={isLoading || (isLoading && loadingAction !== 'hasAccount')}
           >
-            {isLoading && loadingAction === 'hasAccount' ? <LoadingSpinner size="md" className="my-3" /> : (
+            {isLoading && loadingAction === 'hasAccount' ? (
+                <div className="h-[100px] flex items-center justify-center">
+                    <LoadingSpinner size="md" />
+                </div>
+             ) : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-3">
                   <CheckCircle className="h-8 w-8 text-primary" />
@@ -126,7 +130,11 @@ export default function KakoAccountCheckPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
             aria-disabled={isLoading || (isLoading && loadingAction !== 'needsAccount')}
           >
-             {isLoading && loadingAction === 'needsAccount' ? <LoadingSpinner size="md" className="my-3" /> : (
+             {isLoading && loadingAction === 'needsAccount' ? (
+                <div className="h-[100px] flex items-center justify-center">
+                    <LoadingSpinner size="md" />
+                </div>
+             ) : (
               <>
                 <div className="p-3 bg-primary/10 rounded-full mb-3">
                   <Phone className="h-8 w-8 text-primary" />
@@ -138,10 +146,19 @@ export default function KakoAccountCheckPage() {
               </>
             )}
           </ChoiceCard>
+          <Button 
+            variant="outline" 
+            className="w-full mt-4" 
+            onClick={handleCreateAccountWithoutId}
+            disabled={isLoading || (isLoading && loadingAction !== 'createWithoutId')}
+          >
+            {isLoading && loadingAction === 'createWithoutId' ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+            Criar conta sem ID Kako
+          </Button>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={5} />
       </CardFooter>
     </>
   );
