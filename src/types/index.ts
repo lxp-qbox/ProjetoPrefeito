@@ -96,7 +96,7 @@ export interface UserProfile {
   profileName?: string | null;
   displayName?: string | null; 
   photoURL?: string | null; 
-  level?: number; // This will be populated from linked KakoProfile
+  level?: number; 
 
   hostStatus?: 'approved' | 'pending_review' | 'banned' | null;
 
@@ -110,7 +110,7 @@ export interface UserProfile {
   birthDate?: string | Date | null; 
   country?: string | null;
   phoneNumber?: string | null;
-  foundUsVia?: string | null; // Added for where user found the app
+  foundUsVia?: string | null; 
 
   isBanned?: boolean;
   banReason?: string | null;
@@ -139,13 +139,13 @@ export interface KakoProfile {
   id: string; // This is the FUID (technical userId from Kako), and it's the Firestore document ID
   numId?: number | null;
   nickname: string;
-  avatarUrl: string | null; // Mapped from Kako's 'avatar' field
+  avatarUrl: string | null; 
   level?: number | null;
   signature?: string | null;
-  gender?: number | null; // Kako might use 1 for male, 2 for female
+  gender?: number | null; 
   area?: string | null;
   school?: string | null;
-  showId: string; // This is the user-facing, searchable ID from Kako
+  showId: string; 
   isLiving?: boolean | null;
   roomId?: string | null;
   lastFetchedAt?: any | null; 
@@ -156,7 +156,7 @@ export interface KakoGift {
   id: string; 
   name: string;
   imageUrl: string | null;
-  storagePath?: string | null; 
+  storagePath?: string | null;
   diamond?: number | null;
   category?: string | null; 
   display?: boolean; 
@@ -164,6 +164,7 @@ export interface KakoGift {
   updatedAt?: any;
   dataAiHint?: string | null;
 }
+
 
 export interface BingoPrize {
   id?: string;
@@ -185,18 +186,18 @@ export interface BingoPrize {
 export interface FirestoreConversation {
   id?: string; 
   participants: string[]; // Array of UIDs
-  participantInfo: { // Denormalized info for quick display
+  participantInfo: { 
     [uid: string]: {
       name?: string | null;
-      avatar?: string | null; // photoURL from UserProfile
+      avatar?: string | null; 
     }
   };
   lastMessageText?: string | null;
-  lastMessageTimestamp?: any | null; // Firestore Server Timestamp
+  lastMessageTimestamp?: any | null; 
   lastMessageSenderId?: string | null;
-  unreadCounts?: { [uid: string]: number }; // e.g., { uid1: 0, uid2: 3 }
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
+  unreadCounts?: { [uid: string]: number }; 
+  createdAt: any; 
+  updatedAt: any; 
 }
 
 export interface AppMessage {
@@ -206,7 +207,7 @@ export interface AppMessage {
   senderName: string;
   senderAvatar?: string | null;
   text: string;
-  timestamp: any; // Firestore Server Timestamp or JS Date
+  timestamp: any; 
   imageUrl?: string | null;
   isCurrentUser?: boolean;
   status?: 'sent' | 'delivered' | 'read' | null;
@@ -237,7 +238,7 @@ export interface FeedPost {
 
 export interface UserSummary {
   name: string;
-  handle?: string; // e.g. @username or Role like "UI/UX Designer"
+  handle?: string; 
   avatarUrl?: string | null;
   dataAiHint?: string;
 }
@@ -253,7 +254,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string; // User's @handle or description
+  handle: string; 
   avatarUrl: string | null;
   dataAiHint?: string;
 }
@@ -404,3 +405,5 @@ export interface WebSocketConfig {
   webSocketUrlList?: string[] | null;
   primaryWebSocketUrl?: string | null;
 }
+
+    

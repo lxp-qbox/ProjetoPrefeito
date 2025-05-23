@@ -16,13 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithEmailAndPassword, signInWithPopup, reload } from "firebase/auth"; // Added reload
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth"; 
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Eye, EyeOff, ArrowRight, User, Lock } from "lucide-react";
 import type { UserProfile } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 48 48" {...props}>
@@ -47,6 +48,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { refreshUserProfile } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,47 +62,35 @@ export default function LoginForm() {
   const handleRedirect = async (userId: string, userEmail?: string | null, isGoogleSignIn: boolean = false) => {
     try {
       const firebaseUser = auth.currentUser;
-      if (!firebaseUser) { // Should not happen if userId is present, but a good check
+      if (!firebaseUser) { 
         router.replace("/login");
         return;
       }
       
-      // For Google Sign-In, email is implicitly verified.
-      // For email/password, we need to check emailVerified status.
-      // If it's an email/password sign-in and email isn't verified, redirect to notice page.
-      if (!isGoogleSignIn && !firebaseUser.emailVerified) {
+      await refreshUserProfile(); // Refresh context before checking onboarding status
+      const userDocRef = doc(db, "accounts", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (!firebaseUser.emailVerified && !isGoogleSignIn) {
         router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(userEmail || firebaseUser.email || "")}`);
         return;
       }
-
-      const userDocRef = doc(db, "accounts", userId);
-      const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         
-        if (!userProfile.agreedToTermsAt) {
-          router.replace("/onboarding/terms");
-        } else if (!userProfile.role) {
-          router.replace("/onboarding/role-selection");
-        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
-          router.replace("/onboarding/age-verification");
-        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-          if (userProfile.role === 'host') {
-            router.replace("/onboarding/kako-id-input");
-          } else if (userProfile.role === 'player') {
-            router.replace("/onboarding/kako-account-check");
-          } else {
-            router.replace("/profile"); 
-          }
+        if (!userProfile.agreedToTermsAt) router.replace("/onboarding/terms");
+        else if (!userProfile.role) router.replace("/onboarding/role-selection");
+        else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country) router.replace("/onboarding/age-verification");
+        else if (!userProfile.phoneNumber || !userProfile.foundUsVia) router.replace("/onboarding/contact-info");
+        else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+          if (userProfile.role === 'host') router.replace("/onboarding/kako-id-input");
+          else if (userProfile.role === 'player') router.replace("/onboarding/kako-account-check");
+          else router.replace("/profile"); 
         } else {
           router.replace("/profile");
         }
       } else {
-        // This case implies a new user signed up with Google or email but Firestore doc creation failed or is pending.
-        // Typically, for Google, the doc is created in AuthProvider.
-        // For email, it's created during signup.
-        // Fallback to terms as the first step if doc doesn't exist (which implies incomplete initial setup).
         router.replace("/onboarding/terms"); 
       }
     } catch (error) {
@@ -114,7 +104,7 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      await userCredential.user.reload(); // Reload to get the latest emailVerified status
+      await userCredential.user.reload(); 
       
       if (!userCredential.user.emailVerified) {
         toast({
@@ -142,15 +132,11 @@ export default function LoginForm() {
         errorMessage = "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
       } else if (error.code === 'auth/user-disabled') {
         errorMessage = "Esta conta foi desabilitada.";
-      } else {
-        // Check for specific unverified email error if Firebase doesn't block it directly
-        // This might be redundant if signInWithEmailAndPassword itself errors for unverified emails based on project settings
-        if (error.message && error.message.includes("EMAIL_NOT_VERIFIED")) {
+      } else if (error.message && error.message.includes("EMAIL_NOT_VERIFIED")) {
            errorMessage = "Por favor, verifique seu email antes de fazer login.";
            router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(values.email)}`);
-        } else {
+      } else {
           errorMessage = error.message || errorMessage;
-        }
       }
       toast({
         title: "Falha no Login",
@@ -167,7 +153,6 @@ export default function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential = await signInWithPopup(auth, provider);
-      // Google Sign-In automatically verifies email
       toast({
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
@@ -193,6 +178,7 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Digite seu email</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -208,6 +194,7 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
+              {/* <FormLabel>Digite sua senha</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -290,3 +277,5 @@ export default function LoginForm() {
     </Form>
   );
 }
+
+    

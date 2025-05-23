@@ -41,13 +41,13 @@ Este é um texto de placeholder. Em uma aplicação real, este seria substituíd
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
   `.trim().repeat(3);
 
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
 export default function TermsPage() {
   const [agreed, setAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const handleContinue = async () => {
@@ -68,8 +68,9 @@ export default function TermsPage() {
         agreedToTermsAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      await refreshUserProfile();
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/role-selection"); // Next step is role selection
+      router.push("/onboarding/role-selection"); 
     } catch (error) {
       console.error("Erro ao salvar aceite dos termos:", error);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
@@ -106,8 +107,10 @@ export default function TermsPage() {
         </Button>
       </CardContent>
       <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
       </CardFooter>
     </>
   );
 }
+
+    

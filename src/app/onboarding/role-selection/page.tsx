@@ -15,17 +15,17 @@ import Link from "next/link";
 import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingRole, setLoadingRole] = useState<UserProfile['role'] | null>(null);
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const handleRoleSelect = async (role: UserProfile['role']) => {
-    if (isLoading) return; // Prevent multiple submissions
+    if (isLoading) return; 
 
     if (!currentUser) {
       toast({
@@ -44,6 +44,7 @@ export default function RoleSelectionPage() {
         role: role,
         updatedAt: serverTimestamp(),
       });
+      await refreshUserProfile();
       toast({
         title: "Função Selecionada",
         description: `Sua função foi definida como ${role === 'host' ? 'Anfitrião' : 'Participante'}.`,
@@ -57,8 +58,8 @@ export default function RoleSelectionPage() {
         variant: "destructive",
       });
     } finally {
-      // setIsLoading(false); // Keep isLoading true until navigation completes
-      // setLoadingRole(null); // Or reset once navigation is confirmed
+      setIsLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -82,8 +83,7 @@ export default function RoleSelectionPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Olá!</CardTitle>
         <CardDescription>
-          Para começar, escolha como você<br />
-          pretende utilizar sua conta:
+          Para começar, escolha como você<br />pretende utilizar sua conta:
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -152,3 +152,5 @@ export default function RoleSelectionPage() {
     </>
   );
 }
+
+    

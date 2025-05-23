@@ -14,16 +14,14 @@ import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
-
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-
 
   const handleHasAccount = () => {
     if (isLoading) return;
@@ -32,45 +30,13 @@ export default function KakoAccountCheckPage() {
     router.push("/onboarding/kako-id-input");
   };
 
-  const handleNeedsAccount = () => {
+  const handleNavigateToCreationChoice = () => {
     if (isLoading) return;
     setLoadingAction('needsAccount');
     setIsLoading(true);
     router.push("/onboarding/kako-creation-choice");
   };
-
-  const handleCreateAccountWithoutId = async () => {
-    if (!currentUser) {
-      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
-      router.push("/login");
-      return;
-    }
-    setLoadingAction('createWithoutId');
-    setIsLoading(true);
-    try {
-      const userDocRef = doc(db, "accounts", currentUser.uid);
-      await updateDoc(userDocRef, {
-        kakoLiveId: "",
-        showId: "",
-        hasCompletedOnboarding: true,
-        updatedAt: serverTimestamp(),
-      });
-      toast({
-        title: "Onboarding Concluído!",
-        description: "Você pode explorar o aplicativo.",
-        duration: 7000,
-      });
-      router.push("/profile");
-    } catch (error) {
-      console.error("Erro ao finalizar onboarding (createWithoutId):", error);
-      toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-      setLoadingAction(null);
-    }
-  };
-
-
+  
   return (
     <>
        <Button
@@ -80,7 +46,7 @@ export default function KakoAccountCheckPage() {
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
         >
-            <Link href="/onboarding/age-verification">
+            <Link href="/onboarding/contact-info">
                 <ArrowLeft className="h-8 w-8" />
                 <span className="sr-only">Voltar</span>
             </Link>
@@ -124,10 +90,10 @@ export default function KakoAccountCheckPage() {
 
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={handleNeedsAccount}
+            onClick={handleNavigateToCreationChoice}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && handleNeedsAccount()}
+            onKeyDown={(e) => e.key === 'Enter' && handleNavigateToCreationChoice()}
             aria-disabled={isLoading || (isLoading && loadingAction !== 'needsAccount')}
           >
              {isLoading && loadingAction === 'needsAccount' ? (
@@ -146,15 +112,6 @@ export default function KakoAccountCheckPage() {
               </>
             )}
           </ChoiceCard>
-          <Button 
-            variant="outline" 
-            className="w-full mt-4" 
-            onClick={handleCreateAccountWithoutId}
-            disabled={isLoading || (isLoading && loadingAction !== 'createWithoutId')}
-          >
-            {isLoading && loadingAction === 'createWithoutId' ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-            Criar conta sem ID Kako
-          </Button>
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
@@ -163,3 +120,5 @@ export default function KakoAccountCheckPage() {
     </>
   );
 }
+
+    

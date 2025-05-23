@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Smartphone, ArrowLeft, DownloadCloud, ExternalLink } from "lucide-react";
+import { Smartphone, ArrowLeft, DownloadCloud, XCircle, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -14,13 +14,13 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const handleCompleteOnboardingWithoutId = async () => {
@@ -32,15 +32,17 @@ export default function KakoCreationChoicePage() {
     setLoadingAction('completeWithoutId');
     setIsLoading(true);
     try {
-      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocRef = doc(db, "accounts", currentUser.uid);
       await updateDoc(userDocRef, {
-        kakoLiveId: "",
+        showId: "", // Explicitly empty if skipping
+        kakoLiveId: "", // Explicitly empty
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       });
+      await refreshUserProfile();
       toast({
         title: "Onboarding Concluído!",
-        description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no perfil, se desejar.",
+        description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no seu perfil, se desejar.",
         duration: 7000,
       });
       router.push("/profile");
@@ -53,7 +55,7 @@ export default function KakoCreationChoicePage() {
     }
   };
 
-  const handleProceedToIdInput = () => {
+  const handleProceedToIdInputAfterCreation = () => {
     if (isLoading) return;
     setLoadingAction('proceedToIdInput');
     setIsLoading(true); 
@@ -87,7 +89,7 @@ export default function KakoCreationChoicePage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
           <ChoiceCard className="shadow-md border-primary/20 mb-6">
-            <CardHeader className="flex-row items-center space-x-3 pb-3">
+            <CardHeader className="flex-row items-center space-x-3 pb-3 pt-4">
               <div className="p-2 bg-primary/10 rounded-full">
                 <DownloadCloud className="h-6 w-6 text-primary" />
               </div>
@@ -107,7 +109,7 @@ export default function KakoCreationChoicePage() {
 
           <div className="mt-auto pt-4 space-y-4">
             <Button
-              onClick={handleProceedToIdInput}
+              onClick={handleProceedToIdInputAfterCreation}
               className="w-full"
               disabled={isLoading && loadingAction !== 'proceedToIdInput'}
             >
@@ -130,8 +132,10 @@ export default function KakoCreationChoicePage() {
           </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={5} />
       </CardFooter>
     </>
   );
 }
+
+    

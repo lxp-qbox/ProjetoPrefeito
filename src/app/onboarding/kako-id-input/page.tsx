@@ -19,37 +19,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { UserProfile, KakoProfile } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
-interface SimulatedKakoProfile extends Pick<KakoProfile, 'id' | 'nickname' | 'showId' | 'numId' | 'avatarUrl' | 'level' | 'signature' | 'roomId'> {}
-
-const simulatedKakoProfiles: SimulatedKakoProfile[] = [
+// Simulated Kako Profiles - In a real scenario, this would be a Firestore call if not already cached
+const simulatedKakoProfiles: Array<Partial<KakoProfile> & { id: string }> = [
   {
-    id: "0322d2dd57e74a028a9e72c2fae1fd9a",
+    id: "0322d2dd57e74a028a9e72c2fae1fd9a", // FUID
     nickname: "PRESIDENTE",
     showId: "10763129",
-    numId: 1008850234,
     avatarUrl: "https://godzilla-live-oss.kako.live/avatar/0322d2dd57e74a028a9e72c2fae1fd9a/20250516/1747436206391.jpg/200x200",
     level: 39,
     signature: "✨The Presidential Agency...",
     roomId: "67b9ed5fa4e716a084a23765",
   },
   {
-    id: "e3a678daf63f4d12b8139704ca8bffaf",
-    nickname: "AGÊNCIA🕊️ᵐᵈ♾️",
-    showId: "10171348",
-    numId: 1000686957,
-    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/e3a678daf63f4d12b8139704ca8bffaf/20250510/1746909590842.jpg/200x200",
-    level: 36,
-    signature: "Bio da Agência MD",
+    id: "b2f7260f233746e19ebac80d31d82908", // FUID
+    nickname: "Janyᵃᵍⁿᵉˣᵘˢ✨️",
+    showId: "10956360",
+    avatarUrl: "https://godzilla-live-oss.kako.live/avatar/b2f7260f233746e19ebac80d31d82908/20250509/1746802335031.jpg/200x200",
+    level: 24,
   },
   {
-    id: "internalMasterAdminFUID", // Placeholder FUID for the master admin Show ID
+    id: "internalMasterAdminFUID", // Placeholder FUID for Master Admin
     nickname: "Sistema (Master Admin ID)",
     showId: "10933200",
-    avatarUrl: "https://placehold.co/96x96.png?text=ADM", // Generic admin avatar
+    avatarUrl: null, // Or a generic admin icon URL
     level: 99,
-    signature: "Conta administrativa principal."
   },
 ];
 
@@ -58,12 +53,12 @@ export default function KakoIdInputPage() {
   const [userInputShowId, setUserInputShowId] = useState(""); 
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [foundKakoProfile, setFoundKakoProfile] = useState<KakoProfile | null>(null);
+  const [foundKakoProfile, setFoundKakoProfile] = useState<(KakoProfile | (Partial<KakoProfile> & { id: string })) | null>(null);
   const [profileSearchAttempted, setProfileSearchAttempted] = useState(false);
   const [showIdInUseError, setShowIdInUseError] = useState<string | null>(null);
 
   const router = useRouter();
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const deriveProfileNameFromEmail = (email: string): string => {
@@ -86,14 +81,14 @@ export default function KakoIdInputPage() {
     setFoundKakoProfile(null);
     setProfileSearchAttempted(true);
     setShowIdInUseError(null);
+    console.log("Searching for Show ID:", userInputShowId.trim());
 
-    const trimmedShowId = userInputShowId.trim();
+    const currentInputShowId = userInputShowId.trim();
 
-    // 1. Check for uniqueness in 'accounts' collection (unless it's the master ID)
-    if (trimmedShowId !== "10933200" && currentUser) {
+    if (currentInputShowId !== "10933200" && currentUser) {
       try {
         const accountsRef = collection(db, "accounts");
-        const q = query(accountsRef, where("showId", "==", trimmedShowId));
+        const q = query(accountsRef, where("showId", "==", currentInputShowId));
         const querySnapshot = await getDocs(q);
         
         let isTakenByOther = false;
@@ -108,7 +103,7 @@ export default function KakoIdInputPage() {
           setShowIdInUseError(errorMsg);
           toast({ title: "Show ID em Uso", description: errorMsg, variant: "destructive" });
           setIsSearching(false);
-          setProfileFound(false);
+          setFoundKakoProfile(null); // Explicitly nullify if error
           return;
         }
       } catch (error) {
@@ -119,54 +114,56 @@ export default function KakoIdInputPage() {
       }
     }
     
-    // 2. Search in 'kakoProfiles' (Firestore)
-    let profileData: KakoProfile | null = null;
+    // Search in Firestore 'kakoProfiles'
+    let profileFromFirestore: KakoProfile | null = null;
     try {
+      console.log("Querying Firestore kakoProfiles for showId:", currentInputShowId);
       const profilesRef = collection(db, "kakoProfiles");
-      const q = query(profilesRef, where("showId", "==", trimmedShowId));
+      const q = query(profilesRef, where("showId", "==", currentInputShowId));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const profileDoc = querySnapshot.docs[0];
         const data = profileDoc.data();
-        profileData = { 
-            id: profileDoc.id, // This is the FUID
+        profileFromFirestore = { 
+            id: profileDoc.id, // FUID
             nickname: data.nickname,
-            avatarUrl: data.avatar || data.avatarUrl,
+            avatarUrl: data.avatarUrl || data.avatar || null, // Prioritize avatarUrl, then avatar
             level: data.level,
             showId: data.showId,
             numId: data.numId,
             gender: data.gender,
             signature: data.signature,
-            // Add other KakoProfile fields if needed
         };
-        setFoundKakoProfile(profileData);
-        setProfileFound(true);
-        toast({ title: "Perfil Encontrado!", description: `Perfil ${profileData.nickname} encontrado no banco de dados.` });
+        console.log("Profile found in Firestore:", profileFromFirestore);
+        setFoundKakoProfile(profileFromFirestore);
+        toast({ title: "Perfil Encontrado!", description: `Perfil ${profileFromFirestore.nickname} encontrado no banco de dados.` });
+      } else {
+        console.log("No profile found in Firestore for showId:", currentInputShowId);
       }
     } catch (error) {
       console.error("Erro ao buscar perfil Kako no Firestore:", error);
-      // Don't show toast yet, fallback to simulated data
+      // Don't toast yet, will fall back to simulated
     }
 
-    // 3. Fallback to local simulated data if not found in Firestore
-    if (!profileData) {
+    // Fallback to local simulated data if not found in Firestore
+    if (!profileFromFirestore) {
       const simulated = simulatedKakoProfiles.find(
-        (p) => p.showId === trimmedShowId || p.id === trimmedShowId || (p.numId && p.numId.toString() === trimmedShowId)
+        (p) => p.showId === currentInputShowId || p.id === currentInputShowId || (p.numId && p.numId.toString() === currentInputShowId)
       );
       if (simulated) {
-        profileData = { ...simulated, avatarUrl: simulated.avatarUrl || null }; // Ensure avatarUrl can be null
-        setFoundKakoProfile(profileData);
-        setProfileFound(true);
-        toast({ title: "Perfil Encontrado (Simulado)!", description: `Perfil ${profileData.nickname} encontrado nos dados simulados.` });
+        console.log("Profile found in local simulation:", simulated);
+        setFoundKakoProfile(simulated);
+        toast({ title: "Perfil Encontrado (Simulado)!", description: `Perfil ${simulated.nickname} encontrado nos dados simulados.` });
       }
     }
 
-    if (!profileData) {
-      setProfileFound(false); // Explicitly set to false if no profile found anywhere
-      toast({ title: "Perfil Não Encontrado", description: `Não foi possível encontrar um perfil com o ID ${trimmedShowId}.`, variant: "destructive" });
+    if (!profileFromFirestore && !simulatedKakoProfiles.find(p => p.showId === currentInputShowId || p.id === currentInputShowId)) {
+      console.log("Profile not found in Firestore or simulation for:", currentInputShowId);
+      setFoundKakoProfile(null); // Ensure it's null if nothing found
+      toast({ title: "Perfil Não Encontrado", description: `Não foi possível encontrar um perfil com o ID ${currentInputShowId}.`, variant: "destructive" });
     }
-
+    
     setIsSearching(false);
   };
 
@@ -193,7 +190,6 @@ export default function KakoIdInputPage() {
       return;
     }
 
-
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
@@ -205,31 +201,30 @@ export default function KakoIdInputPage() {
 
       if (userInputShowId.trim() === "10933200") {
         adminLevelToSet = 'master';
-        // For master admin, prioritize existing user name/photo, fallback to "Master Admin" if none
-        profileNameToSave = profileNameToSave || "Master Admin";
-        // photoURLToSave remains as is (user's existing or null)
-        fuidToSave = foundKakoProfile?.id || "internalMasterAdminFUID"; // Use FUID if one is associated with 10933200 in kakoProfiles/simulated
+        profileNameToSave = profileNameToSave || "Master Admin"; 
+        // photoURLToSave remains currentUser.photoURL
+        fuidToSave = foundKakoProfile?.id || "internalMasterAdminFUID"; 
       } else if (foundKakoProfile) {
-        profileNameToSave = foundKakoProfile.nickname;
-        photoURLToSave = foundKakoProfile.avatarUrl || null;
+        profileNameToSave = foundKakoProfile.nickname || profileNameToSave; // Prioritize found profile name
+        photoURLToSave = foundKakoProfile.avatarUrl || photoURLToSave; // Prioritize found avatar
         fuidToSave = foundKakoProfile.id; // This is the FUID from KakoProfile
       } else {
-         // No Kako profile found, and not master ID - keep existing app profile name/photo
          profileNameToSave = profileNameToSave || deriveProfileNameFromEmail(currentUser.email!);
-         // photoURLToSave and fuidToSave remain as initialized from currentUser or empty
       }
       
       const dataToUpdate: Partial<UserProfile> = {
         showId: userInputShowId.trim(),
-        kakoLiveId: fuidToSave,
         profileName: profileNameToSave,
+        displayName: profileNameToSave,
         photoURL: photoURLToSave,
+        kakoLiveId: fuidToSave, 
         adminLevel: adminLevelToSet, 
         hasCompletedOnboarding: true,
         updatedAt: serverTimestamp(),
       };
       
       await updateDoc(userDocRef, dataToUpdate);
+      await refreshUserProfile();
       
       toast({
         title: "ID Kako Live Vinculado!",
@@ -250,8 +245,8 @@ export default function KakoIdInputPage() {
 
   const determineBackLink = () => {
     if (!currentUser || !currentUser.role) return "/onboarding/kako-account-check"; 
-    if (currentUser.role === 'host') return "/onboarding/age-verification";
-    return "/onboarding/kako-account-check"; 
+    if (currentUser.role === 'host') return "/onboarding/contact-info"; // Host goes from contact to ID input
+    return "/onboarding/kako-account-check"; // Player goes from account check to ID input
   };
 
   if (authLoading && !currentUser) {
@@ -280,7 +275,7 @@ export default function KakoIdInputPage() {
          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Fingerprint className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Seu ID de Exibição Kako</CardTitle>
+        <CardTitle className="text-2xl font-bold">Seu ID Kako Live</CardTitle>
         <CardDescription>
           Insira seu ID de Exibição (Show ID) do app Kako Live<br />para continuar.
         </CardDescription>
@@ -290,16 +285,12 @@ export default function KakoIdInputPage() {
         <div className="w-full max-w-xs mx-auto space-y-6 my-auto">
           <div className="flex flex-col items-center space-y-2 mb-6">
             <Avatar className="h-24 w-24 border-2 border-primary/30">
-               <AvatarImage src={foundKakoProfile?.avatarUrl || undefined} alt={foundKakoProfile?.nickname || "Perfil"} data-ai-hint="user avatar" />
+               <AvatarImage src={foundKakoProfile?.avatarUrl || undefined} alt={foundKakoProfile?.nickname || "Perfil"} />
               <AvatarFallback>
-                {foundKakoProfile?.nickname ? (
-                  foundKakoProfile.nickname.substring(0, 2).toUpperCase()
-                ) : (
-                  <UserCircle2 className="h-12 w-12 text-muted-foreground" />
-                )}
+                {isSearching ? <LoadingSpinner size="md" /> : (foundKakoProfile?.nickname ? foundKakoProfile.nickname.substring(0, 2).toUpperCase() : <UserCircle2 className="h-12 w-12 text-muted-foreground" />)}
               </AvatarFallback>
             </Avatar>
-             <div className="text-center min-h-[20px]"> {/* Ensure consistent height */}
+             <div className="text-center min-h-[1.25rem]"> {/* Approx height of text-sm */}
               {isSearching ? (
                 <p className="text-sm text-muted-foreground">Buscando...</p>
               ) : foundKakoProfile?.nickname ? (
@@ -374,3 +365,4 @@ export default function KakoIdInputPage() {
   );
 }
 
+    
