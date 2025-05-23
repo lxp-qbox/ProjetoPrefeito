@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { type ReactNode, useEffect, useState, useMemo, useCallback, cloneElement, isValidElement } from 'react';
+import React, { type ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { Toaster } from '@/components/ui/toaster';
@@ -23,33 +23,55 @@ import {
 import { 
     Home, 
     Users, 
-    TicketIcon as GameIcon, 
+    Gamepad2, 
     MessageSquare, 
     UserCircle2, 
     Settings, 
     LayoutDashboard,
-    Crown,
     LogOut,
-    TicketIcon, // For Bingo Admin
-    PlayCircle,
-    BarChart2,
-    Bookmark,
-    Gamepad2,
-    Tag,
-    PanelLeft,
-    type LucideIcon
-} from 'lucide-react';
+    TicketIcon,
+    Crown, // Added Crown
+    PlayCircle, // Added PlayCircle
+    BarChart2,  // Added BarChart2
+    Bookmark,   // Added Bookmark
+    Tag,        // Added Tag
+    PanelLeft,  // Added PanelLeft
+    type LucideIcon,
+    RefreshCw,
+    Database,
+    Link as LinkIconLucide,
+    PlugZap,
+    ListPlus,
+    Save as SaveIcon, 
+    RadioTower,
+    Gift as GiftIcon,
+    DatabaseZap,
+    Users as UsersIconProp, 
+    ChevronRight,
+    MailQuestion, 
+    XCircle,      
+    UserCog,      
+    Star,         
+    ServerOff,
+    FileText,
+    Info,
+    Headphones,
+    Maximize,
+    Minimize,
+    ClipboardList // Added ClipboardList
+} from 'lucide-react'; 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { UserProfile, SiteModule, UserRole as AdminUserRole, MinimumAccessLevel, KakoProfile, KakoGift, WebSocketConfig, LogEntry, ParsedUserData } from "@/types";
-import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, Timestamp } from "@/lib/firebase";
-import { initialModuleStatuses } from '@/app/admin/maintenance/offline/page'; // Assuming it's exported
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, Timestamp, onSnapshot } from "@/lib/firebase";
+import { initialModuleStatuses } from '@/app/admin/maintenance/offline/page'; 
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from "@/components/ui/badge";
 
 
-const roleHierarchy: Record<AdminUserRole | 'master', number> = { // Added master to ensure it's covered
+const roleHierarchy: Record<AdminUserRole, number> = {
   player: 0,
   host: 1,
   suporte: 2,
@@ -62,20 +84,20 @@ interface SidebarFooterItem {
   label: string;
   icon: LucideIcon;
   href?: string;
-  action?: () => void;
-  adminOnly?: boolean;
+  action?: () => Promise<void>; // Ensure it matches the logout signature
   separatorAbove?: boolean;
+  adminOnly?: boolean;
 }
 
 interface MainAppLayoutProps {
   children: ReactNode;
   currentUser: UserProfile | null;
   maintenanceRules: SiteModule[];
-  pathname: string;
   isReadyForContent: boolean;
-  handleLogout: () => Promise<void>;
+  handleLogout: () => Promise<void>; // Prop for logout
   hasUnreadMessages: boolean;
   isModuleHidden: (modulePath: string) => boolean;
+  pathname: string;
   globalConnectionStatus: string;
   globalProcessedMessages: LogEntry[];
 }
@@ -84,15 +106,16 @@ function MainAppLayout({
   children, 
   currentUser, 
   maintenanceRules, 
-  pathname, 
-  isReadyForContent, 
-  handleLogout,
+  isReadyForContent,
+  handleLogout, // Receive handleLogout
   hasUnreadMessages,
   isModuleHidden,
-  globalConnectionStatus, // Added prop
-  globalProcessedMessages, // Added prop
+  pathname,
+  globalConnectionStatus,
+  globalProcessedMessages
 }: MainAppLayoutProps) {
-  const { isMobile, open: isDesktopSidebarOpen, setOpen: setDesktopSidebarOpen, state } = useSidebar();
+  
+  const { isMobile, open: isDesktopSidebarOpen, setOpen: setDesktopSidebarOpen, state, setOpenMobile } = useSidebar();
 
   const mainSidebarNavItems = useMemo(() => [
     { id: 'home', label: 'Início', icon: Home, href: '/' },
@@ -101,9 +124,9 @@ function MainAppLayout({
     { id: 'messages', label: 'Mensagem', icon: MessageSquare, href: '/messages', notification: hasUnreadMessages },
   ].filter(item => !isModuleHidden(item.href)), [hasUnreadMessages, isModuleHidden]);
 
-  const sidebarFooterItems = useMemo(() => {
+  const finalFooterItems = useMemo(() => {
     const items: SidebarFooterItem[] = [];
-    let hasRenderedAdminItem = false;
+    let hasRenderedAnyAdminItem = false;
 
     if (currentUser?.adminLevel) {
       if (!isModuleHidden('/admin/bingo-admin')) {
@@ -112,10 +135,9 @@ function MainAppLayout({
           label: 'Bingo Admin',
           icon: TicketIcon,
           href: '/admin/bingo-admin',
-          adminOnly: true,
-          separatorAbove: true, // Separator before first admin item
+          separatorAbove: true,
         });
-        hasRenderedAdminItem = true;
+        hasRenderedAnyAdminItem = true;
       }
       if (!isModuleHidden('/admin')) {
         items.push({
@@ -123,10 +145,9 @@ function MainAppLayout({
           label: 'Painel Admin',
           icon: LayoutDashboard,
           href: '/admin',
-          adminOnly: true,
-          separatorAbove: hasRenderedAdminItem, // Separator if Bingo Admin was shown
+          separatorAbove: items.some(item => item.id === 'bingoAdmin'),
         });
-        hasRenderedAdminItem = true;
+        hasRenderedAnyAdminItem = true;
       }
     }
 
@@ -136,18 +157,20 @@ function MainAppLayout({
         label: 'Perfil',
         icon: UserCircle2,
         href: '/profile',
-        separatorAbove: hasRenderedAdminItem,
+        separatorAbove: hasRenderedAnyAdminItem && !items.find(item => item.id === 'profile')?.separatorAbove,
       });
     }
-    if (!isModuleHidden('/settings')) {
-      items.push({
-        id: 'settings',
-        label: 'Config',
-        icon: Settings,
-        href: '/settings',
-        separatorAbove: false,
-      });
-    }
+    // Config link removed based on previous request.
+    // If /settings page is ever re-introduced, it can be added here.
+    // if (!isModuleHidden('/settings')) {
+    //   items.push({
+    //     id: 'settings',
+    //     label: 'Config',
+    //     icon: Settings,
+    //     href: '/settings',
+    //     separatorAbove: false,
+    //   });
+    // }
     items.push({
       id: 'logout',
       label: 'Sair',
@@ -155,8 +178,7 @@ function MainAppLayout({
       action: handleLogout,
       separatorAbove: false,
     });
-    return items;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return items.filter(item => item.href ? !isModuleHidden(item.href) : true);
   }, [currentUser?.adminLevel, handleLogout, isModuleHidden]);
 
 
@@ -168,62 +190,65 @@ function MainAppLayout({
     }
     return name.substring(0, 2).toUpperCase();
   };
+  
 
   return (
     <div className="flex h-full w-full">
       {/* Desktop Sidebar - Collapsible */}
       {!isMobile && (
         <Sidebar collapsible="icon" className="border-r bg-muted/40">
-          <SidebarHeader className="p-0 flex flex-col items-center justify-center">
-            <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
-            <div className={cn(
-                "flex items-center justify-center h-12 transition-all duration-500 ease-in-out overflow-hidden",
-                state === 'collapsed' && "h-0 opacity-0 invisible"
-             )}>
-                <Crown className="size-6 text-primary shrink-0" />
+          <SidebarHeader className="p-0">
+             <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
+             <Link href="/" className="flex items-center justify-center h-12 overflow-hidden">
+                <Crown className={cn("transition-all duration-500 ease-in-out shrink-0 text-primary", state === 'collapsed' ? "size-7" : "size-6")} />
                 <span className={cn(
-                    "ml-2 text-lg font-semibold text-primary whitespace-nowrap transition-all duration-500 ease-in-out",
-                     state === 'collapsed' ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
+                    "ml-2 text-lg font-semibold text-primary whitespace-nowrap transition-all duration-300 ease-out",
+                     state === 'collapsed' ? "opacity-0 max-w-0 delay-0" : "opacity-100 max-w-[150px] delay-150"
                 )}>
                   The Presidential Agency
                 </span>
-             </div>
+             </Link>
           </SidebarHeader>
           <SidebarContent className="flex flex-col flex-1 pt-2">
             <SidebarMenu className="items-center mt-2">
-              {mainSidebarNavItems.map((item) => (
-                <SidebarMenuItem key={item.id} className="w-full">
-                  <SidebarMenuButton 
-                    asChild 
-                    tooltip={item.label} 
-                    variant="ghost"
-                    isActive={pathname === item.href}
-                  >
-                    <Link href={item.href || '#'}>
-                      <item.icon className={cn("transition-all duration-500 ease-in-out shrink-0", state === 'collapsed' ? "size-6" : "size-5")} />
-                      <span className={cn(
-                        "transition-all duration-500 ease-out delay-150", 
-                        "whitespace-nowrap overflow-hidden text-xs",
-                        state === 'collapsed' ? "opacity-0 max-w-0 delay-0" : "opacity-100 max-w-[100px]"
-                      )}>
-                        {item.label}
-                      </span>
-                      {item.id === 'messages' && item.notification && (
+              {mainSidebarNavItems.map((item) => {
+                 const isActive = pathname === item.href;
+                 return (
+                  <SidebarMenuItem key={item.id} className="w-full">
+                    <SidebarMenuButton 
+                      asChild 
+                      tooltip={item.label} 
+                      variant="ghost"
+                      isActive={isActive}
+                    >
+                      <Link href={item.href || '#'}>
+                        <item.icon className={cn("transition-all duration-500 ease-in-out shrink-0", state === 'collapsed' ? "size-6" : "size-5")} />
                         <span className={cn(
-                            "absolute h-2 w-2 rounded-full bg-green-500 ring-1 ring-card pointer-events-none",
-                            state === 'collapsed' ? "top-2.5 right-2.5 h-2.5 w-2.5" : "top-2 right-2"
-                         )} />
-                       )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                          "transition-all ease-out duration-300 delay-150", 
+                          "text-xs whitespace-nowrap overflow-hidden",
+                          state === 'collapsed' ? "opacity-0 max-w-0 delay-0" : "opacity-100 max-w-[100px]"
+                        )}>
+                          {item.label}
+                        </span>
+                        {item.id === 'messages' && item.notification && (
+                          <span className={cn(
+                              "absolute h-2 w-2 rounded-full bg-green-500 ring-1 ring-sidebar pointer-events-none",
+                              state === 'collapsed' ? "top-3 right-3 h-2.5 w-2.5" : "top-2 right-2"
+                          )} />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                 );
+                })}
             </SidebarMenu>
-            <div className="flex-grow" /> {/* Pushes footer to bottom */}
+            <div className="flex-grow" /> 
           </SidebarContent>
           <SidebarFooter className="p-2 border-t border-sidebar-border">
-             <SidebarMenu className="items-center">
-              {sidebarFooterItems.map((item, index) => (
+             <SidebarMenu className="items-center w-full">
+              {finalFooterItems.map((item) => {
+                const isActive = item.href ? pathname === item.href : false;
+                return (
                 <React.Fragment key={item.id}>
                   {item.separatorAbove && <SidebarSeparator />}
                   <SidebarMenuItem className="w-full">
@@ -232,14 +257,14 @@ function MainAppLayout({
                       onClick={item.action}
                       tooltip={item.label} 
                       variant="ghost"
-                      isActive={item.href ? pathname === item.href : false}
+                      isActive={isActive}
                     >
                       {item.href ? (
                         <Link href={item.href}>
                           <item.icon className={cn("transition-all duration-500 ease-in-out shrink-0", state === 'collapsed' ? "size-6" : "size-5")} />
                           <span className={cn(
-                            "transition-all duration-500 ease-out delay-150", 
-                            "whitespace-nowrap overflow-hidden text-xs",
+                            "transition-all ease-out duration-300 delay-150", 
+                            "text-xs whitespace-nowrap overflow-hidden",
                             state === 'collapsed' ? "opacity-0 max-w-0 delay-0" : "opacity-100 max-w-[100px]"
                           )}>
                             {item.label}
@@ -249,8 +274,8 @@ function MainAppLayout({
                         <>
                           <item.icon className={cn("transition-all duration-500 ease-in-out shrink-0", state === 'collapsed' ? "size-6" : "size-5")} />
                           <span className={cn(
-                            "transition-all duration-500 ease-out delay-150", 
-                            "whitespace-nowrap overflow-hidden text-xs",
+                            "transition-all ease-out duration-300 delay-150", 
+                            "text-xs whitespace-nowrap overflow-hidden",
                             state === 'collapsed' ? "opacity-0 max-w-0 delay-0" : "opacity-100 max-w-[100px]"
                           )}>
                             {item.label}
@@ -260,7 +285,7 @@ function MainAppLayout({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </React.Fragment>
-              ))}
+              )})}
              </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
@@ -268,22 +293,25 @@ function MainAppLayout({
 
       {/* Mobile Off-Canvas Sidebar */}
       {isMobile && (
-        <Sidebar className="border-r bg-muted/40">
+        <Sidebar className="border-r bg-muted/40"> {/* Used by SidebarTrigger in Header */}
            <SidebarHeader className="p-4 border-b">
-             <div className="flex items-center gap-2 text-xl font-semibold text-primary">
+             <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary">
                 <Crown className="size-7 text-primary" />
                 <span>The Presidential Agency</span>
-             </div>
+             </Link>
            </SidebarHeader>
            <SidebarContent className="p-2">
             <SidebarMenu>
-              {mainSidebarNavItems.map((item) => (
+              {mainSidebarNavItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton 
                     asChild 
                     variant="ghost" 
-                    isActive={pathname === item.href} 
+                    isActive={isActive} 
                     className="w-full justify-start"
+                    onClick={() => setOpenMobile(false)} // Close on click
                   >
                     <Link href={item.href || '#'}>
                       <item.icon className="mr-2 size-5" />
@@ -294,18 +322,21 @@ function MainAppLayout({
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              )})}
             </SidebarMenu>
            </SidebarContent>
            <SidebarFooter className="p-2 border-t">
             <SidebarMenu>
-              {sidebarFooterItems.map((item) => (
+              {finalFooterItems.map((item) => (
                  <React.Fragment key={item.id}>
                  {item.separatorAbove && <SidebarSeparator />}
                  <SidebarMenuItem>
                     <SidebarMenuButton 
                         asChild={!!item.href} 
-                        onClick={item.action} 
+                        onClick={() => {
+                          if (item.action) item.action();
+                          setOpenMobile(false); // Close on click
+                        }} 
                         variant="ghost" 
                         isActive={item.href ? pathname === item.href : false}
                         className="w-full justify-start"
@@ -339,12 +370,12 @@ function MainAppLayout({
         )}>
           {isReadyForContent ? (
             React.Children.map(children, child =>
-              isValidElement(child) ? cloneElement(child as React.ReactElement<any>, { globalConnectionStatus, globalProcessedMessages }) : child
+              React.isValidElement(child) && typeof child.type !== 'string' ? React.cloneElement(child as React.ReactElement<any>, { globalConnectionStatus, globalProcessedMessages, pathname } as any) : child
             )
           ) : (
-            <div className="flex justify-center items-center h-full">
-              <LoadingSpinner size="lg" />
-            </div>
+             <div className="flex justify-center items-center h-full">
+                <LoadingSpinner size="lg" />
+             </div>
           )}
         </main>
       </SidebarInset>
@@ -355,15 +386,15 @@ function MainAppLayout({
 
 export default function AppContentWrapper({ children }: { children: ReactNode }) {
   const { currentUser, loading: authLoading, logout } = useAuth();
-  const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
+  const pathname = usePathname();
 
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(true); // Placeholder for actual logic
   const [maintenanceRules, setMaintenanceRules] = useState<SiteModule[]>(initialModuleStatuses);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
   const [isReadyForContent, setIsReadyForContent] = useState(false);
-  
+
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [webSocketUrlToConnect, setWebSocketUrlToConnect] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -376,7 +407,6 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const [newProfilesCount, setNewProfilesCount] = useState(0);
   const [newGiftsCount, setNewGiftsCount] = useState(0);
   const notificationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
 
   const addGlobalLog = useCallback((logData: Omit<LogEntry, 'id' | 'timestamp'>) => {
     setGlobalProcessedMessages(prevLogs => [{ 
@@ -394,7 +424,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     const profileDocRef = doc(db, "kakoProfiles", profileData.userId);
     try {
       const docSnap = await getDoc(profileDocRef);
-      const dataToSave: Partial<KakoProfile> & { lastFetchedAt: any } = {
+      const dataToSave: Partial<KakoProfile> & { lastFetchedAt: any, createdAt?: any } = {
         id: profileData.userId,
         nickname: profileData.nickname || "Desconhecido",
         avatarUrl: profileData.avatarUrl || null,
@@ -406,17 +436,17 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       };
 
       if (!docSnap.exists()) {
-        await setDoc(profileDocRef, { ...dataToSave, createdAt: serverTimestamp() });
+        dataToSave.createdAt = serverTimestamp();
+        await setDoc(profileDocRef, dataToSave);
         addGlobalLog({ message: `Novo perfil Kako salvo: ${dataToSave.nickname} (FUID: ${dataToSave.id})`, type: "success" });
         setNewProfilesCount(prev => prev + 1);
       } else {
         const existingData = docSnap.data() as KakoProfile;
         let hasChanges = false;
-        if (dataToSave.nickname !== existingData.nickname) hasChanges = true;
-        if (dataToSave.avatarUrl !== existingData.avatarUrl) hasChanges = true;
-        if (dataToSave.level !== existingData.level) hasChanges = true;
-        if (dataToSave.showId !== existingData.showId) hasChanges = true;
-        // numId and gender might not change often once set
+        if (dataToSave.nickname !== existingData.nickname && dataToSave.nickname) hasChanges = true;
+        if (dataToSave.avatarUrl !== existingData.avatarUrl && dataToSave.avatarUrl) hasChanges = true;
+        if (dataToSave.level !== existingData.level && dataToSave.level !== undefined) hasChanges = true;
+        if (dataToSave.showId !== existingData.showId && dataToSave.showId) hasChanges = true;
         
         if (hasChanges) {
           await updateDoc(profileDocRef, dataToSave);
@@ -443,7 +473,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         const receivedImageUrl = giftImageUrl?.trim();
 
         if (!docSnap.exists()) {
-            const newGiftToSave: Partial<KakoGift> & { id: string; createdAt: any; display: boolean; } = {
+            const newGiftToSave: KakoGift = {
                 id: giftId.toString(),
                 name: receivedName || `Presente Desconhecido (ID: ${giftId})`,
                 imageUrl: receivedImageUrl || `https://placehold.co/48x48.png?text=${giftId}`,
@@ -451,8 +481,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                 display: !!(receivedName && receivedImageUrl && !receivedImageUrl.startsWith("https://placehold.co")),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
+                dataAiHint: (receivedName || "").toLowerCase().split(" ").slice(0,2).join(" ") || "gift icon"
             };
-            newGiftToSave.dataAiHint = (newGiftToSave.name || "").toLowerCase().split(" ").slice(0,2).join(" ") || "gift icon";
             await setDoc(giftDocRef, newGiftToSave);
             addGlobalLog({ message: `Novo presente salvo via WebSocket: '${newGiftToSave.name}' (ID: ${giftId})`, type: "success" });
             setNewGiftsCount(prev => prev + 1);
@@ -474,8 +504,17 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                 updates.diamond = giftDiamondValue;
                 hasChanges = true;
             }
-            if (updates.name && updates.imageUrl && !existingData.display) {
-                updates.display = true; // Auto-set display to true if we got full info
+            
+            let currentDisplay = existingData.display;
+            if (typeof currentDisplay !== 'boolean') currentDisplay = false; 
+            
+            const canBeDisplayed = !!(updates.name || existingData.name) && 
+                                  !(updates.name || existingData.name)?.startsWith("Presente Desconhecido") &&
+                                  !!(updates.imageUrl || existingData.imageUrl) && 
+                                  !(updates.imageUrl || existingData.imageUrl)?.startsWith("https://placehold.co");
+
+            if (canBeDisplayed && !currentDisplay) {
+                updates.display = true;
                 hasChanges = true;
             }
 
@@ -491,8 +530,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }, [addGlobalLog]);
 
-
-  const parseWebSocketMessage = useCallback((rawData: string, currentHostFUID?: string | null): LogEntry['parsedData'] & { type?: string; classification?: string; parsedUserData?: ParsedUserData; extractedRoomId?: string; giftDetails?: LogEntry['giftInfo']} => {
+ const parseWebSocketMessage = useCallback((rawData: string, currentHostFUIDForParsing?: string | null): LogEntry['parsedData'] & { type?: string; classification?: string; parsedUserData?: ParsedUserData; extractedRoomId?: string; giftDetails?: LogEntry['giftInfo']} | null => {
     let messageContentString = rawData;
     let parsedJson: any;
     let isJsonMessage = false;
@@ -511,7 +549,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
             extractedRoomIdFromJson = parsedJson.roomId;
         }
     } catch (e) {
-        return { data: null, originalText: rawData, isJson: false, extractedRoomId: undefined };
+        return { ...({} as any), type: 'unknown_text', data: null, originalText: rawData, isJson: false, extractedRoomId: undefined };
     }
 
     let msgUserData: ParsedUserData | undefined = undefined;
@@ -532,16 +570,14 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     let giftDetails: LogEntry['giftInfo'] | undefined = undefined;
 
     if (isJsonMessage && parsedJson && typeof parsedJson === 'object') {
-      if ('roomId' in parsedJson && 'mute' in parsedJson) {
+      if ('roomId' in parsedJson && 'mute' in parsedJson && parsedJson.anchor) {
           classification = "Dados da LIVE";
           messageType = 'systemUpdate';
-          if (parsedJson.anchor && typeof parsedJson.anchor === 'object') {
-            const isLive = parsedJson.anchor.isLiving !== false &&
-                           (parsedJson.status === 19 || parsedJson.status === 1) &&
-                           (parsedJson.stopReason === 0 || parsedJson.stopReason === undefined) &&
-                           parsedJson.paused !== true;
-             return { ...parsedJson, type: messageType, classification, parsedUserData: msgUserData, extractedRoomId: extractedRoomIdFromJson, anchorUserId: parsedJson.anchor.userId, online: parsedJson.online, likes: parsedJson.likes, isCurrentlyLive: isLive };
-          }
+          const isLive = parsedJson.anchor.isLiving !== false &&
+                         (parsedJson.status === 19 || parsedJson.status === 1) &&
+                         (parsedJson.stopReason === 0 || parsedJson.stopReason === undefined) &&
+                         parsedJson.paused !== true;
+           return { ...parsedJson, type: messageType, classification, parsedUserData: msgUserData, extractedRoomId: extractedRoomIdFromJson, anchorUserId: parsedJson.anchor.userId, online: parsedJson.online, likes: parsedJson.likes, isCurrentlyLive: isLive };
       } else if ('roomId' in parsedJson && 'text' in parsedJson) {
           classification = "Mensagem de Chat";
           messageType = 'chat';
@@ -549,21 +585,21 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
           classification = "Presentes da Sala";
           messageType = 'gift';
           const senderUserId = parsedJson.user?.userId;
-          const isDonation = !!(currentHostFUID && senderUserId && senderUserId !== currentHostFUID);
+          const recipientIsHost = !!(currentHostFUIDForParsing && senderUserId && senderUserId !== currentHostFUIDForParsing);
           giftDetails = {
             giftId: parsedJson.giftId?.toString(),
             giftCount: parsedJson.giftCount,
             senderUserId: senderUserId,
             senderNickname: msgUserData?.nickname,
-            isDonationToHost: isDonation,
+            isDonationToHost: recipientIsHost,
           };
-      } else if ('roomId' in parsedJson) {
+      } else if ('roomId' in parsedJson) { 
           classification = "Dados da Sala";
           messageType = 'roomData';
-      } else if ('game' in parsedJson) {
+      } else if ('game' in parsedJson) { 
           classification = "Dados de Jogo";
           messageType = 'gameEvent';
-      } else if ('giftId' in parsedJson && !('roomId' in parsedJson)) {
+      } else if ('giftId'in parsedJson && !('roomId' in parsedJson)) { 
           classification = "Dados Externos";
           messageType = 'externalGift';
       } else if (parsedJson.user && parsedJson.type === 1 && parsedJson.type2 === 1 && !parsedJson.text && !parsedJson.giftId && !parsedJson.game) {
@@ -576,7 +612,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       }
     }
     return { ...parsedJson, type: 'unknown_json', classification: "JSON Não Classificado", parsedUserData: msgUserData, extractedRoomId: extractedRoomIdFromJson, isJson: isJsonMessage };
-  }, [currentRoomHostFUID]);
+  }, [addGlobalLog, currentRoomHostFUID, upsertKakoProfileToFirestore, upsertKakoGiftData]); // Added upserts to dep array for stability
 
 
   const connectGlobalWebSocket = useCallback((urlToConnect: string) => {
@@ -585,15 +621,25 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         return;
     }
     isManuallyDisconnectingRef.current = false;
-    setGlobalConnectionStatus(`Conectando a ${urlToConnect}...`);
+    setGlobalConnectionStatus(`Conectando globalmente a ${urlToConnect}...`);
     addGlobalLog({ message: `Tentando conectar globalmente a ${urlToConnect}...`, type: "info" });
 
     try {
+        if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+          console.log("GlobalWebSocket: Closing existing connection before opening new one.");
+          socketRef.current.onopen = null;
+          socketRef.current.onmessage = null;
+          socketRef.current.onerror = null;
+          socketRef.current.onclose = null;
+          socketRef.current.close();
+          socketRef.current = null;
+        }
+
         const newSocket = new WebSocket(urlToConnect);
         socketRef.current = newSocket;
 
         newSocket.onopen = () => {
-            setGlobalConnectionStatus(`Conectado a: ${newSocket.url}`);
+            setGlobalConnectionStatus(`Conectado globalmente a: ${newSocket.url}`);
             addGlobalLog({ message: `Conexão global estabelecida com ${newSocket.url}`, type: "success" });
         };
 
@@ -616,22 +662,24 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                     upsertKakoProfileToFirestore(parsedEvent.parsedUserData);
                 }
                 if (parsedEvent.giftDetails && parsedEvent.giftDetails.giftId) {
+                    // Assume parsedJson data exists if giftDetails does
+                    const giftDataSource = (parsedEvent as any)?.gift || parsedEvent; 
                     upsertKakoGiftData(
                         parsedEvent.giftDetails.giftId,
-                        parsedEvent.data?.giftName || parsedEvent.data?.gift?.name,
-                        parsedEvent.data?.giftIcon || parsedEvent.data?.gift?.imageUrl,
-                        parsedEvent.data?.giftDiamondValue || parsedEvent.data?.gift?.diamond
+                        giftDataSource?.giftName || giftDataSource?.name,
+                        giftDataSource?.giftIcon || giftDataSource?.imageUrl,
+                        giftDataSource?.giftDiamondValue || giftDataSource?.diamond
                     );
                 }
-                 if(parsedEvent.type === 'systemUpdate' && parsedEvent.anchorUserId){
-                    setCurrentRoomHostFUID(parsedEvent.anchorUserId);
+                if(parsedEvent.type === 'systemUpdate' && (parsedEvent as any).anchorUserId){
+                    setCurrentRoomHostFUID((parsedEvent as any).anchorUserId);
                 }
                 addGlobalLog({
                     message: `Recebido (${parsedEvent.type || 'desconhecido'}): ${rawMessageString.substring(0, 70)}...`,
                     type: "received",
                     rawData: rawMessageString,
                     parsedData: parsedEvent,
-                    isJson: true, // Assumes parseWebSocketMessage always returns JSON structure or null
+                    isJson: (parsedEvent as any).isJson !== undefined ? (parsedEvent as any).isJson : (typeof parsedEvent === 'object'),
                     classification: parsedEvent.classification,
                     parsedUserData: parsedEvent.parsedUserData,
                     giftInfo: parsedEvent.giftDetails
@@ -646,12 +694,14 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
             if (socketRef.current === newSocket) {
                 setGlobalConnectionStatus("Erro na Conexão Global");
                 addGlobalLog({ message: errorMsg, type: "error" });
-                newSocket.onopen = null; newSocket.onmessage = null; newSocket.onerror = null; newSocket.onclose = null;
-                if (newSocket.readyState !== WebSocket.CLOSED && newSocket.readyState !== WebSocket.CLOSING) newSocket.close();
+                if (newSocket.readyState !== WebSocket.CLOSED && newSocket.readyState !== WebSocket.CLOSING) {
+                    newSocket.onopen = null; newSocket.onmessage = null; newSocket.onerror = null; newSocket.onclose = null;
+                    newSocket.close();
+                }
                 socketRef.current = null;
                 if (!isManuallyDisconnectingRef.current && webSocketUrlToConnect) {
                     if(reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-                    reconnectTimeoutRef.current = setTimeout(() => connectGlobalWebSocket(webSocketUrlToConnect), 5000);
+                    reconnectTimeoutRef.current = setTimeout(() => connectGlobalWebSocket(urlToConnect), 5000);
                 }
             }
         };
@@ -667,7 +717,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                     addGlobalLog({ message: `${closeMsg} Tentando reconectar em 5 segundos.`, type: "warning" });
                     socketRef.current = null;
                     if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-                    reconnectTimeoutRef.current = setTimeout(() => connectGlobalWebSocket(webSocketUrlToConnect), 5000);
+                    reconnectTimeoutRef.current = setTimeout(() => connectGlobalWebSocket(urlToConnect), 5000);
                 } else {
                     setGlobalConnectionStatus("Desconectado Global");
                     addGlobalLog({ message: "WebSocket Global Desconectado Manualmente ou URL removida.", type: "info" });
@@ -679,25 +729,29 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
         const errMsg = error instanceof Error ? error.message : "Erro desconhecido ao tentar conectar globalmente.";
         setGlobalConnectionStatus("Erro ao Iniciar Conexão Global");
         addGlobalLog({ message: `Falha ao Conectar WebSocket Global: ${errMsg}`, type: "error" });
-        if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
+        if (socketRef.current) { 
+          if (socketRef.current.readyState !== WebSocket.CLOSED && socketRef.current.readyState !== WebSocket.CLOSING) {
+            socketRef.current.close(); 
+          }
+          socketRef.current = null; 
+        }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addGlobalLog, parseWebSocketMessage, upsertKakoProfileToFirestore, upsertKakoGiftData]); // webSocketUrlToConnect removed to stabilize function reference
-
+  }, [addGlobalLog, parseWebSocketMessage, currentRoomHostFUID, upsertKakoProfileToFirestore, upsertKakoGiftData]); // Removed webSocketUrlToConnect
 
   const disconnectGlobalWebSocket = useCallback(() => {
     isManuallyDisconnectingRef.current = true;
     if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     if (socketRef.current) {
         addGlobalLog({ message: "Desconectando WebSocket global manualmente...", type: "info" });
-        socketRef.current.onopen = null; socketRef.current.onmessage = null;
-        socketRef.current.onerror = null; socketRef.current.onclose = null;
-        socketRef.current.close();
+        if (socketRef.current.readyState !== WebSocket.CLOSED && socketRef.current.readyState !== WebSocket.CLOSING) {
+          socketRef.current.onopen = null; socketRef.current.onmessage = null;
+          socketRef.current.onerror = null; socketRef.current.onclose = null;
+          socketRef.current.close();
+        }
         socketRef.current = null;
     }
     setGlobalConnectionStatus("Desconectado Global");
   }, [addGlobalLog]);
-
 
   useEffect(() => {
     const fetchWsConfig = async () => {
@@ -709,70 +763,41 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
           const data = docSnap.data() as WebSocketConfig;
           const urls = data?.webSocketUrlList || [];
           if (urls.length > 0 && urls[0]) {
-            setWebSocketUrlToConnect(urls[0]); // Set the URL to connect
-            console.log("AppContentWrapper: Primary WebSocket URL set from Firestore:", urls[0]);
+            setWebSocketUrlToConnect(urls[0]);
           } else {
-            setWebSocketUrlToConnect(null); // No URL to connect
-            console.log("AppContentWrapper: No WebSocket URLs configured in Firestore.");
+            setWebSocketUrlToConnect(null);
+            addGlobalLog({message: "Nenhuma URL de WebSocket configurada para conexão automática.", type: "warning"});
           }
         } else {
           setWebSocketUrlToConnect(null);
-          console.log("AppContentWrapper: No WebSocket config document found.");
+          addGlobalLog({message: "Documento de configuração de WebSocket não encontrado.", type: "warning"});
         }
       } catch (error) {
         console.error("AppContentWrapper: Erro ao buscar configuração do WebSocket:", error);
         setWebSocketUrlToConnect(null);
+        addGlobalLog({message: `Erro ao buscar config. do WebSocket: ${error}`, type: "error"});
       } finally {
         setIsLoadingConfig(false);
       }
     };
     fetchWsConfig();
-  }, []);
+  }, [addGlobalLog]);
 
   useEffect(() => {
-    if (webSocketUrlToConnect && !isLoadingConfig) { // Only connect if URL is set and config is loaded
+    if (webSocketUrlToConnect && !isLoadingConfig) {
         connectGlobalWebSocket(webSocketUrlToConnect);
-    } else if (!webSocketUrlToConnect && !isLoadingConfig) {
-        disconnectGlobalWebSocket();
+    } else if (!webSocketUrlToConnect && !isLoadingConfig && socketRef.current) {
+        disconnectGlobalWebSocket(); 
     }
     return () => {
-        // This cleanup is for when AppContentWrapper unmounts, or webSocketUrlToConnect changes to null
         disconnectGlobalWebSocket(); 
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webSocketUrlToConnect, isLoadingConfig]); // connectGlobalWebSocket is memoized and stable, disconnectGlobalWebSocket is also memoized
-
-  useEffect(() => {
-    // Notification interval
-    if (currentUser?.adminLevel === 'master') {
-      notificationIntervalRef.current = setInterval(() => {
-        if (newProfilesCount > 0 || newGiftsCount > 0) {
-          let notifMessage = "Novas atualizações de dados via WebSocket: ";
-          if (newProfilesCount > 0) notifMessage += `${newProfilesCount} novo(s) perfil(s)`;
-          if (newProfilesCount > 0 && newGiftsCount > 0) notifMessage += " e ";
-          if (newGiftsCount > 0) notifMessage += `${newGiftsCount} novo(s) presente(s)`;
-          notifMessage += " foram identificados.";
-          
-          toast({
-            title: "Atualização de Dados Kako Live",
-            description: notifMessage,
-            duration: 9000,
-          });
-          setNewProfilesCount(0);
-          setNewGiftsCount(0);
-        }
-      }, 10 * 60 * 1000); // Every 10 minutes
-    }
-    return () => {
-      if (notificationIntervalRef.current) clearInterval(notificationIntervalRef.current);
-    };
-  }, [currentUser?.adminLevel, newProfilesCount, newGiftsCount, toast]);
-
+  }, [webSocketUrlToConnect, isLoadingConfig, connectGlobalWebSocket, disconnectGlobalWebSocket]);
 
   const handleLogout = useCallback(async () => {
-    disconnectGlobalWebSocket(); // Disconnect WebSocket before logging out
+    disconnectGlobalWebSocket(); // Disconnect WebSocket on logout
     try {
-      await logout(); // logout is from useAuth()
+      await logout(); // Firebase Auth logout
       toast({ title: "Sessão Encerrada", description: "Você foi desconectado com sucesso." });
       router.push("/");
     } catch (error: any) {
@@ -780,6 +805,30 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     }
   }, [logout, router, toast, disconnectGlobalWebSocket]);
 
+  useEffect(() => {
+    if (pathname === "/messages") {
+      setHasUnreadMessages(false);
+    }
+  }, [pathname]);
+
+  const isModuleHidden = useCallback((modulePath: string) => {
+    let moduleId = '';
+    if (modulePath === '/' || modulePath === '') moduleId = 'home';
+    else if (pathname.startsWith('/hosts')) moduleId = 'hosts';
+    else if (pathname.startsWith('/games') || pathname.startsWith('/bingo')) moduleId = 'games';
+    else if (pathname.startsWith('/admin')) moduleId = 'adminPanel';
+    else if (pathname === '/profile') moduleId = 'profile';
+    else if (pathname === '/settings') moduleId = 'settings';
+    
+    const rule = maintenanceRules.find(r => r.id === moduleId);
+    return rule?.isHiddenFromMenu || false;
+  }, [maintenanceRules, pathname]);
+
+
+  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password', '/auth/verify-email-notice'];
+  const isAuthPage = standaloneAuthPaths.includes(pathname);
+  const isOnboardingPage = pathname.startsWith('/onboarding');
+  const isMaintenancePage = pathname === '/maintenance';
 
   useEffect(() => {
     const fetchMaintenanceSettings = async () => {
@@ -792,31 +841,26 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
           const fetchedRulesData = (data.rules as Partial<Omit<SiteModule, 'icon' | 'name'>>[] || []);
           
           const rehydratedRules = initialModuleStatuses.map(initialModule => {
-            const defaultIcon = initialModule.icon || Home; // Fallback icon
             const fetchedModuleRule = fetchedRulesData.find(fr => fr.id === initialModule.id);
             if (fetchedModuleRule) {
               return {
-                ...initialModule,
-                icon: initialModule.icon || defaultIcon,
+                ...initialModule, 
                 ...fetchedModuleRule, 
                 globallyOffline: fetchedModuleRule.globallyOffline ?? initialModule.globallyOffline,
                 isHiddenFromMenu: fetchedModuleRule.isHiddenFromMenu ?? initialModule.isHiddenFromMenu,
                 minimumAccessLevelWhenOffline: fetchedModuleRule.minimumAccessLevelWhenOffline ?? initialModule.minimumAccessLevelWhenOffline,
-              } as SiteModule;
+              };
             }
-            return { ...initialModule, icon: defaultIcon } as SiteModule; 
-          }).filter(Boolean);
+            return initialModule; 
+          }).filter(Boolean) as SiteModule[];
 
-          setMaintenanceRules(rehydratedRules.length > 0 ? rehydratedRules : initialModuleStatuses.map(m => ({...m, icon: m.icon || Home})));
-          // console.log("Maintenance rules fetched from Firestore:", rehydratedRules.length > 0 ? rehydratedRules : initialModuleStatuses);
+          setMaintenanceRules(rehydratedRules.length > 0 ? rehydratedRules : initialModuleStatuses);
         } else {
-          setMaintenanceRules(initialModuleStatuses.map(m => ({...m, icon: m.icon || Home})));
-          // console.log("No maintenance rules found in Firestore, using initial defaults:", initialModuleStatuses);
+          setMaintenanceRules(initialModuleStatuses);
         }
       } catch (error) {
         console.error("Erro ao buscar configurações de manutenção:", error);
-        setMaintenanceRules(initialModuleStatuses.map(m => ({...m, icon: m.icon || Home})));
-        // console.log("Error fetching maintenance rules, using initial defaults:", initialModuleStatuses);
+        setMaintenanceRules(initialModuleStatuses);
       } finally {
         setIsLoadingRules(false);
       }
@@ -824,34 +868,20 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     fetchMaintenanceSettings();
   }, []);
 
-  const isModuleHidden = useCallback((modulePath: string) => {
-    let moduleId = '';
-    if (modulePath === '/' || modulePath === '') moduleId = 'home';
-    else if (modulePath.startsWith('/hosts')) moduleId = 'hosts';
-    else if (modulePath.startsWith('/games') || modulePath.startsWith('/bingo')) moduleId = 'games';
-    else if (modulePath.startsWith('/admin')) moduleId = 'adminPanel';
-    else if (modulePath === '/profile') moduleId = 'profile';
-    else if (modulePath === '/settings') moduleId = 'settings';
-    
-    const rule = maintenanceRules.find(r => r.id === moduleId);
-    return rule?.isHiddenFromMenu || false;
-  }, [maintenanceRules]);
-
-
-  const standaloneAuthPaths = ['/login', '/signup', '/forgot-password', '/auth/verify-email-notice'];
-  const isOnboardingPage = pathname.startsWith('/onboarding');
-  const isAuthPage = standaloneAuthPaths.includes(pathname);
-  const isMaintenancePage = pathname === '/maintenance';
-
   useEffect(() => {
     if (authLoading || isLoadingRules || isLoadingConfig) {
       setIsReadyForContent(false);
       return;
     }
 
-    if (isAuthPage || isOnboardingPage || isMaintenancePage) {
+    if (isAuthPage || isOnboardingPage) {
       setIsReadyForContent(true);
       return;
+    }
+    
+    if (isMaintenancePage) {
+        setIsReadyForContent(true);
+        return;
     }
 
     if (!currentUser) {
@@ -888,7 +918,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       }
       
       if (!userHasAccess) {
-        router.replace('/maintenance');
+        if (pathname !== "/maintenance") router.replace('/maintenance');
         setIsReadyForContent(false);
         return;
       }
@@ -898,6 +928,32 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
 
   }, [authLoading, isLoadingRules, isLoadingConfig, currentUser, pathname, router, maintenanceRules, isAuthPage, isOnboardingPage, isMaintenancePage]);
 
+  useEffect(() => {
+    if (currentUser?.adminLevel === 'master') {
+      notificationIntervalRef.current = setInterval(() => {
+        if (newProfilesCount > 0 || newGiftsCount > 0) {
+          let notifMessage = "Novas atualizações de dados via WebSocket: ";
+          if (newProfilesCount > 0) notifMessage += `${newProfilesCount} novo(s) perfil(s)`;
+          if (newProfilesCount > 0 && newGiftsCount > 0) notifMessage += " e ";
+          if (newGiftsCount > 0) notifMessage += `${newGiftsCount} novo(s) presente(s)`;
+          notifMessage += " foram identificados e salvos/atualizados.";
+          
+          toast({
+            title: "Atualização de Dados Kako Live",
+            description: notifMessage,
+            duration: 9000,
+          });
+          setNewProfilesCount(0);
+          setNewGiftsCount(0);
+        }
+      }, 10 * 60 * 1000); 
+    } else {
+      if (notificationIntervalRef.current) clearInterval(notificationIntervalRef.current);
+    }
+    return () => {
+      if (notificationIntervalRef.current) clearInterval(notificationIntervalRef.current);
+    };
+  }, [currentUser?.adminLevel, newProfilesCount, newGiftsCount, toast]);
 
   if ((authLoading || isLoadingRules || isLoadingConfig) && !isAuthPage && !isOnboardingPage && !isMaintenancePage) {
     return (
@@ -907,38 +963,26 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
   
-  if (isAuthPage || isOnboardingPage || isMaintenancePage) {
-     if (authLoading || isLoadingRules || isLoadingConfig) { // Keep showing main loader if essential configs are loading
-        if (pathname === "/maintenance" && !isLoadingConfig && !isLoadingRules) { // If it's maintenance page and its own config is done
-             // Allow maintenance page to render its content
-        } else if (pathname === "/maintenance" && (isLoadingConfig || isLoadingRules)) {
-            return (
-                <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-                    <LoadingSpinner size="lg" />
-                </div>
-            );
-        } else if (!isMaintenancePage) { // For auth/onboarding, if they are still loading core stuff
-             return (
-                <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-                    <LoadingSpinner size="lg" />
-                </div>
-            );
-        }
-     }
-    // If auth/onboarding/maintenance pages are ready for their own content
+  if (isAuthPage || isOnboardingPage) {
     return (
       <>
-        {
-          React.Children.map(children, child =>
-            isValidElement(child) ? cloneElement(child as React.ReactElement<any>, { globalConnectionStatus, globalProcessedMessages }) : child
-          )
-        }
+        {children}
         <Toaster />
       </>
     );
   }
   
-  if (!isReadyForContent) { // General case for protected pages not yet ready
+  if (isMaintenancePage) {
+     if (authLoading || isLoadingRules || isLoadingConfig) {
+        return (
+            <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+     }
+  }
+
+  if (!isReadyForContent && !isAuthPage && !isOnboardingPage) {
     return (
       <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
         <LoadingSpinner size="lg" />
@@ -946,17 +990,16 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     );
   }
 
-
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={false}> 
       <MainAppLayout 
         currentUser={currentUser} 
         maintenanceRules={maintenanceRules}
-        pathname={pathname}
-        isReadyForContent={isReadyForContent}
+        isReadyForContent={isReadyForContent} 
         handleLogout={handleLogout}
         hasUnreadMessages={hasUnreadMessages}
         isModuleHidden={isModuleHidden}
+        pathname={pathname}
         globalConnectionStatus={globalConnectionStatus}
         globalProcessedMessages={globalProcessedMessages}
       >
@@ -966,3 +1009,4 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     </SidebarProvider>
   );
 }
+
