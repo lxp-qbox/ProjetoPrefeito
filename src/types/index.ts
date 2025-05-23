@@ -1,6 +1,6 @@
 
 export interface Game {
-  id?: string; // Firestore document ID
+  id?: string; 
   title: string;
   status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada';
   bingoType: '75-ball' | '90-ball';
@@ -14,9 +14,9 @@ export interface Game {
   bingoRoomId?: string; 
   bingoRoomName?: string; 
 
-  startTime: any; // Firestore Timestamp
-  actualStartTime?: any | null; // Firestore Timestamp
-  endTime?: any | null; // Firestore Timestamp
+  startTime: any; 
+  actualStartTime?: any | null; 
+  endTime?: any | null; 
 
   participantsCount?: number;
   cardsSold?: number;
@@ -27,9 +27,9 @@ export interface Game {
 
   winners?: GameWinner[];
 
-  createdBy?: string | null; // User UID
-  createdAt: any; // Firestore Timestamp
-  updatedAt: any; // Firestore Timestamp
+  createdBy?: string | null; 
+  createdAt: any; 
+  updatedAt: any; 
   notes?: string | null;
 }
 
@@ -38,7 +38,7 @@ export interface GameWinner {
   userName?: string | null;
   prizeId?: string | null;
   prizeDescription?: string | null;
-  claimedAt?: any | null; // Firestore Timestamp
+  claimedAt?: any | null; 
   winningCardId?: string | null;
 }
 
@@ -90,31 +90,31 @@ export interface UserProfile {
   role?: 'player' | 'host' | null;
   adminLevel?: 'master' | 'admin' | 'suporte' | null;
 
-  showId?: string; // Kako user-facing Show ID
-  kakoLiveId?: string; // Kako FUID
+  showId?: string; 
+  kakoLiveId?: string; 
 
   profileName?: string | null;
-  displayName?: string | null; // Typically from Firebase Auth, synced to profileName
-  photoURL?: string | null; // User's avatar
-  level?: number; // This should come from linked KakoProfile via AuthContext
+  displayName?: string | null; 
+  photoURL?: string | null; 
+  level?: number; 
 
   hostStatus?: 'approved' | 'pending_review' | 'banned' | null;
 
   bio?: string | null;
-  isVerified?: boolean; // Email verification status from Firebase Auth
+  isVerified?: boolean; 
   followerCount?: number;
   followingCount?: number;
   followingIds?: string[];
   photos?: string[];
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay' | null;
-  birthDate?: string | null; // Stored as "yyyy-MM-dd"
+  birthDate?: string | Date | null; // Stored as "yyyy-MM-dd" in Firestore, can be Date in JS
   country?: string | null;
   phoneNumber?: string | null;
 
   isBanned?: boolean;
   banReason?: string | null;
-  bannedBy?: string | null; // UID of admin who banned
-  bannedAt?: any | null; // Firestore Timestamp
+  bannedBy?: string | null; 
+  bannedAt?: any | null; 
 
   socialLinks?: {
     twitter?: string | null;
@@ -127,37 +127,37 @@ export interface UserProfile {
   accentColor?: string | null;
 
   hasCompletedOnboarding?: boolean;
-  agreedToTermsAt?: any | null; // Firestore Timestamp
+  agreedToTermsAt?: any | null; 
 
-  createdAt?: any; // Firestore Timestamp
-  updatedAt?: any; // Firestore Timestamp
+  createdAt?: any; 
+  updatedAt?: any; 
   currentDiamondBalance?: number;
 }
 
 export interface KakoProfile {
-  id: string; // Document ID in Firestore = FUID = Kako's userId
+  id: string; 
   numId?: number | null;
   nickname: string;
-  avatarUrl: string | null; // Mapped from 'avatar' in Kako's API response
+  avatarUrl: string | null; 
   level?: number | null;
   signature?: string | null;
-  gender?: number | null; // 1 for male, 2 for female from Kako
+  gender?: number | null; 
   area?: string | null;
   school?: string | null;
-  showId: string; // The user-facing searchable ID from Kako, e.g., "10785510"
+  showId: string; 
   isLiving?: boolean | null;
   roomId?: string | null;
-  lastFetchedAt?: any | null; // Firestore Timestamp
+  lastFetchedAt?: any | null; 
 }
 
 export interface KakoGift {
-  id: string; // Gift ID from Kako, used as document ID
+  id: string; 
   name: string;
   imageUrl: string | null;
-  storagePath?: string | null; // Path in Firebase Storage if uploaded by app
+  storagePath?: string | null; 
   diamond?: number | null;
-  category?: string | null; // E.g., "Sorte", "Exclusivo"
-  display?: boolean; // Should this gift be generally displayable in app's prize lists
+  category?: string | null; 
+  display?: boolean; 
   createdAt?: any;
   updatedAt?: any;
   dataAiHint?: string | null;
@@ -168,8 +168,8 @@ export interface BingoPrize {
   name: string;
   type: 'kako_virtual' | 'cash' | 'other';
   imageUrl?: string | null;
-  storagePath?: string | null; // If image uploaded by app
-  kakoGiftId?: string | null; // ID of a KakoGift document
+  storagePath?: string | null; 
+  kakoGiftId?: string | null; 
   valueDisplay?: string | null;
   description?: string | null;
   isActive: boolean;
@@ -179,9 +179,10 @@ export interface BingoPrize {
   createdBy?: string | null;
 }
 
+
 export interface FirestoreConversation {
-  id?: string; // Firestore document ID
-  participants: string[]; // Array of user UIDs
+  id?: string; 
+  participants: string[]; 
   participantInfo: {
     [uid: string]: {
       name?: string | null;
@@ -189,30 +190,11 @@ export interface FirestoreConversation {
     }
   };
   lastMessageText?: string | null;
-  lastMessageTimestamp?: any | null; // Firestore Server Timestamp
+  lastMessageTimestamp?: any | null; 
   lastMessageSenderId?: string | null;
   unreadCounts?: { [uid: string]: number };
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
-}
-
-export interface FirestoreMessage {
-  senderId: string;
-  text: string;
-  timestamp: any; // Firestore Server Timestamp
-  imageUrl?: string | null;
-}
-
-export interface ConversationPreview {
-  id: string;
-  userId: string; // UID of the other participant
-  userName: string;
-  userAvatar?: string | null;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount?: number;
-  isOnline?: boolean;
-  isPinned?: boolean;
+  createdAt: any; 
+  updatedAt: any; 
 }
 
 export interface AppMessage {
@@ -222,7 +204,7 @@ export interface AppMessage {
   senderName: string;
   senderAvatar?: string | null;
   text: string;
-  timestamp: any; // Can be Date object for display, or Firestore Timestamp
+  timestamp: any; 
   imageUrl?: string | null;
   isCurrentUser?: boolean;
   status?: 'sent' | 'delivered' | 'read' | null;
@@ -230,11 +212,11 @@ export interface AppMessage {
 
 export interface FeedPost {
   id: string;
-  userId?: string; // UID of the author
+  userId?: string; 
   user: UserSummary;
   postTitle?: string | null;
   content: string;
-  timestamp: any; // Firestore Timestamp
+  timestamp: any; 
   imageUrl?: string | null;
   imageAiHint?: string | null;
   imageStoragePath?: string | null;
@@ -332,7 +314,7 @@ export interface BingoBallSetting {
 }
 
 export interface AudioSetting {
-  id: string;
+  id: string; 
   type: 'gameEvent' | 'interaction';
   eventName?: string | null;
   displayName: string;
@@ -346,19 +328,20 @@ export interface AudioSetting {
   createdBy?: string | null;
 }
 
+
 export interface BingoRoomSetting {
-  id?: string;
+  id?: string; 
   roomId: string;
   description?: string | null;
   isActive: boolean;
   addedBy?: string | null;
   addedAt?: any | null;
-  lastCheckedAt?: any | null;
+  lastCheckedAt?: any | null; 
 }
 
 export interface UserWallet {
-  id?: string; // Firestore document ID (should be user UID)
-  kakoId?: string | null; // User's Kako FUID or Show ID - for reference. Can be empty initially.
+  id?: string; 
+  kakoId?: string | null; 
   diamonds: number;
   lastUpdatedAt?: any | null;
 }
@@ -375,18 +358,18 @@ export interface ChatMessage {
   avatar?: string | null;
   userMedalUrl?: string | null;
   message: string;
-  timestamp: any; // Can be Date object or Firestore Timestamp
+  timestamp: any; 
   rawData?: string | null;
   displayFormatted: boolean;
-  gender?: number | null; // 1 for male, 2 for female
+  gender?: number | null; 
 }
 
 export interface ParsedUserData {
   nickname?: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string | null; 
   level?: number;
   showId?: string;
-  userId?: string; // FUID
+  userId?: string; 
   gender?: number;
 }
 
@@ -396,11 +379,11 @@ export interface LogEntry {
   type: 'received' | 'sent' | 'system' | 'error' | 'info' | 'warning';
   message: string;
   originalData?: string;
-  parsedData?: Record<string, any>; // Parsed JSON payload
+  parsedData?: Record<string, any>; 
   isJson: boolean;
   classification?: string;
   parsedUserData?: ParsedUserData;
-  giftInfo?: {
+  giftInfo?: { 
     senderNickname?: string;
     senderUserId?: string;
     giftId?: string;
@@ -414,4 +397,3 @@ export interface WebSocketConfig {
   primaryWebSocketUrl?: string | null;
 }
 
-    

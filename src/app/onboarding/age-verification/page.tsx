@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, CheckCircle } from "lucide-react"; // Added CheckCircle
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, CheckCircle, User, UserRound } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -34,50 +34,29 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
-import { Checkbox } from "@/components/ui/checkbox";
 
-
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
-
   const originalStartsWithPlus = value.charAt(0) === '+';
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
-
   digitsOnly = digitsOnly.slice(0, 13);
   const len = digitsOnly.length;
-
-  if (len === 0) {
-    return originalStartsWithPlus ? "+" : "";
-  }
-
+  if (len === 0) return originalStartsWithPlus ? "+" : "";
   let formatted = "+";
-
-  if (len <= 2) {
-    formatted += digitsOnly;
-  } else if (len <= 4) {
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else {
-    const countryCode = digitsOnly.slice(0, 2);
-    const areaCode = digitsOnly.slice(2, 4);
-    const localPart = digitsOnly.slice(4);
-    
-    formatted += `${countryCode} (${areaCode}) `;
-
-    if (localPart.length <= 4) {
-      formatted += localPart;
-    } else if (localPart.length <= 8) {
-      formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
-    } else { 
-      formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
-    }
+  if (len <= 2) formatted += digitsOnly;
+  else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
+  else if (len <= 9) { // Handles up to 5 digits for local part prefix
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
+  } else { // Handles the rest, allowing for 9-digit local numbers like +55 (19) 91234-5678
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   }
   return formatted;
 };
 
-
 export default function AgeVerificationPage() {
+  const [username, setUsername] = useState<string>("");
   const [selectedCountry, setSelectedCountry] = useState<string>("Brasil");
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -88,6 +67,41 @@ export default function AgeVerificationPage() {
   const router = useRouter();
   const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (currentUser) {
+      setUsername(currentUser.profileName || currentUser.displayName || "");
+      setSelectedCountry(currentUser.country || "Brasil");
+      setSelectedGender(currentUser.gender || undefined);
+      setPhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
+      if (currentUser.birthDate) {
+        try {
+          let parsedDate: Date | null = null;
+          if (typeof currentUser.birthDate === 'string') {
+             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
+                parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
+            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
+                parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
+            }
+             if (!parsedDate || !isValid(parsedDate)) {
+                const isoDate = parseISO(currentUser.birthDate);
+                if (isValid(isoDate)) parsedDate = isoDate;
+            }
+          } else if ((currentUser.birthDate as any)?.toDate) {
+            parsedDate = (currentUser.birthDate as any).toDate();
+          } else if (currentUser.birthDate instanceof Date) {
+            parsedDate = currentUser.birthDate;
+          }
+          
+          if (parsedDate && isValid(parsedDate)) {
+            setSelectedDate(parsedDate);
+          }
+        } catch (error) {
+          console.error("Error parsing birthDate from currentUser:", error);
+        }
+      }
+    }
+  }, [currentUser]);
 
   const calculateAge = (birthDate: Date): number => {
     const today = new Date();
@@ -115,8 +129,8 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-    if (!phoneNumber.trim()) {
-      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
+    if (!username.trim()) {
+      toast({ title: "Atenção", description: "Por favor, informe seu nome de usuário.", variant: "destructive" });
       return;
     }
     if (!selectedGender) {
@@ -127,8 +141,12 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione sua data de nascimento.", variant: "destructive" });
       return;
     }
-     if (!selectedCountry) {
+    if (!selectedCountry) {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
 
@@ -143,15 +161,17 @@ export default function AgeVerificationPage() {
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
+        profileName: username.trim(),
+        displayName: username.trim(),
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
         updatedAt: serverTimestamp(),
       };
 
       await updateDoc(userDocRef, dataToUpdate);
-      await refreshUserProfile(); // Refresh profile in context
+      await refreshUserProfile();
 
       toast({
         title: "Informações Salvas",
@@ -163,7 +183,6 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback or if role is somehow null but other steps were done
         router.push("/profile"); 
       }
 
@@ -203,46 +222,49 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preenche<br />as informacoes abaixo
+          Para prosseguir, preencha seu nome de usuário, sexo<br />e as informações abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
+          
           <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
+            <Label htmlFor="username" className="text-sm font-medium mb-1 block text-left">
+              Nome de Usuário
             </Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+55 (00) 00000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                    className="pl-10 h-12"
-                />
-            </div>
+            <Input
+              id="username"
+              placeholder="Seu nome de usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="h-12"
+            />
           </div>
-          <div>
-            <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
+
+          <div className="space-y-1">
+            <Label className="text-sm font-medium mb-1 block text-left">
               Sexo
             </Label>
-            <Select
-              value={selectedGender || undefined} 
-              onValueChange={(value) => setSelectedGender(value as UserProfile['gender'])}
-            >
-              <SelectTrigger id="gender-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                <SelectValue placeholder="Selecione seu sexo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Masculino</SelectItem>
-                <SelectItem value="female">Feminino</SelectItem>
-                <SelectItem value="other">Outro</SelectItem>
-                <SelectItem value="preferNotToSay">Prefiro não dizer</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center space-x-2">
+              <Button
+                type="button"
+                variant={selectedGender === 'male' ? 'default' : 'outline'}
+                onClick={() => setSelectedGender('male')}
+                className={cn("flex-1 h-12", selectedGender === 'male' && "border-2 border-primary ring-2 ring-primary/30")}
+              >
+                <User className="mr-2 h-5 w-5" /> Masculino
+              </Button>
+              <Button
+                type="button"
+                variant={selectedGender === 'female' ? 'default' : 'outline'}
+                onClick={() => setSelectedGender('female')}
+                className={cn("flex-1 h-12", selectedGender === 'female' && "border-2 border-primary ring-2 ring-primary/30")}
+              >
+                <UserRound className="mr-2 h-5 w-5" /> Feminino
+              </Button>
+            </div>
+             <p className="text-xs text-muted-foreground mt-1">A seleção de 'Outro' ou 'Prefiro não dizer' pode ser feita na página de perfil.</p>
           </div>
 
           <div>
@@ -304,6 +326,22 @@ export default function AgeVerificationPage() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+              Celular (WhatsApp)
+            </Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+55 (00) 00000-0000"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                    className="pl-10 h-12"
+                />
+            </div>
+          </div>
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -317,7 +355,7 @@ export default function AgeVerificationPage() {
          <Button
           onClick={handleContinue}
           className="w-full mt-4" 
-          disabled={!selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
+          disabled={!username.trim() || !selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -328,8 +366,9 @@ export default function AgeVerificationPage() {
         </Button>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </>
   );
 }
+
