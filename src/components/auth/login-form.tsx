@@ -64,8 +64,7 @@ export default function LoginForm() {
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         
-        if (userProfile.isVerified === false) { // Check our custom verification
-          toast({ title: "Verificação Pendente", description: "Por favor, verifique seu email com o código enviado.", variant: "default", duration: 7000 });
+        if (userProfile.isVerified === false) {
           router.replace(`/onboarding/verify-email-code?email=${encodeURIComponent(userEmail || userProfile.email || "")}`);
           return;
         }
@@ -87,7 +86,6 @@ export default function LoginForm() {
           router.replace("/profile");
         }
       } else {
-        // Should ideally not happen if signup creates the doc, but as a fallback
         router.replace("/onboarding/terms"); 
       }
     } catch (error) {
@@ -101,7 +99,6 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      // No direct emailVerified check here from Firebase Auth, rely on our custom 'isVerified' from Firestore
       toast({
         title: "Login Bem-sucedido",
         description: "Bem-vindo(a) de volta!",
@@ -136,9 +133,6 @@ export default function LoginForm() {
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      // Google sign-in implies email is verified by Google.
-      // We need to ensure our custom isVerified flag is set true if this is their first login via Google.
-      // This is handled in AuthContext where new profiles from Google get isVerified: true
       await handleRedirect(userCredential.user.uid, userCredential.user.email); 
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
@@ -163,7 +157,7 @@ export default function LoginForm() {
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Digite seu email" {...field} className="pl-10" />
+                  <Input placeholder="Digite seu email" {...field} className="pl-10 h-12" />
                 </div>
               </FormControl>
               <FormMessage />
@@ -182,7 +176,7 @@ export default function LoginForm() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Digite sua senha"
                     {...field}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-12"
                   />
                   <Button
                     type="button"
@@ -224,7 +218,7 @@ export default function LoginForm() {
             Esqueceu a senha?
           </Link>
         </div>
-        <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+        <Button type="submit" className="w-full h-12" disabled={loading || googleLoading}>
           Entrar
         </Button>
 
@@ -242,7 +236,7 @@ export default function LoginForm() {
         <Button
           variant="ghost"
           type="button"
-          className="w-full border hover:bg-muted hover:text-secondary-foreground"
+          className="w-full border hover:bg-muted hover:text-secondary-foreground h-12"
           onClick={handleGoogleSignIn}
           disabled={loading || googleLoading}
         >
