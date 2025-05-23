@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
@@ -27,7 +27,65 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth(); // Renamed currentUser to appUser to avoid conflict
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+
+  // Effect for initial check and redirection if email is already verified
+  useEffect(() => {
+    if (authLoading) {
+      setIsLoadingPage(true);
+      return;
+    }
+
+    const performInitialCheck = async () => {
+      if (auth.currentUser) {
+        await auth.currentUser.reload(); // Get the latest user state
+        if (auth.currentUser.emailVerified) {
+          // Email is verified, try to redirect to the correct onboarding step or profile
+          const userDocRef = doc(db, "accounts", auth.currentUser.uid);
+          try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
+              if (!userProfile.agreedToTermsAt) {
+                router.replace("/onboarding/terms");
+              } else if (!userProfile.role) {
+                router.replace("/onboarding/role-selection");
+              } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
+                router.replace("/onboarding/age-verification");
+              } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+                if (userProfile.role === 'host') {
+                  router.replace("/onboarding/kako-id-input");
+                } else if (userProfile.role === 'player') {
+                  router.replace("/onboarding/kako-account-check");
+                } else {
+                  router.replace("/profile");
+                }
+              } else {
+                router.replace("/profile");
+              }
+            } else { // No profile in Firestore, unlikely but direct to terms
+              router.replace("/onboarding/terms");
+            }
+          } catch (error) {
+            console.error("Error fetching user profile for redirect:", error);
+            toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
+            router.replace("/profile"); // Fallback
+          }
+        } else {
+          // Email not verified, show this page's content
+          setIsLoadingPage(false);
+        }
+      } else {
+        // No Firebase auth user found, should be redirected to login by AppContentWrapper
+        // or if user directly lands here without context.
+        router.replace("/login"); 
+      }
+    };
+
+    performInitialCheck();
+
+  }, [authLoading, appUser, router, toast]); // appUser dependency to re-check if auth state changes
 
   const handleResendVerificationEmail = async () => {
     if (!auth.currentUser) {
@@ -59,38 +117,34 @@ function VerifyEmailNoticeContent() {
         
         const userDocRef = doc(db, "accounts", auth.currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
-        let userProfile: UserProfile | null = null;
-
-        if (userDocSnap.exists()) {
-          userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
-          if (!userProfile.isVerified) { 
-            await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
-            userProfile.isVerified = true; 
-          }
-        } else {
-          router.replace("/onboarding/terms"); // Fallback if profile somehow doesn't exist
-          return;
-        }
         
-        // Onboarding redirection logic
-        if (!userProfile.agreedToTermsAt) {
-          router.replace("/onboarding/terms");
-        } else if (!userProfile.role) {
-          router.replace("/onboarding/role-selection");
-        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
-          router.replace("/onboarding/age-verification");
-        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-            if (userProfile.role === 'host') {
-              router.replace("/onboarding/kako-id-input");
-            } else if (userProfile.role === 'player') {
-              router.replace("/onboarding/kako-account-check");
-            } else { 
-              router.replace("/profile"); 
+        // Update Firestore isVerified flag if it was false
+        if (userDocSnap.exists()) {
+            const userProfile = userDocSnap.data() as UserProfile;
+            if (!userProfile.isVerified) {
+                await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
             }
-        } else { 
-          router.replace("/profile");
+            // Now perform redirection based on onboarding status
+            if (!userProfile.agreedToTermsAt) {
+              router.replace("/onboarding/terms");
+            } else if (!userProfile.role) {
+              router.replace("/onboarding/role-selection");
+            } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
+              router.replace("/onboarding/age-verification");
+            } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+              if (userProfile.role === 'host') {
+                router.replace("/onboarding/kako-id-input");
+              } else if (userProfile.role === 'player') {
+                router.replace("/onboarding/kako-account-check");
+              } else { 
+                router.replace("/profile"); 
+              }
+            } else { 
+              router.replace("/profile");
+            }
+        } else { // Should not happen if signup was successful
+            router.replace("/onboarding/terms"); 
         }
-
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
       }
@@ -109,26 +163,26 @@ function VerifyEmailNoticeContent() {
     router.push("/login");
   };
 
-  if (authLoading && !appUser && !emailForDisplay) { 
-    return <div className="flex-grow flex justify-center items-center"><LoadingSpinner size="lg"/></div>;
+  if (authLoading || isLoadingPage) { 
+    return <div className="flex-grow flex justify-center items-center h-full"><LoadingSpinner size="lg"/></div>;
   }
 
   return (
     <>
-        <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar para Login"
-        >
-            <Link href="/login">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
-        </Button>
+      <Button
+          asChild
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+          title="Voltar para Login"
+      >
+          <Link href="/login">
+              <ArrowLeft className="h-8 w-8" />
+              <span className="sr-only">Voltar</span>
+          </Link>
+      </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <MailCheck className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
@@ -177,21 +231,22 @@ export default function VerifyEmailNoticePage() {
   const isMobile = useIsMobile();
   
   return (
-    <div className={cn(
-      "flex justify-center items-center h-screen overflow-hidden",
-      !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-      isMobile && "bg-white p-0" 
-    )}>
-      <Card className={cn(
-        "w-full max-w-md flex flex-col overflow-hidden",
-        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
-        isMobile && "h-full shadow-none rounded-none"
+    <Suspense fallback={<div className={cn("flex justify-center items-center h-screen", isMobile ? "bg-white" : "bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900")}><LoadingSpinner size="lg"/></div>}>
+      <div className={cn(
+        "flex justify-center items-center h-screen overflow-hidden",
+        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+        isMobile && "bg-white p-0" 
       )}>
-        <Suspense fallback={<div className="flex-grow flex justify-center items-center"><LoadingSpinner size="lg"/></div>}>
-          <VerifyEmailNoticeContent />
-        </Suspense>
-      </Card>
-    </div>
+        <Card className={cn(
+          "w-full max-w-md flex flex-col overflow-hidden",
+          !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
+          isMobile && "h-full shadow-none rounded-none"
+        )}>
+            <VerifyEmailNoticeContent />
+        </Card>
+      </div>
+    </Suspense>
   );
 }
 
+    
