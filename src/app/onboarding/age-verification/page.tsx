@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card"; // Renamed Card alias
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, User as UserIcon, UserRound, CheckCircle, Phone, HelpCircle } from "lucide-react";
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, User as UserIcon, UserRound, CheckCircle, Phone, HelpCircle, Globe } from "lucide-react"; // Added Globe
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -36,54 +37,12 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
-const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return "";
-
-  const originalStartsWithPlus = value.charAt(0) === '+';
-  // Remove all non-digits, except for a leading + if it was originally there
-  let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
-  
-  // Allow up to 13 digits *after* the plus for formatting logic.
-  // Example: +55 (19) 99636-4022 -> 5519996364022 (13 digits)
-  digitsOnly = digitsOnly.slice(0, 13);
-  const len = digitsOnly.length;
-
-  if (len === 0) {
-    return originalStartsWithPlus ? "+" : ""; // If user typed only '+', keep it. Otherwise, empty.
-  }
-
-  let formatted = "+"; // Always start with + if there are digits
-
-  if (len <= 2) { // Country code part, e.g., +55
-    formatted += digitsOnly;
-  } else if (len <= 4) { // Country + Area code part, e.g., +55 (19)
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else { // Country + Area code + Local number part
-    const countryCode = digitsOnly.slice(0, 2);
-    const areaCode = digitsOnly.slice(2, 4);
-    const localPart = digitsOnly.slice(4); // Can be up to 9 digits (13 - 2 - 2)
-    
-    formatted += `${countryCode} (${areaCode}) `;
-
-    if (localPart.length <= 4) { 
-      formatted += localPart;
-    } else if (localPart.length <= 8) { // For an 8-digit local number: XXXX-YYYY
-      formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
-    } else { // Handles 9-digit local numbers like XXXXX-YYYY (e.g., Brazilian mobiles)
-      formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
-    }
-  }
-  return formatted;
-};
-
-
 export default function AgeVerificationPage() {
   const [username, setUsername] = useState<string>("");
-  const [selectedCountry, setSelectedCountry] = useState<string>("Brasil");
+  const [selectedCountry, setSelectedCountry] = useState<string>("Brasil"); // Default to Brasil
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [foundUsVia, setFoundUsVia] = useState<string>("");
+  
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -97,8 +56,6 @@ export default function AgeVerificationPage() {
       setUsername(currentUser.profileName || currentUser.displayName || "");
       setSelectedCountry(currentUser.country || "Brasil");
       setSelectedGender(currentUser.gender || undefined);
-      setPhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
-      setFoundUsVia(currentUser.foundUsVia || "");
 
       if (currentUser.birthDate) {
         try {
@@ -128,6 +85,20 @@ export default function AgeVerificationPage() {
       }
     }
   }, [currentUser]);
+
+  console.log("AgeVerificationPage RENDER. States:", {
+    username: username,
+    trimmedUsernameIsEmpty: !username.trim(),
+    selectedGender: selectedGender,
+    isGenderFalsy: !selectedGender,
+    selectedDate: selectedDate,
+    isDateFalsy: !selectedDate,
+    selectedCountry: selectedCountry,
+    isCountryFalsy: !selectedCountry,
+    isLoading: isLoading,
+    buttonDisabled: !username.trim() || !selectedGender || !selectedDate || !selectedCountry || isLoading
+  });
+
 
   const calculateAge = (birthDate: Date): number => {
     const today = new Date();
@@ -167,16 +138,8 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione sua data de nascimento.", variant: "destructive" });
       return;
     }
-     if (!selectedCountry) {
+    if (!selectedCountry) {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
-      return;
-    }
-    if (!phoneNumber.trim()) {
-      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
-      return;
-    }
-    if (!foundUsVia) {
-      toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
       return;
     }
 
@@ -196,34 +159,25 @@ export default function AgeVerificationPage() {
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''), // Save cleaned number
-        foundUsVia: foundUsVia,
         updatedAt: serverTimestamp(),
       };
 
       await updateDoc(userDocRef, dataToUpdate);
-      await refreshUserProfile();
+      await refreshUserProfile(); // Refresh context
 
       toast({
         title: "Informações Salvas",
         description: "Seus dados foram registrados com sucesso.",
       });
       
-      if (currentUser.role === 'host') {
-        router.push("/onboarding/kako-id-input");
-      } else if (currentUser.role === 'player') {
-        router.push("/onboarding/kako-account-check");
-      } else {
-        // Fallback if role is not set, though previous steps should handle this
-        router.push("/onboarding/kako-account-check");
-      }
+      // Navigate to next step (Contact Info)
+      router.push("/onboarding/contact-info");
 
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
         title: "Erro ao Salvar",
-        description:
-          "Não foi possível salvar suas informações. Tente novamente.",
+        description: "Não foi possível salvar suas informações. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -256,7 +210,7 @@ export default function AgeVerificationPage() {
                 <span className="sr-only">Voltar</span>
             </Link>
         </Button>
-       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <UserCheck className="h-8 w-8 text-primary" />
         </div>
@@ -354,7 +308,7 @@ export default function AgeVerificationPage() {
               onValueChange={(value) => setSelectedCountry(value)}
             >
               <SelectTrigger id="country-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
-                 <UserIcon className="mr-2 h-4 w-4 text-muted-foreground" /> {/* Using UserIcon as a placeholder for Globe */}
+                 <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Selecione seu país" />
               </SelectTrigger>
               <SelectContent>
@@ -381,7 +335,7 @@ export default function AgeVerificationPage() {
         <Button
           onClick={handleContinue}
           className="w-full mt-4" 
-          disabled={!username.trim() || !selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || !foundUsVia || isLoading}
+          disabled={!username.trim() || !selectedGender || !selectedDate || !selectedCountry || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -397,3 +351,6 @@ export default function AgeVerificationPage() {
     </>
   );
 }
+
+
+    
