@@ -4,23 +4,21 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth, db, doc, getDoc, updateDoc, serverTimestamp } from "@/lib/firebase"; 
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { Progress } from "@/components/ui/progress";
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
-
 
 function VerifyEmailNoticeContent() {
   const [isLoadingResend, setIsLoadingResend] = useState(false);
@@ -29,11 +27,11 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth(); // appUser used for onboarding check context
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (auth.currentUser && auth.currentUser.emailVerified && appUser && appUser.hasCompletedOnboarding) {
+    if (auth.currentUser && auth.currentUser.emailVerified && appUser?.hasCompletedOnboarding) {
       router.replace("/profile");
     }
   }, [appUser, router]);
@@ -72,26 +70,18 @@ function VerifyEmailNoticeContent() {
         let userProfile: UserProfile | null = null;
         if (userDocSnap.exists()) {
           userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
-          // Ensure isVerified is synced if it wasn't already
           if (!userProfile.isVerified) {
             await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
-            userProfile.isVerified = true; // Update local copy
           }
-        } else {
-          // This case is less likely if signup creates the doc, but good to handle
-          // If no profile, redirect to start of onboarding (terms)
-          router.replace("/onboarding/terms");
-          return;
         }
         
-        // Onboarding redirection logic
-        if (!userProfile.agreedToTermsAt) {
+        if (userProfile && !userProfile.agreedToTermsAt) {
           router.replace("/onboarding/terms");
-        } else if (!userProfile.role) {
+        } else if (userProfile && !userProfile.role) {
           router.replace("/onboarding/role-selection");
-        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
+        } else if (userProfile && (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber)) {
           router.replace("/onboarding/age-verification");
-        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+        } else if (userProfile && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
             if (userProfile.role === 'host') {
               router.replace("/onboarding/kako-id-input");
             } else if (userProfile.role === 'player') {
@@ -99,8 +89,10 @@ function VerifyEmailNoticeContent() {
             } else {
               router.replace("/profile"); 
             }
-        } else {
+        } else if (userProfile) {
           router.replace("/profile");
+        } else { // Fallback if profile somehow doesn't exist after verification
+           router.replace("/onboarding/terms");
         }
 
       } else {
@@ -115,8 +107,6 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    // If current user exists, log them out before going to login page.
-    // This prevents being immediately redirected back if already logged in.
     if(auth.currentUser){
       await logout();
     }
@@ -129,7 +119,7 @@ function VerifyEmailNoticeContent() {
       <div className={cn(
         "flex justify-center items-center h-screen overflow-hidden",
         !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-        isMobile && "bg-card p-0" 
+        isMobile && "bg-white p-0" 
       )}>
         <LoadingSpinner size="lg" />
       </div>
@@ -139,61 +129,49 @@ function VerifyEmailNoticeContent() {
 
   return (
     <>
-       <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-            title="Voltar para Login"
-        >
-            <Link href="/login">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar para Login</span>
-            </Link>
-        </Button>
-        <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
-            <MailCheck className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
-          <CardDescription>
-            Enviamos um link de ativação para {emailForDisplay || "seu email"}.<br />
-            Clique no link para ativar sua conta.
-          </CardDescription>
-        </CardHeader>
-        <Separator className="my-6" />
-        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-          <div className="w-full max-w-xs mx-auto space-y-4 mt-auto"> {/* Changed my-auto to mt-auto */}
-            {isLoadingCheck ? (
-              <div className="flex flex-col items-center space-y-3 text-center">
-                <p className="text-sm text-muted-foreground">Verificando status do seu email...</p>
-                <Progress value={50} className="w-full h-1.5" aria-label="Verificando status do email" />
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground text-center">
-                  Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
-                </p>
-                <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
-                  {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
-                  Reenviar Email de Verificação
-                </Button>
-                <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Já Verifiquei, Tentar Acessar
-                </Button>
-                <Button variant="link" asChild className="text-sm w-full">
-                    <a onClick={handleGoToLogin} className="cursor-pointer">
-                       Fazer login com outra conta
-                    </a>
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-         <CardFooter className="p-4 border-t bg-muted">
-            <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
-        </CardFooter>
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+          <MailCheck className="h-8 w-8 text-primary" />
+        </div>
+        <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
+        <CardDescription>
+          Enviamos um link de ativação para {emailForDisplay || "seu email"}.<br />
+          Clique no link para ativar sua conta.
+        </CardDescription>
+      </CardHeader>
+      <Separator className="my-6" />
+      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <div className="w-full max-w-xs mx-auto space-y-4 mt-auto">
+          {isLoadingCheck ? (
+            <div className="flex flex-col items-center space-y-3 text-center">
+              <p className="text-sm text-muted-foreground">Verificando status do seu email...</p>
+              <Progress value={50} className="w-full h-1.5" aria-label="Verificando status do email" />
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground text-center">
+                Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
+              </p>
+              <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
+                {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
+                Reenviar Email de Verificação
+              </Button>
+              <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Já Verifiquei, Tentar Acessar
+              </Button>
+              <Button variant="link" asChild className="text-sm w-full">
+                  <a onClick={handleGoToLogin} className="cursor-pointer">
+                     Fazer login com outra conta
+                  </a>
+              </Button>
+            </>
+          )}
+        </div>
+      </CardContent>
+       <CardFooter className="p-4 border-t bg-muted">
+          <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
+      </CardFooter>
     </>
   );
 }
@@ -201,12 +179,14 @@ function VerifyEmailNoticeContent() {
 
 export default function VerifyEmailNoticePage() {
   const isMobile = useIsMobile();
+  // The outer Card with aspect ratio and full-screen behavior is handled by src/app/onboarding/layout.tsx
+  // This page only needs to return the content that goes inside that card.
   return (
     <Suspense fallback={
       <div className={cn(
           "flex justify-center items-center h-screen overflow-hidden",
            !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-           isMobile && "bg-card p-0" 
+           isMobile && "bg-white p-0" 
         )}>
           <LoadingSpinner size="lg"/>
         </div>
@@ -216,3 +196,4 @@ export default function VerifyEmailNoticePage() {
   );
 }
 
+    
