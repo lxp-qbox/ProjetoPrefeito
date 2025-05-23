@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe } from "lucide-react";
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, CheckCircle } from "lucide-react"; // Added CheckCircle
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -33,43 +34,42 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return ""; // Return empty if input is cleared or only whitespace
+  if (!value.trim()) return "";
 
   const originalStartsWithPlus = value.charAt(0) === '+';
-  // Remove all non-digits, except for a leading + if it was originally there
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
 
-  // Limit to a common international length, e.g., 13 digits after the plus
-  // (e.g., +CC (AA) 9XXXX-YYYY = 2 + 2 + 5 + 4 = 13 digits)
   digitsOnly = digitsOnly.slice(0, 13);
   const len = digitsOnly.length;
 
   if (len === 0) {
-    return originalStartsWithPlus ? "+" : ""; // If user typed only '+', keep it. Otherwise, empty.
+    return originalStartsWithPlus ? "+" : "";
   }
 
-  let formatted = "+"; // Always start with + if there are digits
+  let formatted = "+";
 
-  if (len <= 2) { // Country code part, e.g., +55
+  if (len <= 2) {
     formatted += digitsOnly;
-  } else if (len <= 4) { // Country + Area code part, e.g., +55 (19)
+  } else if (len <= 4) {
     formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  } else { // Country + Area code + Local number part
+  } else {
     const countryCode = digitsOnly.slice(0, 2);
     const areaCode = digitsOnly.slice(2, 4);
     const localPart = digitsOnly.slice(4);
     
     formatted += `${countryCode} (${areaCode}) `;
 
-    if (localPart.length <= 4) { // e.g., +55 (19) 1234
+    if (localPart.length <= 4) {
       formatted += localPart;
-    } else if (localPart.length <= 8 && localPart.length >= 5 && localPart[0] !== '9') { // e.g., +55 (19) 1234-5678 (for an 8-digit local landline)
+    } else if (localPart.length <= 8) {
       formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
-    } else { // Handles 9-digit local numbers like +55 (19) 91234-5678, or other 5-8 digit local parts starting with 9
+    } else { 
       formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
     }
   }
@@ -86,7 +86,7 @@ export default function AgeVerificationPage() {
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   const calculateAge = (birthDate: Date): number => {
@@ -115,7 +115,7 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-     if (!phoneNumber.trim()) {
+    if (!phoneNumber.trim()) {
       toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
@@ -151,18 +151,22 @@ export default function AgeVerificationPage() {
       };
 
       await updateDoc(userDocRef, dataToUpdate);
+      await refreshUserProfile(); // Refresh profile in context
+
       toast({
         title: "Informações Salvas",
-        description: "Suas informações foram registradas com sucesso.",
+        description: "Suas informações básicas foram registradas com sucesso.",
       });
-
+      
       if (currentUser.role === 'host') {
         router.push("/onboarding/kako-id-input");
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Fallback or if role is somehow null but other steps were done
         router.push("/profile"); 
       }
+
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
       toast({
@@ -214,7 +218,7 @@ export default function AgeVerificationPage() {
                 <Input
                     id="phone-number"
                     type="tel"
-                    placeholder="+00 (00) 00000-0000"
+                    placeholder="+55 (00) 00000-0000"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                     className="pl-10 h-12"
@@ -300,7 +304,6 @@ export default function AgeVerificationPage() {
               </SelectContent>
             </Select>
           </div>
-
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -324,7 +327,7 @@ export default function AgeVerificationPage() {
           Continuar
         </Button>
       </CardContent>
-      <CardFooter className="p-4 border-t bg-muted">
+       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </>
