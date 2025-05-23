@@ -4,7 +4,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MailCheck, ArrowLeft, RotateCw, CheckCircle, UserPlus } from "lucide-react"; // MailCheck for verified state
 import { useAuth } from "@/hooks/use-auth";
@@ -34,12 +34,17 @@ function VerifyEmailNoticeContent() {
   useEffect(() => {
     // If user is already verified and somehow lands here, redirect them
     if (auth.currentUser && auth.currentUser.emailVerified && appUser) {
-      toast({ title: "Email já verificado!", description: "Prosseguindo com o onboarding..." });
+      toast({ title: "Email já verificado!", description: "Prosseguindo..." });
       // Re-use the redirection logic from login form
-      if (!appUser.agreedToTermsAt) router.push("/onboarding/terms");
-      else if (!appUser.role) router.push("/onboarding/role-selection");
-      // ... add other onboarding steps from loginForm's handleRedirect
-      else router.push("/profile");
+      if (!appUser.agreedToTermsAt) router.replace("/onboarding/terms");
+      else if (!appUser.role) router.replace("/onboarding/role-selection");
+      else if (!appUser.birthDate || !appUser.gender || !appUser.country || !appUser.phoneNumber) router.replace("/onboarding/age-verification");
+      else if (appUser.hasCompletedOnboarding === false || typeof appUser.hasCompletedOnboarding === 'undefined') {
+        if (appUser.role === 'host') router.replace("/onboarding/kako-id-input");
+        else if (appUser.role === 'player') router.replace("/onboarding/kako-account-check");
+        else router.replace("/profile");
+      }
+      else router.replace("/profile");
     }
   }, [appUser, router, toast]);
 
@@ -72,22 +77,9 @@ function VerifyEmailNoticeContent() {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
         
         // After successful verification, trigger the same redirection logic as login
-        if (appUser) {
-            if (!appUser.agreedToTermsAt) router.push("/onboarding/terms");
-            else if (!appUser.role) router.push("/onboarding/role-selection");
-            else if (!appUser.birthDate || !appUser.gender || !appUser.country || !appUser.phoneNumber) router.push("/onboarding/age-verification");
-            else if (appUser.hasCompletedOnboarding === false || typeof appUser.hasCompletedOnboarding === 'undefined') {
-                if (appUser.role === 'host') router.push("/onboarding/kako-id-input");
-                else if (appUser.role === 'player') router.push("/onboarding/kako-account-check");
-                else router.push("/profile");
-            } else {
-                router.push("/profile");
-            }
-        } else {
-            // If appUser (from context) is not yet updated, try logging in again
-            // or simply redirect to login to re-trigger the flow with updated auth state.
-            router.push("/login");
-        }
+        // Need to fetch updated appUser profile from Firestore as AuthContext might not have re-run yet
+        // Or simply redirect to login, which will re-trigger the full check including AuthContext update
+        router.replace("/login?verified=true"); // Go to login, which will then redirect based on new verified status and onboarding
 
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
@@ -101,12 +93,12 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    await logout(); // Log out the technically signed-in but unverified user
+    await logout(); 
     router.push("/login");
   };
 
 
-  if (authLoading) {
+  if (authLoading && !appUser) { // Show loading if auth is loading and no user data is ready yet
     return (
       <div className={cn(
         "flex justify-center items-center h-screen overflow-hidden",
@@ -120,26 +112,21 @@ function VerifyEmailNoticeContent() {
 
 
   return (
-    <div className={cn(
-        "flex justify-center items-center h-screen overflow-hidden",
-        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-        isMobile && "bg-white p-0"
-      )}>
-      <Card className={cn(
-        "w-full max-w-md flex flex-col overflow-hidden",
-        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
-        isMobile && "h-full shadow-none rounded-none"
-      )}>
-        <button
-            onClick={handleGoToLogin}
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors flex items-center justify-center"
+    <>
+       <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Voltar para Login"
         >
-            <ArrowLeft className="h-8 w-8" />
-            <span className="sr-only">Voltar para Login</span>
-        </button>
+            <Link href="/login"> {/* Changed from /signup */}
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar para Login</span>
+            </Link>
+        </Button>
         <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
             <MailCheck className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
@@ -150,8 +137,8 @@ function VerifyEmailNoticeContent() {
         </CardHeader>
         <Separator className="my-6" />
         <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
-          <div className="space-y-4 text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
+            <p className="text-sm text-muted-foreground text-center">
               Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
             </p>
             <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
@@ -162,10 +149,9 @@ function VerifyEmailNoticeContent() {
               {isLoadingCheck ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
               Já Verifiquei, Tentar Acessar
             </Button>
-            <Button variant="link" asChild className="text-sm">
-                {/* This link might be confusing. Better to direct to login to attempt retry. */}
-                <a onClick={() => router.push("/signup")} className="cursor-pointer">
-                   Usar Outro Email (Novo Cadastro)
+            <Button variant="link" asChild className="text-sm w-full">
+                <a onClick={handleGoToLogin} className="cursor-pointer">
+                   Fazer login com outra conta
                 </a>
             </Button>
           </div>
@@ -173,16 +159,25 @@ function VerifyEmailNoticeContent() {
          <CardFooter className="p-4 border-t bg-muted">
             <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
         </CardFooter>
-      </Card>
-    </div>
+    </>
   );
 }
 
 
 export default function VerifyEmailNoticePage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-screen"><LoadingSpinner size="lg"/></div>}>
+    <Suspense fallback={
+      <div className={cn(
+          "flex justify-center items-center h-screen overflow-hidden",
+          // Cannot use useIsMobile here directly for initial fallback styling
+          "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900" 
+        )}>
+          <LoadingSpinner size="lg"/>
+        </div>
+    }>
       <VerifyEmailNoticeContent />
     </Suspense>
   );
 }
+
+    
