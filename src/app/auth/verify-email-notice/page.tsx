@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MailCheck, ArrowLeft, RotateCw, CheckCircle, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase"; 
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -17,8 +17,17 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { Progress } from "@/components/ui/progress";
+import type { UserProfile } from "@/types";
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const RESEND_COOLDOWN_SECONDS = 5 * 60; // 5 minutes
+const RESEND_TIMESTAMP_KEY = 'resendVerificationEmailCooldownEnd';
+
+const formatCooldownTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
 
 function VerifyEmailNoticeContent() {
   const [isLoadingResend, setIsLoadingResend] = useState(false);
@@ -27,10 +36,59 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth(); // Renamed currentUser to appUser to avoid conflict
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
   const [isLoadingPage, setIsLoadingPage] = useState(true);
 
-  // Effect for initial check and redirection if email is already verified
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [canResendEmail, setCanResendEmail] = useState(true);
+  const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const storedCooldownEnd = localStorage.getItem(RESEND_TIMESTAMP_KEY);
+    if (storedCooldownEnd) {
+      const endTime = parseInt(storedCooldownEnd, 10);
+      const now = Date.now();
+      if (endTime > now) {
+        const remainingSeconds = Math.ceil((endTime - now) / 1000);
+        setResendCooldown(remainingSeconds);
+        setCanResendEmail(false);
+      } else {
+        localStorage.removeItem(RESEND_TIMESTAMP_KEY);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (resendCooldown > 0 && !canResendEmail) {
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+      }
+      cooldownIntervalRef.current = setInterval(() => {
+        setResendCooldown((prevCooldown) => {
+          if (prevCooldown <= 1) {
+            if(cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current!);
+            cooldownIntervalRef.current = null;
+            setCanResendEmail(true);
+            localStorage.removeItem(RESEND_TIMESTAMP_KEY);
+            return 0;
+          }
+          return prevCooldown - 1;
+        });
+      }, 1000);
+    } else if (resendCooldown === 0 && !canResendEmail && localStorage.getItem(RESEND_TIMESTAMP_KEY)) {
+      // If cooldown finished but state not yet updated (e.g. due to interval clear before final tick)
+      setCanResendEmail(true);
+      localStorage.removeItem(RESEND_TIMESTAMP_KEY);
+    }
+  
+    return () => {
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+      }
+    };
+  }, [resendCooldown, canResendEmail]);
+
+
   useEffect(() => {
     if (authLoading) {
       setIsLoadingPage(true);
@@ -39,9 +97,8 @@ function VerifyEmailNoticeContent() {
 
     const performInitialCheck = async () => {
       if (auth.currentUser) {
-        await auth.currentUser.reload(); // Get the latest user state
+        await auth.currentUser.reload(); 
         if (auth.currentUser.emailVerified) {
-          // Email is verified, try to redirect to the correct onboarding step or profile
           const userDocRef = doc(db, "accounts", auth.currentUser.uid);
           try {
             const userDocSnap = await getDoc(userDocRef);
@@ -64,38 +121,42 @@ function VerifyEmailNoticeContent() {
               } else {
                 router.replace("/profile");
               }
-            } else { // No profile in Firestore, unlikely but direct to terms
+            } else { 
               router.replace("/onboarding/terms");
             }
           } catch (error) {
             console.error("Error fetching user profile for redirect:", error);
             toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
-            router.replace("/profile"); // Fallback
+            router.replace("/profile"); 
           }
         } else {
-          // Email not verified, show this page's content
           setIsLoadingPage(false);
         }
       } else {
-        // No Firebase auth user found, should be redirected to login by AppContentWrapper
-        // or if user directly lands here without context.
         router.replace("/login"); 
       }
     };
-
     performInitialCheck();
-
-  }, [authLoading, appUser, router, toast]); // appUser dependency to re-check if auth state changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, appUser, router, toast]); 
 
   const handleResendVerificationEmail = async () => {
     if (!auth.currentUser) {
       toast({ title: "Erro", description: "Nenhum usuário logado para reenviar verificação.", variant: "destructive" });
       return;
     }
+    if (!canResendEmail) {
+      toast({ title: "Aguarde", description: `Você poderá reenviar o email em ${formatCooldownTime(resendCooldown)}.`, variant: "default" });
+      return;
+    }
     setIsLoadingResend(true);
     try {
       await sendEmailVerification(auth.currentUser);
       toast({ title: "Email Reenviado", description: "Um novo link de verificação foi enviado para seu email." });
+      const endTime = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
+      localStorage.setItem(RESEND_TIMESTAMP_KEY, endTime.toString());
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setCanResendEmail(false);
     } catch (error: any) {
       console.error("Erro ao reenviar email:", error);
       toast({ title: "Falha ao Reenviar", description: error.message || "Não foi possível reenviar o email.", variant: "destructive" });
@@ -118,13 +179,12 @@ function VerifyEmailNoticeContent() {
         const userDocRef = doc(db, "accounts", auth.currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
-        // Update Firestore isVerified flag if it was false
         if (userDocSnap.exists()) {
             const userProfile = userDocSnap.data() as UserProfile;
-            if (!userProfile.isVerified) {
+            if (!userProfile.isVerified) { // Update Firestore if it was false
                 await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
             }
-            // Now perform redirection based on onboarding status
+            // Onboarding redirection logic
             if (!userProfile.agreedToTermsAt) {
               router.replace("/onboarding/terms");
             } else if (!userProfile.role) {
@@ -142,7 +202,7 @@ function VerifyEmailNoticeContent() {
             } else { 
               router.replace("/profile");
             }
-        } else { // Should not happen if signup was successful
+        } else { 
             router.replace("/onboarding/terms"); 
         }
       } else {
@@ -173,12 +233,12 @@ function VerifyEmailNoticeContent() {
           asChild
           variant="ghost"
           size="icon"
-          className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+          className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
           title="Voltar para Login"
       >
           <Link href="/login">
               <ArrowLeft className="h-8 w-8" />
-              <span className="sr-only">Voltar</span>
+              <span className="sr-only">Voltar para Login</span>
           </Link>
       </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
@@ -204,11 +264,28 @@ function VerifyEmailNoticeContent() {
               <p className="text-sm text-muted-foreground text-center">
                 Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
               </p>
-              <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
-                {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
-                Reenviar Email de Verificação
+              <Button 
+                onClick={handleResendVerificationEmail} 
+                className="w-full h-12" 
+                disabled={isLoadingResend || isLoadingCheck || !canResendEmail}
+              >
+                {isLoadingResend ? (
+                  <LoadingSpinner size="sm" className="mr-2" />
+                ) : !canResendEmail && resendCooldown > 0 ? (
+                  `Reenviar em ${formatCooldownTime(resendCooldown)}`
+                ) : (
+                  <>
+                    <RotateCw className="mr-2 h-4 w-4" />
+                    Reenviar Email de Verificação
+                  </>
+                )}
               </Button>
-              <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
+              <Button 
+                onClick={handleCheckVerificationStatus} 
+                variant="outline" 
+                className="w-full h-12" 
+                disabled={isLoadingResend || isLoadingCheck}
+              >
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Já Verifiquei, Tentar Acessar
               </Button>
@@ -231,7 +308,14 @@ export default function VerifyEmailNoticePage() {
   const isMobile = useIsMobile();
   
   return (
-    <Suspense fallback={<div className={cn("flex justify-center items-center h-screen", isMobile ? "bg-white" : "bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900")}><LoadingSpinner size="lg"/></div>}>
+    <Suspense fallback={
+      <div className={cn(
+          "flex justify-center items-center h-screen overflow-hidden",
+          !isMobile && "bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+          isMobile && "bg-white" 
+        )}><LoadingSpinner size="lg"/>
+      </div>
+    }>
       <div className={cn(
         "flex justify-center items-center h-screen overflow-hidden",
         !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
