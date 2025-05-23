@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile, collection, query, where } from "@/lib/firebase"; 
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -27,7 +27,7 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth(); // appUser is UserProfile | null
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
 
   const handleResendVerificationEmail = async () => {
     if (!auth.currentUser) {
@@ -68,11 +68,11 @@ function VerifyEmailNoticeContent() {
             userProfile.isVerified = true; 
           }
         } else {
-          // Should ideally not happen if signup creates the doc, but handle as if new onboarding needed
-          router.replace("/onboarding/terms");
+          router.replace("/onboarding/terms"); // Fallback if profile somehow doesn't exist
           return;
         }
         
+        // Onboarding redirection logic
         if (!userProfile.agreedToTermsAt) {
           router.replace("/onboarding/terms");
         } else if (!userProfile.role) {
@@ -103,7 +103,7 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    if(auth.currentUser){ // Log out if a Firebase Auth session still exists (e.g., unverified user)
+    if(auth.currentUser){ 
       await logout();
     }
     router.push("/login");
@@ -115,12 +115,20 @@ function VerifyEmailNoticeContent() {
 
   return (
     <>
+        <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            title="Voltar para Login"
+        >
+            <Link href="/login">
+                <ArrowLeft className="h-8 w-8" />
+                <span className="sr-only">Voltar</span>
+            </Link>
+        </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <Link href="/login" className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors flex items-center justify-center" title="Voltar para Login">
-          <ArrowLeft className="h-8 w-8" />
-          <span className="sr-only">Voltar</span>
-        </Link>
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <MailCheck className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
@@ -150,10 +158,8 @@ function VerifyEmailNoticeContent() {
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Já Verifiquei, Tentar Acessar
               </Button>
-              <Button variant="link" asChild className="text-sm w-full">
-                  <a onClick={handleGoToLogin} className="cursor-pointer">
-                     Fazer login com outra conta
-                  </a>
+              <Button variant="link" onClick={handleGoToLogin} className="text-sm w-full text-primary no-underline hover:underline h-auto">
+                 Fazer login com outra conta
               </Button>
             </>
           )}
@@ -188,3 +194,4 @@ export default function VerifyEmailNoticePage() {
     </div>
   );
 }
+
