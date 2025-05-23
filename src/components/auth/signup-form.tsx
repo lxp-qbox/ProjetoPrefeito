@@ -18,7 +18,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } 
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Lock } from "lucide-react"; // Added Lock here
 import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
@@ -65,20 +65,21 @@ export default function SignupForm() {
 
       await updateProfile(user, {
         displayName: derivedProfileName,
+        // photoURL: user.photoURL // Preserve any photoURL from Google/etc. if applicable, or set default
       });
 
-      const userDocRef = doc(db, "accounts", user.uid); // Changed 'users' to 'accounts'
+      const userDocRef = doc(db, "accounts", user.uid); // Using "accounts" collection
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
         profileName: derivedProfileName,
         displayName: derivedProfileName,
         photoURL: user.photoURL,
-        kakoLiveId: "", 
-        kakoShowId: "", // Added kakoShowId
-        role: 'player', 
+        showId: "", 
+        kakoLiveId: "",
+        role: null,
         adminLevel: null,
-        isVerified: false, 
+        isVerified: false, // User is NOT verified by email code yet
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
@@ -89,7 +90,12 @@ export default function SignupForm() {
         socialLinks: {},
         themePreference: 'system',
         accentColor: '#4285F4', 
-        hasCompletedOnboarding: false, 
+        hasCompletedOnboarding: false,
+        agreedToTermsAt: null,
+        birthDate: null,
+        country: null,
+        gender: null,
+        phoneNumber: null,
       };
       await setDoc(userDocRef, newUserProfile);
 
@@ -97,10 +103,10 @@ export default function SignupForm() {
 
       toast({
         title: "Cadastro Realizado!",
-        description: `Um email de verificação foi enviado para ${values.email}. Por favor, verifique sua caixa de entrada para ativar sua conta.`,
-        duration: 9000, 
+        description: "Enviamos um email de verificação. Por favor, verifique sua caixa de entrada para ativar sua conta e depois faça o login.",
+        duration: 7000, 
       });
-      router.push("/login"); 
+      router.push(`/login?email=${encodeURIComponent(user.email || "")}`); 
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
@@ -128,7 +134,10 @@ export default function SignupForm() {
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder="Digite seu email" {...field} />
+                <div className="relative">
+                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Digite seu email" {...field} className="pl-10 h-12" />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -141,10 +150,12 @@ export default function SignupForm() {
             <FormItem>
               <FormControl>
                 <div className="relative">
+                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="Digite sua senha" 
-                    {...field} 
+                    {...field}
+                    className="pl-10 pr-10 h-12"
                   />
                   <Button
                     type="button"
@@ -168,10 +179,12 @@ export default function SignupForm() {
             <FormItem>
               <FormControl>
                 <div className="relative">
-                   <Input 
+                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
                     type={showConfirmPassword ? "text" : "password"} 
                     placeholder="Confirme sua senha" 
-                    {...field} 
+                    {...field}
+                    className="pl-10 pr-10 h-12"
                   />
                   <Button
                     type="button"
@@ -188,8 +201,8 @@ export default function SignupForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Criando conta..." : <> <UserPlus className="mr-2 h-4 w-4" /> Cadastrar </>}
+        <Button type="submit" className="w-full h-12" disabled={loading}>
+          {loading ? "Criando conta..." : <> <UserPlus className="mr-2 h-4 w-4" /> Cadastrar </> }
         </Button>
       </form>
     </Form>

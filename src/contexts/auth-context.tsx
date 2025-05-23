@@ -1,8 +1,9 @@
+
 "use client";
 
 import type { User as FirebaseUser } from "firebase/auth";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
-import { createContext, useEffect, useState, type ReactNode } from "react";
+import React, { createContext, useEffect, useState, type ReactNode } from "react";
 import { auth, db, doc, getDoc, setDoc, serverTimestamp, updateDoc, collection, query, where, getDocs, Timestamp } from "@/lib/firebase"; 
 import type { UserProfile, KakoProfile, UserWallet } from "@/types";
 
@@ -38,19 +39,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let userProfileData: UserProfile;
 
         if (userAccountDocSnap.exists()) {
-          const firestoreData = userAccountDocSnap.data() as UserProfile;
+          const firestoreData = userAccountDocSnap.data() as Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL' | 'currentDiamondBalance'>;
           userProfileData = { 
             uid: firebaseUser.uid, 
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName, // Firebase Auth display name
-            photoURL: firebaseUser.photoURL,       // Firebase Auth photo URL
-            ...firestoreData,                      // Spread Firestore data, potentially overwriting displayName/photoURL
-            adminLevel: firestoreData.adminLevel || null, // Ensure null if undefined/falsy
-            level: firestoreData.level || 1, // Default level if not set
-            currentDiamondBalance: 0, // Initialize, will be fetched below
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            ...firestoreData,
+            isVerified: firestoreData.isVerified === undefined ? (firebaseUser.providerData.some(p => p.providerId === "google.com")) : firestoreData.isVerified, // Default to true if Google, else use Firestore or false
+            adminLevel: firestoreData.adminLevel || null,
+            level: firestoreData.level || 1,
+            currentDiamondBalance: 0,
           };
+          
+          if (userProfileData.showId === "10933200" && userProfileData.adminLevel !== 'master') {
+            console.log(`AuthContext: User ${firebaseUser.uid} has showId 10933200. Setting adminLevel to master.`);
+            userProfileData.adminLevel = 'master';
+            try {
+              await updateDoc(userAccountDocRef, { adminLevel: 'master', updatedAt: serverTimestamp() });
+            } catch (err) {
+              console.error("AuthContext: Error updating adminLevel for master user in Firestore:", err);
+            }
+          } else if (userProfileData.showId !== "10933200" && userProfileData.adminLevel === 'master') {
+            // Optional: Demote if showId is no longer the master ID but adminLevel is still master
+            // console.log(`AuthContext: User ${firebaseUser.uid} no longer has master showId but adminLevel is master. Demoting.`);
+            // userProfileData.adminLevel = null; // Or their previous non-master level
+            // await updateDoc(userAccountDocRef, { adminLevel: null, updatedAt: serverTimestamp() });
+          }
 
-          // If showId exists on the account, try to fetch the corresponding KakoProfile
           if (userProfileData.showId && userProfileData.showId.trim() !== "") {
             const kakoProfilesRef = collection(db, "kakoProfiles");
             const q = query(kakoProfilesRef, where("showId", "==", userProfileData.showId));
@@ -59,42 +75,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (!kakoProfileQuerySnap.empty) {
               const kakoProfileDoc = kakoProfileQuerySnap.docs[0];
               const kakoData = kakoProfileDoc.data() as KakoProfile;
-              
-              userProfileData.profileName = kakoData.nickname || userProfileData.profileName; // Prefer Kako nickname
-              userProfileData.photoURL = kakoData.avatarUrl || userProfileData.photoURL;       // Prefer Kako avatar
-              userProfileData.level = kakoData.level || userProfileData.level;                 // Use Kako level
-              userProfileData.kakoLiveId = kakoProfileDoc.id;                                  // Store/update FUID from KakoProfile
+              userProfileData.profileName = kakoData.nickname || userProfileData.profileName;
+              userProfileData.photoURL = kakoData.avatarUrl || userProfileData.photoURL;
+              userProfileData.level = kakoData.level || userProfileData.level;
+              userProfileData.kakoLiveId = kakoProfileDoc.id; 
             }
-          } else {
-            // If no showId, ensure profileName uses a sensible default if not set
-            userProfileData.profileName = userProfileData.profileName || deriveProfileNameFromEmail(firebaseUser.email);
           }
-          
-          // Ensure adminLevel is 'master' if showId is "10933200"
-          if (userProfileData.showId === "10933200" && userProfileData.adminLevel !== 'master') {
-            userProfileData.adminLevel = 'master';
-            // Asynchronously update Firestore if there's a mismatch
-            updateDoc(userAccountDocRef, { adminLevel: 'master', updatedAt: serverTimestamp() })
-              .catch(err => console.error("Error auto-updating adminLevel for master user:", err));
-          }
+           userProfileData.profileName = userProfileData.profileName || deriveProfileNameFromEmail(firebaseUser.email!);
+
 
         } else {
-          // New user, create basic account document
-          const derivedProfileName = deriveProfileNameFromEmail(firebaseUser.email);
+          const derivedProfileName = deriveProfileNameFromEmail(firebaseUser.email!);
           userProfileData = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             profileName: derivedProfileName,
             displayName: firebaseUser.displayName || derivedProfileName,
             photoURL: firebaseUser.photoURL || null,
-            role: 'player', 
+            role: null, // Role is set during onboarding
             adminLevel: null,
             showId: "", 
             kakoLiveId: "", 
-            kakoLiveRoomId: "",
             level: 1,
-            hostStatus: 'pending_review',
-            isVerified: firebaseUser.emailVerified,
+            isVerified: firebaseUser.providerData.some(p => p.providerId === "google.com"), // Verified if Google Sign-In
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             hasCompletedOnboarding: false, 
@@ -113,13 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             accentColor: '#4285F4',
             currentDiamondBalance: 0,
           };
-           if (userProfileData.showId === "10933200") {
+           if (userProfileData.showId === "10933200") { // Check for master ID on new profile (less likely here unless showId is pre-populated)
             userProfileData.adminLevel = 'master';
           }
           await setDoc(userAccountDocRef, userProfileData);
         }
 
-        // Fetch diamond balance
         try {
           const walletDocRef = doc(db, "userWallets", firebaseUser.uid); 
           const walletDocSnap = await getDoc(walletDocRef);
@@ -145,6 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await firebaseSignOut(auth);
     setCurrentUser(null);
+    // Optionally redirect to login page after logout
+    // window.location.href = '/login'; 
   };
 
   const value = {

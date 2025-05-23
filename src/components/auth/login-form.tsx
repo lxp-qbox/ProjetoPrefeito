@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithEmailAndPassword, signInWithPopup, sendEmailVerification } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -56,14 +56,19 @@ export default function LoginForm() {
     },
   });
 
-  const handleRedirect = async (userId: string) => {
+  const handleRedirect = async (userId: string, userEmail?: string | null) => {
     try {
-      const userDocRef = doc(db, "users", userId);
+      const userDocRef = doc(db, "accounts", userId);
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         
+        if (userProfile.isVerified === false) { // Check our custom verification
+          toast({ title: "Verificação Pendente", description: "Por favor, verifique seu email com o código enviado.", variant: "default", duration: 7000 });
+          router.replace(`/onboarding/verify-email-code?email=${encodeURIComponent(userEmail || userProfile.email || "")}`);
+          return;
+        }
         if (!userProfile.agreedToTermsAt) {
           router.replace("/onboarding/terms");
         } else if (!userProfile.role) {
@@ -76,13 +81,13 @@ export default function LoginForm() {
           } else if (userProfile.role === 'player') {
             router.replace("/onboarding/kako-account-check");
           } else {
-            router.replace("/profile"); // Fallback for unexpected role but onboarding not complete
+            router.replace("/profile"); 
           }
         } else {
-          router.replace("/profile"); // Onboarding complete, go to profile
+          router.replace("/profile");
         }
       } else {
-        // New user created via Google Sign-In or if somehow doc doesn't exist
+        // Should ideally not happen if signup creates the doc, but as a fallback
         router.replace("/onboarding/terms"); 
       }
     } catch (error) {
@@ -96,21 +101,12 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      if (!userCredential.user.emailVerified) {
-        toast({
-          title: "Email Não Verificado",
-          description: "Por favor, verifique seu email antes de fazer login. Se necessário, um novo email de verificação pode ser enviado.",
-          variant: "destructive",
-          duration: 9000,
-        });
-        setLoading(false);
-        return;
-      }
+      // No direct emailVerified check here from Firebase Auth, rely on our custom 'isVerified' from Firestore
       toast({
         title: "Login Bem-sucedido",
         description: "Bem-vindo(a) de volta!",
       });
-      await handleRedirect(userCredential.user.uid);
+      await handleRedirect(userCredential.user.uid, userCredential.user.email);
     } catch (error: any) {
       console.error("Email/Password login error:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
@@ -140,7 +136,10 @@ export default function LoginForm() {
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      await handleRedirect(userCredential.user.uid); 
+      // Google sign-in implies email is verified by Google.
+      // We need to ensure our custom isVerified flag is set true if this is their first login via Google.
+      // This is handled in AuthContext where new profiles from Google get isVerified: true
+      await handleRedirect(userCredential.user.uid, userCredential.user.email); 
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({
@@ -161,7 +160,6 @@ export default function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Email *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -177,7 +175,6 @@ export default function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Senha *</FormLabel> */}
               <FormControl>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -260,5 +257,3 @@ export default function LoginForm() {
     </Form>
   );
 }
-
-    
