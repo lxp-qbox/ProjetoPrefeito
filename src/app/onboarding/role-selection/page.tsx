@@ -15,7 +15,7 @@ import Link from "next/link";
 import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +25,8 @@ export default function RoleSelectionPage() {
   const { toast } = useToast();
 
   const handleRoleSelect = async (role: UserProfile['role']) => {
+    if (isLoading) return; // Prevent multiple submissions
+
     if (!currentUser) {
       toast({
         title: "Erro",
@@ -55,8 +57,8 @@ export default function RoleSelectionPage() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
-      setLoadingRole(null);
+      // setIsLoading(false); // Keep isLoading true until navigation completes
+      // setLoadingRole(null); // Or reset once navigation is confirmed
     }
   };
 
@@ -89,14 +91,17 @@ export default function RoleSelectionPage() {
         <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={() => !isLoading && handleRoleSelect('host')}
+            onClick={() => {
+              if (isLoading) return;
+              handleRoleSelect('host');
+            }}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('host')}
-            aria-disabled={isLoading || (isLoading && loadingRole !== 'host')}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !isLoading) handleRoleSelect('host'); }}
+            aria-disabled={isLoading}
           >
             {isLoading && loadingRole === 'host' ? (
-              <div className="h-[104px] flex items-center justify-center"> {/* Approx height of content */}
+              <div className="h-[104px] flex items-center justify-center">
                 <LoadingSpinner size="md" />
               </div>
             ) : (
@@ -114,14 +119,17 @@ export default function RoleSelectionPage() {
 
           <ChoiceCard
             className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
-            onClick={() => !isLoading && handleRoleSelect('player')}
+            onClick={() => {
+              if (isLoading) return;
+              handleRoleSelect('player');
+            }}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleRoleSelect('player')}
-            aria-disabled={isLoading || (isLoading && loadingRole !== 'player')}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !isLoading) handleRoleSelect('player'); }}
+            aria-disabled={isLoading}
           >
             {isLoading && loadingRole === 'player' ? (
-               <div className="h-[104px] flex items-center justify-center"> {/* Approx height of content */}
+               <div className="h-[104px] flex items-center justify-center">
                 <LoadingSpinner size="md" />
               </div>
             ) : (
@@ -139,7 +147,7 @@ export default function RoleSelectionPage() {
         </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={2} />
       </CardFooter>
     </>
   );
