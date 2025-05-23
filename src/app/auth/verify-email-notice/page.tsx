@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, ArrowLeft, RotateCw, CheckCircle, KeyRound } from "lucide-react";
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { auth, db, doc, getDoc, updateDoc, serverTimestamp } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
@@ -20,7 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import type { UserProfile } from "@/types";
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
-const RESEND_COOLDOWN_SECONDS = 5 * 60; // 5 minutes
+const RESEND_COOLDOWN_SECONDS = 3 * 60; // 3 minutes
 const RESEND_TIMESTAMP_KEY = 'resendVerificationEmailCooldownEnd';
 
 const formatCooldownTime = (seconds: number): string => {
@@ -36,12 +36,19 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
+  const { currentUser: appUser, loading: authLoading, logout, refreshUserProfile } = useAuth();
   const [isLoadingPage, setIsLoadingPage] = useState(true);
 
   const [resendCooldown, setResendCooldown] = useState(0);
   const [canResendEmail, setCanResendEmail] = useState(true);
   const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startCooldown = () => {
+    const endTime = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
+    localStorage.setItem(RESEND_TIMESTAMP_KEY, endTime.toString());
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    setCanResendEmail(false);
+  };
 
   useEffect(() => {
     const storedCooldownEnd = localStorage.getItem(RESEND_TIMESTAMP_KEY);
@@ -54,9 +61,15 @@ function VerifyEmailNoticeContent() {
         setCanResendEmail(false);
       } else {
         localStorage.removeItem(RESEND_TIMESTAMP_KEY);
+        setCanResendEmail(true); 
       }
+    } else {
+      // If no cooldown is stored, start one immediately on first load.
+      // This covers the scenario after initial signup.
+      startCooldown();
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only on mount to check/initiate cooldown
 
   useEffect(() => {
     if (resendCooldown > 0 && !canResendEmail) {
@@ -76,7 +89,6 @@ function VerifyEmailNoticeContent() {
         });
       }, 1000);
     } else if (resendCooldown === 0 && !canResendEmail && localStorage.getItem(RESEND_TIMESTAMP_KEY)) {
-      // If cooldown finished but state not yet updated (e.g. due to interval clear before final tick)
       setCanResendEmail(true);
       localStorage.removeItem(RESEND_TIMESTAMP_KEY);
     }
@@ -99,41 +111,33 @@ function VerifyEmailNoticeContent() {
       if (auth.currentUser) {
         await auth.currentUser.reload(); 
         if (auth.currentUser.emailVerified) {
+          // Email is verified, proceed with onboarding checks or redirect to profile
           const userDocRef = doc(db, "accounts", auth.currentUser.uid);
           try {
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
               const userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
-              if (!userProfile.agreedToTermsAt) {
-                router.replace("/onboarding/terms");
-              } else if (!userProfile.role) {
-                router.replace("/onboarding/role-selection");
-              } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
-                router.replace("/onboarding/age-verification");
-              } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-                if (userProfile.role === 'host') {
-                  router.replace("/onboarding/kako-id-input");
-                } else if (userProfile.role === 'player') {
-                  router.replace("/onboarding/kako-account-check");
-                } else {
-                  router.replace("/profile");
-                }
-              } else {
-                router.replace("/profile");
-              }
+              if (!userProfile.agreedToTermsAt) router.replace("/onboarding/terms");
+              else if (!userProfile.role) router.replace("/onboarding/role-selection");
+              else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) router.replace("/onboarding/age-verification");
+              else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+                if (userProfile.role === 'host') router.replace("/onboarding/kako-id-input");
+                else if (userProfile.role === 'player') router.replace("/onboarding/kako-account-check");
+                else router.replace("/profile");
+              } else router.replace("/profile");
             } else { 
-              router.replace("/onboarding/terms");
+              router.replace("/onboarding/terms"); // New user, Firestore doc might not exist yet
             }
           } catch (error) {
-            console.error("Error fetching user profile for redirect:", error);
+            console.error("Erro ao buscar perfil do usuário para redirecionamento:", error);
             toast({ title: "Erro de Redirecionamento", description: "Não foi possível verificar seu status de onboarding.", variant: "destructive" });
             router.replace("/profile"); 
           }
         } else {
-          setIsLoadingPage(false);
+          setIsLoadingPage(false); // Email not verified, show the page content
         }
       } else {
-        router.replace("/login"); 
+        router.replace("/login"); // No Firebase auth user, send to login
       }
     };
     performInitialCheck();
@@ -153,13 +157,17 @@ function VerifyEmailNoticeContent() {
     try {
       await sendEmailVerification(auth.currentUser);
       toast({ title: "Email Reenviado", description: "Um novo link de verificação foi enviado para seu email." });
-      const endTime = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
-      localStorage.setItem(RESEND_TIMESTAMP_KEY, endTime.toString());
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      setCanResendEmail(false);
+      startCooldown(); // Start cooldown after successful resend
     } catch (error: any) {
       console.error("Erro ao reenviar email:", error);
-      toast({ title: "Falha ao Reenviar", description: error.message || "Não foi possível reenviar o email.", variant: "destructive" });
+      let errorMessage = "Não foi possível reenviar o email de verificação.";
+      if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Muitas solicitações de reenvio. Tente novamente mais tarde.";
+        // Optionally, start a longer cooldown if Firebase enforces it server-side
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast({ title: "Falha ao Reenviar", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingResend(false);
     }
@@ -172,38 +180,37 @@ function VerifyEmailNoticeContent() {
     }
     setIsLoadingCheck(true);
     try {
-      await auth.currentUser.reload();
+      await auth.currentUser.reload(); // Crucial: reloads the user's status from Firebase
       if (auth.currentUser.emailVerified) {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
         
         const userDocRef = doc(db, "accounts", auth.currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        try {
+            await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
+            await refreshUserProfile(); // Refresh context
+        } catch (firestoreError) {
+            console.error("Erro ao atualizar 'isVerified' no Firestore:", firestoreError);
+            // Proceed with navigation even if Firestore update fails for isVerified, auth is source of truth
+        }
         
+        // Re-fetch user profile from Firestore to get the latest onboarding status
+        const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-            const userProfile = userDocSnap.data() as UserProfile;
-            if (!userProfile.isVerified) { // Update Firestore if it was false
-                await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
-            }
+            const userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
             // Onboarding redirection logic
-            if (!userProfile.agreedToTermsAt) {
-              router.replace("/onboarding/terms");
-            } else if (!userProfile.role) {
-              router.replace("/onboarding/role-selection");
-            } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
-              router.replace("/onboarding/age-verification");
-            } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
-              if (userProfile.role === 'host') {
-                router.replace("/onboarding/kako-id-input");
-              } else if (userProfile.role === 'player') {
-                router.replace("/onboarding/kako-account-check");
-              } else { 
-                router.replace("/profile"); 
-              }
+            if (!userProfile.agreedToTermsAt) router.replace("/onboarding/terms");
+            else if (!userProfile.role) router.replace("/onboarding/role-selection");
+            else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) router.replace("/onboarding/age-verification");
+            else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+              if (userProfile.role === 'host') router.replace("/onboarding/kako-id-input");
+              else if (userProfile.role === 'player') router.replace("/onboarding/kako-account-check");
+              else router.replace("/profile"); 
             } else { 
               router.replace("/profile");
             }
         } else { 
-            router.replace("/onboarding/terms"); 
+            console.warn("Documento do usuário não encontrado no Firestore após verificação de email.");
+            router.replace("/onboarding/terms"); // Fallback if Firestore doc is somehow missing
         }
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
@@ -229,18 +236,6 @@ function VerifyEmailNoticeContent() {
 
   return (
     <>
-      <Button
-          asChild
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-          title="Voltar para Login"
-      >
-          <Link href="/login">
-              <ArrowLeft className="h-8 w-8" />
-              <span className="sr-only">Voltar para Login</span>
-          </Link>
-      </Button>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <MailCheck className="h-8 w-8 text-primary" />
@@ -262,7 +257,7 @@ function VerifyEmailNoticeContent() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground text-center">
-                Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
+                Se não encontrar o email, verifique sua pasta de spam.
               </p>
               <Button 
                 onClick={handleResendVerificationEmail} 
@@ -326,6 +321,18 @@ export default function VerifyEmailNoticePage() {
           !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
           isMobile && "h-full shadow-none rounded-none"
         )}>
+            <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                title="Voltar para Login"
+            >
+                <Link href="/login">
+                    <ArrowLeft className="h-8 w-8" />
+                    <span className="sr-only">Voltar</span>
+                </Link>
+            </Button>
             <VerifyEmailNoticeContent />
         </Card>
       </div>
@@ -333,4 +340,3 @@ export default function VerifyEmailNoticePage() {
   );
 }
 
-    
