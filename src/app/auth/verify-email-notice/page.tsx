@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Separator } from "@/components/ui/separator";
 import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile } from "@/lib/firebase"; 
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp, type UserProfile, collection, query, where } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -27,14 +27,7 @@ function VerifyEmailNoticeContent() {
   const emailForDisplay = searchParams.get("email");
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
-  const isMobile = useIsMobile();
-
-  useEffect(() => {
-    if (auth.currentUser && auth.currentUser.emailVerified && appUser?.hasCompletedOnboarding) {
-      router.replace("/profile");
-    }
-  }, [appUser, router]);
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth(); // appUser is UserProfile | null
 
   const handleResendVerificationEmail = async () => {
     if (!auth.currentUser) {
@@ -60,40 +53,42 @@ function VerifyEmailNoticeContent() {
     }
     setIsLoadingCheck(true);
     try {
-      await auth.currentUser.reload(); 
+      await auth.currentUser.reload();
       if (auth.currentUser.emailVerified) {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
         
         const userDocRef = doc(db, "accounts", auth.currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
-
         let userProfile: UserProfile | null = null;
+
         if (userDocSnap.exists()) {
           userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
-          if (!userProfile.isVerified) { // Sync with Firestore if needed
+          if (!userProfile.isVerified) { 
             await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
-            userProfile.isVerified = true; // Update local copy
+            userProfile.isVerified = true; 
           }
+        } else {
+          // Should ideally not happen if signup creates the doc, but handle as if new onboarding needed
+          router.replace("/onboarding/terms");
+          return;
         }
         
-        if (userProfile && !userProfile.agreedToTermsAt) {
+        if (!userProfile.agreedToTermsAt) {
           router.replace("/onboarding/terms");
-        } else if (userProfile && !userProfile.role) {
+        } else if (!userProfile.role) {
           router.replace("/onboarding/role-selection");
-        } else if (userProfile && (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber)) {
+        } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
           router.replace("/onboarding/age-verification");
-        } else if (userProfile && (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined')) {
+        } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
             if (userProfile.role === 'host') {
               router.replace("/onboarding/kako-id-input");
             } else if (userProfile.role === 'player') {
               router.replace("/onboarding/kako-account-check");
-            } else { // Should not happen if role is set
+            } else { 
               router.replace("/profile"); 
             }
-        } else if (userProfile) { // All onboarding complete
+        } else { 
           router.replace("/profile");
-        } else { // Fallback if profile somehow doesn't exist after verification
-           router.replace("/onboarding/terms");
         }
 
       } else {
@@ -108,19 +103,23 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    if(auth.currentUser){
+    if(auth.currentUser){ // Log out if a Firebase Auth session still exists (e.g., unverified user)
       await logout();
     }
     router.push("/login");
   };
 
   if (authLoading && !appUser && !emailForDisplay) { 
-    return <LoadingSpinner size="lg" />; // Simplified loading for content part
+    return <div className="flex-grow flex justify-center items-center"><LoadingSpinner size="lg"/></div>;
   }
 
   return (
     <>
       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+        <Link href="/login" className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors flex items-center justify-center" title="Voltar para Login">
+          <ArrowLeft className="h-8 w-8" />
+          <span className="sr-only">Voltar</span>
+        </Link>
         <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <MailCheck className="h-8 w-8 text-primary" />
         </div>
@@ -189,4 +188,3 @@ export default function VerifyEmailNoticePage() {
     </div>
   );
 }
-
