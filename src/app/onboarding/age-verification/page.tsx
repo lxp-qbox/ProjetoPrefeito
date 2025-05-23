@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -20,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, CheckCircle, ArrowLeft, AlertTriangle, Phone, UserCheck, Globe } from "lucide-react";
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -28,27 +27,52 @@ import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import { format, subYears, isValid, parse } from "date-fns";
+import { format, subYears, isValid, parse, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return "";
+  if (!value.trim()) return ""; // Return empty if input is cleared or only whitespace
+
   const originalStartsWithPlus = value.charAt(0) === '+';
+  // Remove all non-digits, except for a leading + if it was originally there
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
-  digitsOnly = digitsOnly.slice(0, 15); 
+
+  // Limit to a common international length, e.g., 13 digits after the plus
+  // (e.g., +CC (AA) 9XXXX-YYYY = 2 + 2 + 5 + 4 = 13 digits)
+  digitsOnly = digitsOnly.slice(0, 13);
   const len = digitsOnly.length;
-  if (len === 0) return originalStartsWithPlus ? "+" : ""; 
-  let formatted = "+";
-  if (len <= 2) formatted += digitsOnly;
-  else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  else if (len <= 8) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
+
+  if (len === 0) {
+    return originalStartsWithPlus ? "+" : ""; // If user typed only '+', keep it. Otherwise, empty.
+  }
+
+  let formatted = "+"; // Always start with + if there are digits
+
+  if (len <= 2) { // Country code part, e.g., +55
+    formatted += digitsOnly;
+  } else if (len <= 4) { // Country + Area code part, e.g., +55 (19)
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
+  } else { // Country + Area code + Local number part
+    const countryCode = digitsOnly.slice(0, 2);
+    const areaCode = digitsOnly.slice(2, 4);
+    const localPart = digitsOnly.slice(4);
+    
+    formatted += `${countryCode} (${areaCode}) `;
+
+    if (localPart.length <= 4) { // e.g., +55 (19) 1234
+      formatted += localPart;
+    } else if (localPart.length <= 8 && localPart.length >= 5 && localPart[0] !== '9') { // e.g., +55 (19) 1234-5678 (for an 8-digit local landline)
+      formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
+    } else { // Handles 9-digit local numbers like +55 (19) 91234-5678, or other 5-8 digit local parts starting with 9
+      formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
+    }
+  }
   return formatted;
 };
 
@@ -91,7 +115,10 @@ export default function AgeVerificationPage() {
       router.push("/login");
       return;
     }
-
+     if (!phoneNumber.trim()) {
+      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
+      return;
+    }
     if (!selectedGender) {
       toast({ title: "Atenção", description: "Por favor, selecione seu sexo.", variant: "destructive" });
       return;
@@ -102,10 +129,6 @@ export default function AgeVerificationPage() {
     }
      if (!selectedCountry) {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
-      return;
-    }
-    if (!phoneNumber.trim()) {
-      toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
 
@@ -138,7 +161,6 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback if role is somehow not set, though previous steps should ensure it
         router.push("/profile"); 
       }
     } catch (error) {
@@ -183,6 +205,22 @@ export default function AgeVerificationPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
+          <div>
+            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+              Celular (WhatsApp)
+            </Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="+00 (00) 00000-0000"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                    className="pl-10 h-12"
+                />
+            </div>
+          </div>
           <div>
             <Label htmlFor="gender-select" className="text-sm font-medium mb-1 block text-left">
               Sexo
@@ -263,23 +301,6 @@ export default function AgeVerificationPage() {
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
-            </Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+00 (00) 00000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                    className="pl-10 h-12"
-                />
-            </div>
-          </div>
-
           {showUnderageAlert && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
@@ -304,7 +325,7 @@ export default function AgeVerificationPage() {
         </Button>
       </CardContent>
       <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </>
   );
