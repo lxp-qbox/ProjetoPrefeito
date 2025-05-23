@@ -38,12 +38,12 @@ import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return ""; 
+  if (!value.trim()) return "";
 
   const originalStartsWithPlus = value.charAt(0) === '+';
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
   
-  digitsOnly = digitsOnly.slice(0, 13);
+  digitsOnly = digitsOnly.slice(0, 13); 
   const len = digitsOnly.length;
 
   if (len === 0) {
@@ -85,6 +85,7 @@ export default function AgeVerificationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  
   const router = useRouter();
   const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
@@ -100,16 +101,16 @@ export default function AgeVerificationPage() {
         try {
           let parsedDate: Date | null = null;
           if (typeof currentUser.birthDate === 'string') {
-             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) {
+             if (currentUser.birthDate.includes('-') && currentUser.birthDate.length === 10) { 
                 parsedDate = parse(currentUser.birthDate, "yyyy-MM-dd", new Date());
-            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) {
+            } else if (currentUser.birthDate.includes('/') && currentUser.birthDate.length === 10) { 
                 parsedDate = parse(currentUser.birthDate, "dd/MM/yyyy", new Date());
             }
-             if (!parsedDate || !isValid(parsedDate)) {
+             if (!parsedDate || !isValid(parsedDate)) { 
                 const isoDate = parseISO(currentUser.birthDate);
                 if (isValid(isoDate)) parsedDate = isoDate;
             }
-          } else if ((currentUser.birthDate as any)?.toDate) {
+          } else if ((currentUser.birthDate as any)?.toDate) { 
             parsedDate = (currentUser.birthDate as any).toDate();
           } else if (currentUser.birthDate instanceof Date) {
             parsedDate = currentUser.birthDate;
@@ -167,7 +168,7 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
       return;
     }
-    if (!phoneNumber.trim()) {
+     if (!phoneNumber.trim()) {
       toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
@@ -193,7 +194,7 @@ export default function AgeVerificationPage() {
         country: selectedCountry,
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
-        phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
+        phoneNumber: phoneNumber.trim().replace(/(?!^\\+)[^\\d]/g, ''),
         foundUsVia: foundUsVia,
         updatedAt: serverTimestamp(),
       };
@@ -211,7 +212,8 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/profile"); 
+        // Fallback if role isn't set, though role selection is an earlier step
+        router.push("/onboarding/kako-account-check"); 
       }
 
     } catch (error) {
@@ -229,6 +231,15 @@ export default function AgeVerificationPage() {
 
   const maxCalendarDate = new Date();
   const minCalendarDate = subYears(new Date(), 100);
+
+  if (!currentUser && !isLoading) { // Add a check for currentUser before rendering form
+    return (
+      <div className="flex-grow flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
 
   return (
     <>
@@ -250,7 +261,8 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-         Para prosseguir, preencha<br />as informacoes abaixo
+         Para prosseguir, preencha <br />
+         as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -304,7 +316,7 @@ export default function AgeVerificationPage() {
                   id="birthdate-picker"
                   variant={"outline"}
                   className={cn(
-                    "w-full justify-start text-left font-normal h-12",
+                    "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
@@ -340,7 +352,7 @@ export default function AgeVerificationPage() {
               value={selectedCountry}
               onValueChange={(value) => setSelectedCountry(value)}
             >
-              <SelectTrigger id="country-select" className="w-full h-12">
+              <SelectTrigger id="country-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                  <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Selecione seu país" />
               </SelectTrigger>
@@ -353,7 +365,6 @@ export default function AgeVerificationPage() {
               </SelectContent>
             </Select>
           </div>
-
         </div>
 
         <Card className="mt-6 shadow-sm border-border/50">
@@ -373,7 +384,7 @@ export default function AgeVerificationPage() {
                     <Input
                         id="phone-number"
                         type="tel"
-                        placeholder="+00 (00) 0000-0000"
+                        placeholder="+00 (00) 00000-0000"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                         className="pl-10 h-12"
@@ -388,17 +399,16 @@ export default function AgeVerificationPage() {
                   value={foundUsVia}
                   onValueChange={(value) => setFoundUsVia(value)}
                 >
-                  <SelectTrigger id="found-us-via-select" className="w-full h-12">
+                  <SelectTrigger id="found-us-via-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
                     <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Selecione uma opção" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tiktok">TikTok</SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
                     <SelectItem value="kakolive">Kako Live</SelectItem>
-                    <SelectItem value="kwai">Kwai</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
                     <SelectItem value="nimotv">Nimo TV</SelectItem>
-                    <SelectItem value="twitch">Twitch</SelectItem>
+                    <SelectItem value="youtube">Youtube</SelectItem>
                     <SelectItem value="outro">Outro</SelectItem>
                   </SelectContent>
                 </Select>
@@ -436,3 +446,4 @@ export default function AgeVerificationPage() {
     </>
   );
 }
+
