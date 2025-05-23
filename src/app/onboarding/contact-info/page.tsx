@@ -1,10 +1,9 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -13,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Phone, HelpCircle, CheckCircle, ArrowLeft, Gift } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Changed from FormLabel
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,7 +22,6 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import type { UserProfile } from "@/types";
-import { FormDescription } from "@/components/ui/form";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
@@ -37,10 +35,11 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   let formatted = "+";
   if (len <= 2) formatted += digitsOnly;
   else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  else if (len <= 8) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(5)}`;
+  else if (len <= 9) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
+  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
   return formatted;
 };
+
 
 export default function ContactInfoPage() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
@@ -74,15 +73,14 @@ export default function ContactInfoPage() {
       toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
       return;
     }
-    // Referral code is optional, no validation needed here for emptiness
 
     setIsLoading(true);
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
-        phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
+        phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''), // Save cleaned number
         foundUsVia: foundUsVia,
-        referralCode: referralCode.trim() || null, // Save as null if empty
+        referralCode: referralCode.trim() || null,
         updatedAt: serverTimestamp(),
       };
 
@@ -99,7 +97,6 @@ export default function ContactInfoPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback if role somehow isn't set, though previous steps should ensure it.
         router.push("/onboarding/kako-account-check"); 
       }
 
@@ -125,20 +122,20 @@ export default function ContactInfoPage() {
 
   return (
     <>
-       <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-            title="Voltar"
-        >
-            <Link href="/onboarding/age-verification">
-                <ArrowLeft className="h-8 w-8" />
-                <span className="sr-only">Voltar</span>
-            </Link>
-        </Button>
-       <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+        title="Voltar"
+      >
+        <Link href="/onboarding/age-verification">
+          <ArrowLeft className="h-8 w-8" />
+          <span className="sr-only">Voltar</span>
+        </Link>
+      </Button>
+      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
           <Phone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações de Contato</CardTitle>
@@ -149,26 +146,22 @@ export default function ContactInfoPage() {
       <Separator className="my-6" />
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
         <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
-          <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
-            </Label>
+          <div className="space-y-1">
+            <Label htmlFor="phone-number">Celular (WhatsApp)</Label>
             <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+00 (00) 00000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                    className="pl-10 h-12"
-                />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="phone-number"
+                type="tel"
+                placeholder="+00 (00) 00000-0000"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                className="pl-10 h-12"
+              />
             </div>
           </div>
-          <div>
-            <Label htmlFor="found-us-via-select" className="text-sm font-medium mb-1 block text-left">
-              Onde nos encontrou?
-            </Label>
+          <div className="space-y-1">
+            <Label htmlFor="found-us-via-select">Onde nos encontrou?</Label>
             <Select
               value={foundUsVia}
               onValueChange={(value) => setFoundUsVia(value)}
@@ -188,29 +181,27 @@ export default function ContactInfoPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="referral-code" className="text-sm font-medium mb-1 block text-left">
-              Código de Indicação (Opcional)
-            </Label>
+          <div className="space-y-1">
+            <Label htmlFor="referral-code">Código de Indicação (Opcional)</Label>
             <div className="relative">
-                <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="referral-code"
-                    type="text"
-                    placeholder="Insira o código se tiver um"
-                    value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                    className="pl-10 h-12"
-                />
+              <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="referral-code"
+                type="text"
+                placeholder="Insira o código se tiver um"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                className="pl-10 h-12"
+              />
             </div>
-            <FormDescription className="text-xs text-muted-foreground mt-1">
+            <p className="text-[0.8rem] text-muted-foreground mt-1">
               Se você foi indicado por alguém, insira o código aqui.
-            </FormDescription>
+            </p>
           </div>
         </div>
         <Button
           onClick={handleContinue}
-          className="w-full mt-4" 
+          className="w-full mt-auto" 
           disabled={!phoneNumber.trim() || !foundUsVia || isLoading}
         >
           {isLoading ? (
@@ -221,7 +212,7 @@ export default function ContactInfoPage() {
           Continuar
         </Button>
       </CardContent>
-       <CardFooter className="p-4 border-t bg-muted">
+      <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
       </CardFooter>
     </>
