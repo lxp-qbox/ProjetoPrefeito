@@ -9,10 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper"; // Stepper might not be relevant here, but keeping for consistency if needed
 
-const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
-
+// const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"]; // Example, adjust if stepper is used
 
 export default function SignupPage() {
   const isMobile = useIsMobile();
@@ -32,7 +31,7 @@ export default function SignupPage() {
             asChild
             variant="ghost"
             size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar para Login"
         >
             <Link href="/login">
@@ -41,7 +40,7 @@ export default function SignupPage() {
             </Link>
         </Button>
         <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8"> {/* mt-8 for back button spacing */}
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">Bem-vindo a White House!</CardTitle>
@@ -53,9 +52,9 @@ export default function SignupPage() {
         <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
           <SignupForm />
         </CardContent>
-        <CardFooter className="flex-col p-0">
-          <div className="w-full border-t border-border" />
-          <div className="w-full bg-muted p-6 text-center">
+        <CardFooter className="flex-col p-0 border-t bg-muted">
+          {/* <OnboardingStepper steps={onboardingStepLabels} currentStep={0} /> */}
+          <div className="w-full p-6 text-center">
             <Link href="/login" className="text-sm font-medium no-underline hover:underline hover:text-primary">
               Já tem uma conta? Entrar
             </Link>

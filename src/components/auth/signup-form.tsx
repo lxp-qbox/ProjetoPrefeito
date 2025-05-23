@@ -10,6 +10,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } 
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus, Lock } from "lucide-react";
+import { Eye, EyeOff, UserPlus as UserPlusIcon, Lock } from "lucide-react"; // Aliased UserPlus to avoid conflict
 import type { UserProfile, UserWallet } from "@/types";
 
 const formSchema = z.object({
@@ -98,19 +99,17 @@ export default function SignupForm() {
         country: null,
         gender: null,
         phoneNumber: null,
-        currentDiamondBalance: 10000, // Initialize with 10k
+        currentDiamondBalance: 10000,
       };
       await setDoc(userAccountDocRef, newUserProfile);
 
-      // Create user wallet with initial 10,000 diamonds
       const userWalletDocRef = doc(db, "userWallets", user.uid);
       const newUserWallet: UserWallet = {
-        kakoId: "", // Will be populated later if user links their Kako account
+        kakoId: "", 
         diamonds: 10000,
         lastUpdatedAt: serverTimestamp(),
       };
       await setDoc(userWalletDocRef, newUserWallet);
-
 
       await sendEmailVerification(user);
 
@@ -146,10 +145,11 @@ export default function SignupForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
+              <FormLabel>Digite seu email</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Digite seu email" {...field} className="pl-10 h-12" />
+                  <UserPlusIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="seunome@exemplo.com" {...field} className="pl-10 h-12" />
                 </div>
               </FormControl>
               <FormMessage />
@@ -161,12 +161,13 @@ export default function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
+              <FormLabel>Digite sua senha</FormLabel>
               <FormControl>
                 <div className="relative">
                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type={showPassword ? "text" : "password"} 
-                    placeholder="Digite sua senha" 
+                    placeholder="Mínimo 6 caracteres" 
                     {...field}
                     className="pl-10 pr-10 h-12"
                   />
@@ -174,7 +175,7 @@ export default function SignupForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent hover:text-primary"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
@@ -190,12 +191,13 @@ export default function SignupForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
+              <FormLabel>Confirme sua senha</FormLabel>
               <FormControl>
                 <div className="relative">
                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type={showConfirmPassword ? "text" : "password"} 
-                    placeholder="Confirme sua senha" 
+                    placeholder="Repita a senha" 
                     {...field}
                     className="pl-10 pr-10 h-12"
                   />
@@ -203,7 +205,7 @@ export default function SignupForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent hover:text-primary"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
@@ -215,11 +217,9 @@ export default function SignupForm() {
           )}
         />
         <Button type="submit" className="w-full h-12" disabled={loading}>
-          {loading ? "Criando conta..." : <> <UserPlus className="mr-2 h-4 w-4" /> Cadastrar </> }
+          {loading ? "Criando conta..." : <> <UserPlusIcon className="mr-2 h-4 w-4" /> Cadastrar </> }
         </Button>
       </form>
     </Form>
   );
 }
-
-  
