@@ -9,6 +9,10 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
+
 
 export default function SignupPage() {
   const isMobile = useIsMobile();
@@ -28,7 +32,7 @@ export default function SignupPage() {
             asChild
             variant="ghost"
             size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Voltar para Login"
         >
             <Link href="/login">
@@ -40,13 +44,13 @@ export default function SignupPage() {
           <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
               <UserPlus className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Criar Conta</CardTitle>
+          <CardTitle className="text-2xl font-bold">Bem-vindo a White House!</CardTitle>
           <CardDescription>
-            Junte-se à The Presidential Agency<br />hoje!
+            O Presidente te espera!
             </CardDescription>
         </CardHeader>
         <Separator className="my-6" />
-        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
+        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
           <SignupForm />
         </CardContent>
         <CardFooter className="flex-col p-0">
