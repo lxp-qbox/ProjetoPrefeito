@@ -6,9 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, ArrowLeft, RotateCw, CheckCircle, KeyRound } from "lucide-react";
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { auth } from "@/lib/firebase"; 
+import { auth, db, doc, getDoc } from "@/lib/firebase"; 
 import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
@@ -33,20 +33,13 @@ function VerifyEmailNoticeContent() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (auth.currentUser && auth.currentUser.emailVerified && appUser) {
-      toast({ title: "Email já verificado!", description: "Prosseguindo..." });
-      // Re-use the redirection logic from login form
-      if (!appUser.agreedToTermsAt) router.replace("/onboarding/terms");
-      else if (!appUser.role) router.replace("/onboarding/role-selection");
-      else if (!appUser.birthDate || !appUser.gender || !appUser.country || !appUser.phoneNumber) router.replace("/onboarding/age-verification");
-      else if (appUser.hasCompletedOnboarding === false || typeof appUser.hasCompletedOnboarding === 'undefined') {
-        if (appUser.role === 'host') router.replace("/onboarding/kako-id-input");
-        else if (appUser.role === 'player') router.replace("/onboarding/kako-account-check");
-        else router.replace("/profile");
-      }
-      else router.replace("/profile");
+    // This effect checks if the user is already fully onboarded and verified
+    // If so, and they land here, redirect them appropriately.
+    // However, the primary redirection happens after login or after clicking "Já Verifiquei".
+    if (auth.currentUser && auth.currentUser.emailVerified && appUser && appUser.hasCompletedOnboarding) {
+      router.replace("/profile");
     }
-  }, [appUser, router, toast]);
+  }, [appUser, router]);
 
   const handleResendVerificationEmail = async () => {
     if (!auth.currentUser) {
@@ -75,8 +68,35 @@ function VerifyEmailNoticeContent() {
       await auth.currentUser.reload(); 
       if (auth.currentUser.emailVerified) {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
-        // This will trigger the onboarding sequence checks in login/page.tsx or login-form.tsx
-        router.replace("/login?verified=true"); 
+        
+        // Fetch user profile from Firestore to determine next onboarding step
+        const userDocRef = doc(db, "accounts", auth.currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
+
+          if (!userProfile.agreedToTermsAt) {
+            router.replace("/onboarding/terms");
+          } else if (!userProfile.role) {
+            router.replace("/onboarding/role-selection");
+          } else if (!userProfile.birthDate || !userProfile.gender || !userProfile.country || !userProfile.phoneNumber) {
+            router.replace("/onboarding/age-verification");
+          } else if (userProfile.hasCompletedOnboarding === false || typeof userProfile.hasCompletedOnboarding === 'undefined') {
+             if (userProfile.role === 'host') {
+                router.replace("/onboarding/kako-id-input");
+              } else if (userProfile.role === 'player') {
+                router.replace("/onboarding/kako-account-check");
+              } else {
+                router.replace("/profile"); // Fallback
+              }
+          } else {
+            router.replace("/profile"); // All onboarding complete
+          }
+        } else {
+          // Firestore document doesn't exist, start onboarding from terms
+          router.replace("/onboarding/terms");
+        }
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
       }
@@ -89,7 +109,6 @@ function VerifyEmailNoticeContent() {
   };
   
   const handleGoToLogin = async () => {
-    // No need to logout if user is not verified and is trying to switch accounts
     router.push("/login");
   };
 
