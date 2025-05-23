@@ -6,10 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MailCheck, ArrowLeft, RotateCw, CheckCircle, UserPlus } from "lucide-react"; // MailCheck for verified state
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase"; 
-import { sendEmailVerification } from "firebase/auth"; // Only sendEmailVerification from firebase/auth
+import { sendEmailVerification } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { UserProfile } from "@/types";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { Progress } from "@/components/ui/progress"; // Added Progress import
 
 const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
 
@@ -32,7 +33,6 @@ function VerifyEmailNoticeContent() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    // If user is already verified and somehow lands here, redirect them
     if (auth.currentUser && auth.currentUser.emailVerified && appUser) {
       toast({ title: "Email já verificado!", description: "Prosseguindo..." });
       // Re-use the redirection logic from login form
@@ -72,15 +72,10 @@ function VerifyEmailNoticeContent() {
     }
     setIsLoadingCheck(true);
     try {
-      await auth.currentUser.reload(); // Reloads the Firebase Auth user state
+      await auth.currentUser.reload(); 
       if (auth.currentUser.emailVerified) {
         toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
-        
-        // After successful verification, trigger the same redirection logic as login
-        // Need to fetch updated appUser profile from Firestore as AuthContext might not have re-run yet
-        // Or simply redirect to login, which will re-trigger the full check including AuthContext update
-        router.replace("/login?verified=true"); // Go to login, which will then redirect based on new verified status and onboarding
-
+        router.replace("/login?verified=true"); 
       } else {
         toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
       }
@@ -98,12 +93,12 @@ function VerifyEmailNoticeContent() {
   };
 
 
-  if (authLoading && !appUser) { // Show loading if auth is loading and no user data is ready yet
+  if (authLoading && !appUser) { 
     return (
       <div className={cn(
         "flex justify-center items-center h-screen overflow-hidden",
         !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-        isMobile && "bg-white p-0"
+        isMobile && "bg-white p-0" 
       )}>
         <LoadingSpinner size="lg" />
       </div>
@@ -117,10 +112,10 @@ function VerifyEmailNoticeContent() {
             asChild
             variant="ghost"
             size="icon"
-            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar para Login"
         >
-            <Link href="/login"> {/* Changed from /signup */}
+            <Link href="/login">
                 <ArrowLeft className="h-8 w-8" />
                 <span className="sr-only">Voltar para Login</span>
             </Link>
@@ -138,22 +133,31 @@ function VerifyEmailNoticeContent() {
         <Separator className="my-6" />
         <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
           <div className="w-full max-w-xs mx-auto space-y-4 my-auto">
-            <p className="text-sm text-muted-foreground text-center">
-              Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
-            </p>
-            <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
-              {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
-              Reenviar Email de Verificação
-            </Button>
-            <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingCheck || isLoadingResend}>
-              {isLoadingCheck ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-              Já Verifiquei, Tentar Acessar
-            </Button>
-            <Button variant="link" asChild className="text-sm w-full">
-                <a onClick={handleGoToLogin} className="cursor-pointer">
-                   Fazer login com outra conta
-                </a>
-            </Button>
+            {isLoadingCheck ? (
+              <div className="flex flex-col items-center space-y-3 text-center">
+                <p className="text-sm text-muted-foreground">Verificando status do seu email...</p>
+                <Progress value={50} className="w-full" aria-label="Verificando status do email" />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground text-center">
+                  Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
+                </p>
+                <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend}>
+                  {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
+                  Reenviar Email de Verificação
+                </Button>
+                <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingResend}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Já Verifiquei, Tentar Acessar
+                </Button>
+                <Button variant="link" asChild className="text-sm w-full">
+                    <a onClick={handleGoToLogin} className="cursor-pointer">
+                       Fazer login com outra conta
+                    </a>
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
          <CardFooter className="p-4 border-t bg-muted">
@@ -169,7 +173,6 @@ export default function VerifyEmailNoticePage() {
     <Suspense fallback={
       <div className={cn(
           "flex justify-center items-center h-screen overflow-hidden",
-          // Cannot use useIsMobile here directly for initial fallback styling
           "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900" 
         )}>
           <LoadingSpinner size="lg"/>
@@ -179,5 +182,3 @@ export default function VerifyEmailNoticePage() {
     </Suspense>
   );
 }
-
-    
