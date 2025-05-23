@@ -19,7 +19,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } 
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus as UserPlusIcon, Lock } from "lucide-react"; // Aliased UserPlus to avoid conflict
+import { Eye, EyeOff, UserPlus as UserPlusIcon, Lock } from "lucide-react";
 import type { UserProfile, UserWallet } from "@/types";
 
 const formSchema = z.object({
@@ -67,6 +67,7 @@ export default function SignupForm() {
 
       await updateProfile(user, {
         displayName: derivedProfileName,
+        // photoURL: null, // Default photoURL can be set here or later
       });
 
       const userAccountDocRef = doc(db, "accounts", user.uid);
@@ -75,37 +76,43 @@ export default function SignupForm() {
         email: user.email,
         profileName: derivedProfileName,
         displayName: derivedProfileName,
-        photoURL: user.photoURL,
-        showId: "", 
-        kakoLiveId: "",
-        kakoLiveRoomId: null,
-        role: null, 
+        photoURL: user.photoURL, // Use photoURL from Firebase Auth if available (e.g., if they signed up with Google then email/pass)
+        showId: "",
+        kakoLiveId: "", // FUID from Kako
+        role: null,
         adminLevel: null,
-        isVerified: false, 
+        isVerified: false, // Email verification will be pending
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
         followingCount: 0,
         followingIds: [],
-        level: 1,
+        // level: 1, // Level should come from linked KakoProfile
         bio: "",
         photos: [],
         socialLinks: {},
         themePreference: 'system',
-        accentColor: '#4285F4', 
-        hasCompletedOnboarding: false, 
+        accentColor: '#4285F4',
+        hasCompletedOnboarding: false,
         agreedToTermsAt: null,
         birthDate: null,
         country: null,
         gender: null,
         phoneNumber: null,
-        currentDiamondBalance: 10000,
+        currentDiamondBalance: 10000, // Award initial diamonds
+        isBanned: false,
+        banReason: null,
+        bannedBy: null,
+        bannedAt: null,
+        hostStatus: null,
       };
       await setDoc(userAccountDocRef, newUserProfile);
 
+      // Create user wallet with initial diamond balance
       const userWalletDocRef = doc(db, "userWallets", user.uid);
       const newUserWallet: UserWallet = {
-        kakoId: "", 
+        // id will be user.uid
+        kakoId: "", // Will be populated if linked later
         diamonds: 10000,
         lastUpdatedAt: serverTimestamp(),
       };
@@ -116,16 +123,16 @@ export default function SignupForm() {
       toast({
         title: "Cadastro Realizado!",
         description: "Enviamos um link de verificação para o seu email. Por favor, clique no link para ativar sua conta e depois faça o login.",
-        duration: 9000, 
+        duration: 9000,
       });
-      router.push(`/login?email=${encodeURIComponent(user.email || "")}`); 
+      router.push(`/login?email=${encodeURIComponent(user.email || "")}`);
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Este endereço de email já está em uso. Por favor, tente outro.";
-      } else {
-        errorMessage = error.message || errorMessage;
+      } else if (error.code) {
+        errorMessage = error.message;
       }
       toast({
         title: "Falha no Cadastro",
@@ -223,3 +230,5 @@ export default function SignupForm() {
     </Form>
   );
 }
+
+    
