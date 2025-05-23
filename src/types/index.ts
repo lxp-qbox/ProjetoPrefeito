@@ -111,6 +111,7 @@ export interface UserProfile {
   country?: string | null;
   phoneNumber?: string | null;
   foundUsVia?: string | null; 
+  referralCode?: string | null; // Added referral code
 
   isBanned?: boolean;
   banReason?: string | null;
@@ -133,6 +134,7 @@ export interface UserProfile {
   createdAt?: any; 
   updatedAt?: any; 
   currentDiamondBalance?: number;
+  isPremiumVerified?: boolean;
 }
 
 export interface KakoProfile {
@@ -158,7 +160,7 @@ export interface KakoGift {
   imageUrl: string | null;
   storagePath?: string | null;
   diamond?: number | null;
-  category?: string | null; 
+  category?: string | null;
   display?: boolean; 
   createdAt?: any;
   updatedAt?: any;
@@ -405,5 +407,3 @@ export interface WebSocketConfig {
   webSocketUrlList?: string[] | null;
   primaryWebSocketUrl?: string | null;
 }
-
-    

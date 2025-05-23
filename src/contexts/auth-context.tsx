@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let userProfileData: UserProfile;
 
       if (userAccountDocSnap.exists()) {
-        const firestoreData = userAccountDocSnap.data() as Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL' | 'currentDiamondBalance'>;
+        const firestoreData = userAccountDocSnap.data() as Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL' >;
         userProfileData = { 
           uid: firebaseUser.uid, 
           email: firebaseUser.email,
@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isVerified: firebaseUser.emailVerified,
           ...firestoreData,
           adminLevel: firestoreData.adminLevel || null,
-          currentDiamondBalance: firestoreData.currentDiamondBalance || 0, // Default to 0 from Firestore if not set
-          level: firestoreData.level, // Will be overridden by KakoProfile if linked
+          currentDiamondBalance: firestoreData.currentDiamondBalance || 0,
+          referralCode: firestoreData.referralCode || null, // Ensure referralCode is loaded
         };
         
         userProfileData.profileName = firestoreData.profileName || userProfileData.displayName || deriveProfileNameFromEmail(firebaseUser.email!);
@@ -75,9 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: firebaseUser.photoURL,
           role: null,
           adminLevel: null,
-          showId: "",
-          kakoLiveId: "",
-          // level: 1, // Level comes from KakoProfile
+          showId: "", 
+          kakoLiveId: "", 
+          level: 1, 
           isVerified: firebaseUser.emailVerified,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -87,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           country: null,
           gender: null,
           phoneNumber: null,
-          currentDiamondBalance: 10000, // Award 10k for brand new account
+          foundUsVia: null,
+          referralCode: null, // Initialize referralCode
+          currentDiamondBalance: 10000, 
           hostStatus: null,
           bio: "",
           followerCount: 0,
@@ -101,24 +103,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           banReason: null,
           bannedBy: null,
           bannedAt: null,
+          isPremiumVerified: false,
         };
         try {
           await setDoc(userAccountDocRef, userProfileData);
-          // Also create wallet with 10k bonus if new account doc is created
           const walletDocRef = doc(db, "userWallets", firebaseUser.uid);
           const newUserWallet: UserWallet = {
-            kakoId: "", // Will be updated if linked
+            kakoId: "", 
             diamonds: 10000,
             lastUpdatedAt: serverTimestamp(),
           };
           await setDoc(walletDocRef, newUserWallet);
-          userProfileData.currentDiamondBalance = 10000; // Ensure context has it
+          userProfileData.currentDiamondBalance = 10000;
         } catch (setDocError) {
           console.error("AuthContext: Error creating user account/wallet document in Firestore:", setDocError);
         }
       }
       
-      // Sync isVerified status
       if (userProfileData.isVerified !== firebaseUser.emailVerified) {
           userProfileData.isVerified = firebaseUser.emailVerified;
           try {
@@ -128,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
       }
 
-      // Force 'master' adminLevel if showId is "10933200"
       if (userProfileData.showId === "10933200" && userProfileData.adminLevel !== 'master') {
         console.log(`AuthContext: User ${firebaseUser.uid} has showId 10933200. Ensuring adminLevel is 'master'.`);
         userProfileData.adminLevel = 'master';
@@ -139,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      // Enrich with KakoProfile data if showId is present on the account
       if (userProfileData.showId && userProfileData.showId.trim() !== "") {
         try {
           const kakoProfilesRef = collection(db, "kakoProfiles");
@@ -153,34 +152,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             userProfileData.profileName = kakoData.nickname || userProfileData.profileName;
             userProfileData.photoURL = kakoData.avatarUrl || userProfileData.photoURL;
             userProfileData.level = kakoData.level;
-            // If user's account.kakoLiveId (FUID) is empty or different, update it from kakoProfiles.id
-            if (userProfileData.kakoLiveId !== kakoProfileDoc.id) {
-              userProfileData.kakoLiveId = kakoProfileDoc.id; 
-              // Potentially update this in the 'accounts' doc if desired for sync
-              // await updateDoc(userAccountDocRef, { kakoLiveId: kakoProfileDoc.id });
-            }
+            userProfileData.kakoLiveId = kakoProfileDoc.id; 
           } else {
-            // No KakoProfile found for this showId, ensure level is default or from accounts doc
-             userProfileData.level = (userAccountDocSnap.exists() ? userAccountDocSnap.data().level : undefined) || 1;
+            userProfileData.level = userProfileData.level || 1; 
           }
         } catch (kakoError) {
           console.error("AuthContext: Error fetching KakoProfile based on showId:", kakoError);
-          userProfileData.level = (userAccountDocSnap.exists() ? userAccountDocSnap.data().level : undefined) || 1;
+          userProfileData.level = userProfileData.level || 1;
         }
       } else {
-         // No showId on account, ensure level is default or from accounts doc
-         userProfileData.level = (userAccountDocSnap.exists() ? userAccountDocSnap.data().level : undefined) || 1;
+         userProfileData.level = userProfileData.level || 1;
       }
-
-      // Fetch Wallet Balance if not already set (e.g., for existing users)
-      if (userProfileData.currentDiamondBalance === undefined || userProfileData.currentDiamondBalance === 0 && !userAccountDocSnap.exists()) {
+      
+      if (userProfileData.currentDiamondBalance === undefined || (userProfileData.currentDiamondBalance === 0 && !userAccountDocSnap.exists())) {
         try {
           const walletDocRef = doc(db, "userWallets", firebaseUser.uid); 
           const walletDocSnap = await getDoc(walletDocRef);
           if (walletDocSnap.exists()) {
             userProfileData.currentDiamondBalance = (walletDocSnap.data() as UserWallet).diamonds || 0;
-          } else if (!userAccountDocSnap.exists()){ // Only create wallet if account was also new
-             // This case handled above for brand new accounts
+          } else if (!userAccountDocSnap.exists()){ 
+            // Already handled above by setting to 10000
           } else {
              userProfileData.currentDiamondBalance = 0;
           }
@@ -207,7 +198,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await firebaseSignOut(auth);
-      // setCurrentUser(null); // Handled by onAuthStateChanged
     } catch (error) {
       console.error("Error during logout:", error);
     }
@@ -215,10 +205,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUserProfile = useCallback(async () => {
     if (auth.currentUser) {
-      setLoading(true); // Indicate loading during refresh
-      await auth.currentUser.reload(); // Reload Firebase Auth user state
-      await fetchAndSetUserProfile(auth.currentUser); // Re-fetch Firestore profile
-      // setLoading(false); // fetchAndSetUserProfile will set loading to false
+      setLoading(true);
+      await auth.currentUser.reload();
+      await fetchAndSetUserProfile(auth.currentUser);
     }
   }, [fetchAndSetUserProfile]);
 
@@ -231,5 +220,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-    

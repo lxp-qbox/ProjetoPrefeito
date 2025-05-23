@@ -67,7 +67,6 @@ export default function SignupForm() {
 
       await updateProfile(user, {
         displayName: derivedProfileName,
-        // photoURL: null, // Default photoURL can be set here or later
       });
 
       const userAccountDocRef = doc(db, "accounts", user.uid);
@@ -76,18 +75,17 @@ export default function SignupForm() {
         email: user.email,
         profileName: derivedProfileName,
         displayName: derivedProfileName,
-        photoURL: user.photoURL, // Use photoURL from Firebase Auth if available (e.g., if they signed up with Google then email/pass)
+        photoURL: user.photoURL,
         showId: "",
-        kakoLiveId: "", // FUID from Kako
+        kakoLiveId: "",
         role: null,
         adminLevel: null,
-        isVerified: false, // Email verification will be pending
+        isVerified: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
         followingCount: 0,
         followingIds: [],
-        // level: 1, // Level should come from linked KakoProfile
         bio: "",
         photos: [],
         socialLinks: {},
@@ -99,7 +97,9 @@ export default function SignupForm() {
         country: null,
         gender: null,
         phoneNumber: null,
-        currentDiamondBalance: 10000, // Award initial diamonds
+        foundUsVia: null,
+        referralCode: null, // Initialize referralCode
+        currentDiamondBalance: 10000,
         isBanned: false,
         banReason: null,
         bannedBy: null,
@@ -108,11 +108,9 @@ export default function SignupForm() {
       };
       await setDoc(userAccountDocRef, newUserProfile);
 
-      // Create user wallet with initial diamond balance
       const userWalletDocRef = doc(db, "userWallets", user.uid);
       const newUserWallet: UserWallet = {
-        // id will be user.uid
-        kakoId: "", // Will be populated if linked later
+        kakoId: "", 
         diamonds: 10000,
         lastUpdatedAt: serverTimestamp(),
       };
@@ -125,7 +123,7 @@ export default function SignupForm() {
         description: "Enviamos um link de verificação para o seu email. Por favor, clique no link para ativar sua conta e depois faça o login.",
         duration: 9000,
       });
-      router.push(`/login?email=${encodeURIComponent(user.email || "")}`);
+      router.push(`/auth/verify-email-notice?email=${encodeURIComponent(user.email || "")}`);
     } catch (error: any) {
       console.error("Erro no cadastro:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
@@ -230,5 +228,3 @@ export default function SignupForm() {
     </Form>
   );
 }
-
-    

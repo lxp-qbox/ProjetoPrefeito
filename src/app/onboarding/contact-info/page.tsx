@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Phone, HelpCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Phone, HelpCircle, CheckCircle, ArrowLeft, Gift } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +23,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import type { UserProfile } from "@/types";
+import { FormDescription } from "@/components/ui/form";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
@@ -44,6 +45,7 @@ const formatPhoneNumberForDisplay = (value: string): string => {
 export default function ContactInfoPage() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [foundUsVia, setFoundUsVia] = useState<string>("");
+  const [referralCode, setReferralCode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
@@ -54,6 +56,7 @@ export default function ContactInfoPage() {
     if (currentUser) {
       setPhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
       setFoundUsVia(currentUser.foundUsVia || "");
+      setReferralCode(currentUser.referralCode || "");
     }
   }, [currentUser]);
 
@@ -71,6 +74,7 @@ export default function ContactInfoPage() {
       toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
       return;
     }
+    // Referral code is optional, no validation needed here for emptiness
 
     setIsLoading(true);
     try {
@@ -78,6 +82,7 @@ export default function ContactInfoPage() {
       const dataToUpdate: Partial<UserProfile> = {
         phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
         foundUsVia: foundUsVia,
+        referralCode: referralCode.trim() || null, // Save as null if empty
         updatedAt: serverTimestamp(),
       };
 
@@ -94,7 +99,8 @@ export default function ContactInfoPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        router.push("/onboarding/kako-account-check"); // Fallback
+        // Fallback if role somehow isn't set, though previous steps should ensure it.
+        router.push("/onboarding/kako-account-check"); 
       }
 
     } catch (error) {
@@ -132,12 +138,12 @@ export default function ContactInfoPage() {
             </Link>
         </Button>
        <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
           <Phone className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl font-bold">Informações de Contato</CardTitle>
         <CardDescription>
-         Ajude-nos a manter contato<br />e entender como você nos conheceu.
+         Ajude-nos a manter contato e<br />entender como você nos conheceu.
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -167,7 +173,7 @@ export default function ContactInfoPage() {
               value={foundUsVia}
               onValueChange={(value) => setFoundUsVia(value)}
             >
-              <SelectTrigger id="found-us-via-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+              <SelectTrigger id="found-us-via-select" className="w-full h-12">
                 <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Selecione uma opção" />
               </SelectTrigger>
@@ -177,14 +183,34 @@ export default function ContactInfoPage() {
                 <SelectItem value="tiktok">TikTok</SelectItem>
                 <SelectItem value="nimotv">Nimo TV</SelectItem>
                 <SelectItem value="youtube">Youtube</SelectItem>
+                <SelectItem value="twitch">Twitch</SelectItem>
                 <SelectItem value="outro">Outro</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label htmlFor="referral-code" className="text-sm font-medium mb-1 block text-left">
+              Código de Indicação (Opcional)
+            </Label>
+            <div className="relative">
+                <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="referral-code"
+                    type="text"
+                    placeholder="Insira o código se tiver um"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    className="pl-10 h-12"
+                />
+            </div>
+            <FormDescription className="text-xs text-muted-foreground mt-1">
+              Se você foi indicado por alguém, insira o código aqui.
+            </FormDescription>
+          </div>
         </div>
         <Button
           onClick={handleContinue}
-          className="w-full mt-auto" 
+          className="w-full mt-4" 
           disabled={!phoneNumber.trim() || !foundUsVia || isLoading}
         >
           {isLoading ? (
@@ -201,5 +227,3 @@ export default function ContactInfoPage() {
     </>
   );
 }
-
-    
