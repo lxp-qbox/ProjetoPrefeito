@@ -70,8 +70,9 @@ function VerifyEmailNoticeContent() {
         let userProfile: UserProfile | null = null;
         if (userDocSnap.exists()) {
           userProfile = { uid: auth.currentUser.uid, ...userDocSnap.data() } as UserProfile;
-          if (!userProfile.isVerified) {
+          if (!userProfile.isVerified) { // Sync with Firestore if needed
             await updateDoc(userDocRef, { isVerified: true, updatedAt: serverTimestamp() });
+            userProfile.isVerified = true; // Update local copy
           }
         }
         
@@ -86,10 +87,10 @@ function VerifyEmailNoticeContent() {
               router.replace("/onboarding/kako-id-input");
             } else if (userProfile.role === 'player') {
               router.replace("/onboarding/kako-account-check");
-            } else {
+            } else { // Should not happen if role is set
               router.replace("/profile"); 
             }
-        } else if (userProfile) {
+        } else if (userProfile) { // All onboarding complete
           router.replace("/profile");
         } else { // Fallback if profile somehow doesn't exist after verification
            router.replace("/onboarding/terms");
@@ -113,19 +114,9 @@ function VerifyEmailNoticeContent() {
     router.push("/login");
   };
 
-
   if (authLoading && !appUser && !emailForDisplay) { 
-    return (
-      <div className={cn(
-        "flex justify-center items-center h-screen overflow-hidden",
-        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-        isMobile && "bg-white p-0" 
-      )}>
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" />; // Simplified loading for content part
   }
-
 
   return (
     <>
@@ -179,21 +170,23 @@ function VerifyEmailNoticeContent() {
 
 export default function VerifyEmailNoticePage() {
   const isMobile = useIsMobile();
-  // The outer Card with aspect ratio and full-screen behavior is handled by src/app/onboarding/layout.tsx
-  // This page only needs to return the content that goes inside that card.
+  
   return (
-    <Suspense fallback={
-      <div className={cn(
-          "flex justify-center items-center h-screen overflow-hidden",
-           !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
-           isMobile && "bg-white p-0" 
-        )}>
-          <LoadingSpinner size="lg"/>
-        </div>
-    }>
-      <VerifyEmailNoticeContent />
-    </Suspense>
+    <div className={cn(
+      "flex justify-center items-center h-screen overflow-hidden",
+      !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+      isMobile && "bg-white p-0" 
+    )}>
+      <Card className={cn(
+        "w-full max-w-md flex flex-col overflow-hidden",
+        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
+        isMobile && "h-full shadow-none rounded-none"
+      )}>
+        <Suspense fallback={<div className="flex-grow flex justify-center items-center"><LoadingSpinner size="lg"/></div>}>
+          <VerifyEmailNoticeContent />
+        </Suspense>
+      </Card>
+    </div>
   );
 }
 
-    
