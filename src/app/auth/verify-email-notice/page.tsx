@@ -1,0 +1,188 @@
+
+"use client";
+
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { MailCheck, ArrowLeft, RotateCw, CheckCircle, UserPlus } from "lucide-react"; // MailCheck for verified state
+import { useAuth } from "@/hooks/use-auth";
+import { auth } from "@/lib/firebase"; 
+import { sendEmailVerification } from "firebase/auth"; // Only sendEmailVerification from firebase/auth
+import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import type { UserProfile } from "@/types";
+import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+
+const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+
+
+function VerifyEmailNoticeContent() {
+  const [isLoadingResend, setIsLoadingResend] = useState(false);
+  const [isLoadingCheck, setIsLoadingCheck] = useState(false);
+  const searchParams = useSearchParams();
+  const emailForDisplay = searchParams.get("email");
+  const router = useRouter();
+  const { toast } = useToast();
+  const { currentUser: appUser, loading: authLoading, logout } = useAuth();
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    // If user is already verified and somehow lands here, redirect them
+    if (auth.currentUser && auth.currentUser.emailVerified && appUser) {
+      toast({ title: "Email já verificado!", description: "Prosseguindo com o onboarding..." });
+      // Re-use the redirection logic from login form
+      if (!appUser.agreedToTermsAt) router.push("/onboarding/terms");
+      else if (!appUser.role) router.push("/onboarding/role-selection");
+      // ... add other onboarding steps from loginForm's handleRedirect
+      else router.push("/profile");
+    }
+  }, [appUser, router, toast]);
+
+  const handleResendVerificationEmail = async () => {
+    if (!auth.currentUser) {
+      toast({ title: "Erro", description: "Nenhum usuário logado para reenviar verificação.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingResend(true);
+    try {
+      await sendEmailVerification(auth.currentUser);
+      toast({ title: "Email Reenviado", description: "Um novo link de verificação foi enviado para seu email." });
+    } catch (error: any) {
+      console.error("Erro ao reenviar email:", error);
+      toast({ title: "Falha ao Reenviar", description: error.message || "Não foi possível reenviar o email.", variant: "destructive" });
+    } finally {
+      setIsLoadingResend(false);
+    }
+  };
+
+  const handleCheckVerificationStatus = async () => {
+    if (!auth.currentUser) {
+      toast({ title: "Erro", description: "Nenhum usuário logado para verificar.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingCheck(true);
+    try {
+      await auth.currentUser.reload(); // Reloads the Firebase Auth user state
+      if (auth.currentUser.emailVerified) {
+        toast({ title: "Email Verificado!", description: "Seu email foi verificado com sucesso. Prosseguindo..." });
+        
+        // After successful verification, trigger the same redirection logic as login
+        if (appUser) {
+            if (!appUser.agreedToTermsAt) router.push("/onboarding/terms");
+            else if (!appUser.role) router.push("/onboarding/role-selection");
+            else if (!appUser.birthDate || !appUser.gender || !appUser.country || !appUser.phoneNumber) router.push("/onboarding/age-verification");
+            else if (appUser.hasCompletedOnboarding === false || typeof appUser.hasCompletedOnboarding === 'undefined') {
+                if (appUser.role === 'host') router.push("/onboarding/kako-id-input");
+                else if (appUser.role === 'player') router.push("/onboarding/kako-account-check");
+                else router.push("/profile");
+            } else {
+                router.push("/profile");
+            }
+        } else {
+            // If appUser (from context) is not yet updated, try logging in again
+            // or simply redirect to login to re-trigger the flow with updated auth state.
+            router.push("/login");
+        }
+
+      } else {
+        toast({ title: "Email Ainda Não Verificado", description: "Por favor, clique no link enviado para seu email ou tente reenviar.", variant: "default" });
+      }
+    } catch (error: any) {
+      console.error("Erro ao verificar status:", error);
+      toast({ title: "Falha na Verificação", description: error.message || "Não foi possível verificar o status do email.", variant: "destructive" });
+    } finally {
+      setIsLoadingCheck(false);
+    }
+  };
+  
+  const handleGoToLogin = async () => {
+    await logout(); // Log out the technically signed-in but unverified user
+    router.push("/login");
+  };
+
+
+  if (authLoading) {
+    return (
+      <div className={cn(
+        "flex justify-center items-center h-screen overflow-hidden",
+        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+        isMobile && "bg-white p-0"
+      )}>
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+
+  return (
+    <div className={cn(
+        "flex justify-center items-center h-screen overflow-hidden",
+        !isMobile && "p-4 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900",
+        isMobile && "bg-white p-0"
+      )}>
+      <Card className={cn(
+        "w-full max-w-md flex flex-col overflow-hidden",
+        !isMobile && "shadow-xl max-h-[calc(100%-2rem)] aspect-[9/16]",
+        isMobile && "h-full shadow-none rounded-none"
+      )}>
+        <button
+            onClick={handleGoToLogin}
+            className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors flex items-center justify-center"
+            title="Voltar para Login"
+        >
+            <ArrowLeft className="h-8 w-8" />
+            <span className="sr-only">Voltar para Login</span>
+        </button>
+        <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto mt-8">
+            <MailCheck className="h-8 w-8 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Verifique seu Email</CardTitle>
+          <CardDescription>
+            Enviamos um link de ativação para {emailForDisplay || "seu email"}.<br />
+            Clique no link para ativar sua conta.
+          </CardDescription>
+        </CardHeader>
+        <Separator className="my-6" />
+        <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col justify-center overflow-y-auto">
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Se não encontrar o email, verifique sua pasta de spam ou clique abaixo para reenviar.
+            </p>
+            <Button onClick={handleResendVerificationEmail} className="w-full h-12" disabled={isLoadingResend || isLoadingCheck}>
+              {isLoadingResend ? <LoadingSpinner size="sm" className="mr-2" /> : <RotateCw className="mr-2 h-4 w-4" />}
+              Reenviar Email de Verificação
+            </Button>
+            <Button onClick={handleCheckVerificationStatus} variant="outline" className="w-full h-12" disabled={isLoadingCheck || isLoadingResend}>
+              {isLoadingCheck ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Já Verifiquei, Tentar Acessar
+            </Button>
+            <Button variant="link" asChild className="text-sm">
+                {/* This link might be confusing. Better to direct to login to attempt retry. */}
+                <a onClick={() => router.push("/signup")} className="cursor-pointer">
+                   Usar Outro Email (Novo Cadastro)
+                </a>
+            </Button>
+          </div>
+        </CardContent>
+         <CardFooter className="p-4 border-t bg-muted">
+            <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+
+export default function VerifyEmailNoticePage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><LoadingSpinner size="lg"/></div>}>
+      <VerifyEmailNoticeContent />
+    </Suspense>
+  );
+}

@@ -16,9 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, reload } from "firebase/auth"; // Added reload
 import { auth, GoogleAuthProvider, db, doc, getDoc } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, ArrowRight, User, Lock } from "lucide-react";
@@ -43,6 +43,7 @@ const formSchema = z.object({
 export default function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -56,18 +57,28 @@ export default function LoginForm() {
     },
   });
 
-  const handleRedirect = async (userId: string, userEmail?: string | null) => {
+  const handleRedirect = async (userId: string, userEmail?: string | null, isGoogleSignIn: boolean = false) => {
     try {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) { // Should not happen if userId is present, but a good check
+        router.replace("/login");
+        return;
+      }
+      
+      // For Google Sign-In, email is implicitly verified.
+      // For email/password, we need to check emailVerified status.
+      // If it's an email/password sign-in and email isn't verified, redirect to notice page.
+      if (!isGoogleSignIn && !firebaseUser.emailVerified) {
+        router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(userEmail || firebaseUser.email || "")}`);
+        return;
+      }
+
       const userDocRef = doc(db, "accounts", userId);
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         
-        if (userProfile.isVerified === false) {
-          router.replace(`/onboarding/verify-email-code?email=${encodeURIComponent(userEmail || userProfile.email || "")}`);
-          return;
-        }
         if (!userProfile.agreedToTermsAt) {
           router.replace("/onboarding/terms");
         } else if (!userProfile.role) {
@@ -86,6 +97,10 @@ export default function LoginForm() {
           router.replace("/profile");
         }
       } else {
+        // This case implies a new user signed up with Google or email but Firestore doc creation failed or is pending.
+        // Typically, for Google, the doc is created in AuthProvider.
+        // For email, it's created during signup.
+        // Fallback to terms as the first step if doc doesn't exist (which implies incomplete initial setup).
         router.replace("/onboarding/terms"); 
       }
     } catch (error) {
@@ -99,11 +114,25 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      await userCredential.user.reload(); // Reload to get the latest emailVerified status
+      
+      if (!userCredential.user.emailVerified) {
+        toast({
+          title: "Email Não Verificado",
+          description: "Por favor, verifique seu email antes de fazer login.",
+          variant: "destructive",
+          duration: 7000,
+        });
+        router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(values.email)}`);
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Login Bem-sucedido",
         description: "Bem-vindo(a) de volta!",
       });
-      await handleRedirect(userCredential.user.uid, userCredential.user.email);
+      await handleRedirect(userCredential.user.uid, userCredential.user.email, false);
     } catch (error: any) {
       console.error("Email/Password login error:", error);
       let errorMessage = "Ocorreu um erro inesperado. Por favor, tente novamente.";
@@ -111,8 +140,17 @@ export default function LoginForm() {
         errorMessage = "Email ou senha inválidos.";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "Esta conta foi desabilitada.";
       } else {
-        errorMessage = error.message || errorMessage;
+        // Check for specific unverified email error if Firebase doesn't block it directly
+        // This might be redundant if signInWithEmailAndPassword itself errors for unverified emails based on project settings
+        if (error.message && error.message.includes("EMAIL_NOT_VERIFIED")) {
+           errorMessage = "Por favor, verifique seu email antes de fazer login.";
+           router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(values.email)}`);
+        } else {
+          errorMessage = error.message || errorMessage;
+        }
       }
       toast({
         title: "Falha no Login",
@@ -129,11 +167,12 @@ export default function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       const userCredential = await signInWithPopup(auth, provider);
+      // Google Sign-In automatically verifies email
       toast({
         title: "Login com Google Bem-sucedido",
         description: "Bem-vindo(a)!",
       });
-      await handleRedirect(userCredential.user.uid, userCredential.user.email); 
+      await handleRedirect(userCredential.user.uid, userCredential.user.email, true); 
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       toast({
@@ -182,7 +221,7 @@ export default function LoginForm() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent hover:text-primary"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}

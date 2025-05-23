@@ -35,7 +35,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userAccountDocRef = doc(db, "accounts", firebaseUser.uid);
-        const userAccountDocSnap = await getDoc(userAccountDocRef);
+        let userAccountDocSnap;
+        
+        try {
+          userAccountDocSnap = await getDoc(userAccountDocRef);
+        } catch (error) {
+          console.error("AuthContext: Error fetching user account document from Firestore:", error);
+          setCurrentUser(null); // Or handle as a partial profile if critical data is missing
+          setLoading(false);
+          return;
+        }
+
         let userProfileData: UserProfile;
 
         if (userAccountDocSnap.exists()) {
@@ -43,61 +53,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userProfileData = { 
             uid: firebaseUser.uid, 
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            ...firestoreData,
-            isVerified: firestoreData.isVerified === undefined ? (firebaseUser.providerData.some(p => p.providerId === "google.com")) : firestoreData.isVerified, // Default to true if Google, else use Firestore or false
+            displayName: firebaseUser.displayName, // From Firebase Auth
+            photoURL: firebaseUser.photoURL,     // From Firebase Auth
+            isVerified: firebaseUser.emailVerified, // Source of truth from Firebase Auth
+            ...firestoreData, // Spread Firestore data, which might have its own profileName, photoURL, etc.
             adminLevel: firestoreData.adminLevel || null,
-            level: firestoreData.level || 1,
-            currentDiamondBalance: 0,
+            level: firestoreData.level || 1, // Default level
+            currentDiamondBalance: 0, // Initialize, will be fetched next
           };
-          
+
+          // Ensure profileName and photoURL have fallbacks if not in Firestore
+          userProfileData.profileName = firestoreData.profileName || userProfileData.displayName || deriveProfileNameFromEmail(firebaseUser.email!);
+          userProfileData.photoURL = firestoreData.photoURL || userProfileData.photoURL;
+
+
+          // Special handling for Master Admin based on showId
           if (userProfileData.showId === "10933200" && userProfileData.adminLevel !== 'master') {
-            console.log(`AuthContext: User ${firebaseUser.uid} has showId 10933200. Setting adminLevel to master.`);
+            console.log(`AuthContext: User ${firebaseUser.uid} has showId 10933200. Setting/Confirming adminLevel to master.`);
             userProfileData.adminLevel = 'master';
             try {
               await updateDoc(userAccountDocRef, { adminLevel: 'master', updatedAt: serverTimestamp() });
             } catch (err) {
               console.error("AuthContext: Error updating adminLevel for master user in Firestore:", err);
             }
-          } else if (userProfileData.showId !== "10933200" && userProfileData.adminLevel === 'master') {
-            // Optional: Demote if showId is no longer the master ID but adminLevel is still master
-            // console.log(`AuthContext: User ${firebaseUser.uid} no longer has master showId but adminLevel is master. Demoting.`);
-            // userProfileData.adminLevel = null; // Or their previous non-master level
-            // await updateDoc(userAccountDocRef, { adminLevel: null, updatedAt: serverTimestamp() });
           }
-
+          
+          // Enrich with KakoProfile data if showId is present
           if (userProfileData.showId && userProfileData.showId.trim() !== "") {
-            const kakoProfilesRef = collection(db, "kakoProfiles");
-            const q = query(kakoProfilesRef, where("showId", "==", userProfileData.showId));
-            const kakoProfileQuerySnap = await getDocs(q);
+            try {
+              const kakoProfilesRef = collection(db, "kakoProfiles");
+              const q = query(kakoProfilesRef, where("showId", "==", userProfileData.showId));
+              const kakoProfileQuerySnap = await getDocs(q);
 
-            if (!kakoProfileQuerySnap.empty) {
-              const kakoProfileDoc = kakoProfileQuerySnap.docs[0];
-              const kakoData = kakoProfileDoc.data() as KakoProfile;
-              userProfileData.profileName = kakoData.nickname || userProfileData.profileName;
-              userProfileData.photoURL = kakoData.avatarUrl || userProfileData.photoURL;
-              userProfileData.level = kakoData.level || userProfileData.level;
-              userProfileData.kakoLiveId = kakoProfileDoc.id; 
+              if (!kakoProfileQuerySnap.empty) {
+                const kakoProfileDoc = kakoProfileQuerySnap.docs[0];
+                const kakoData = kakoProfileDoc.data() as KakoProfile;
+                userProfileData.profileName = kakoData.nickname || userProfileData.profileName; // Prefer Kako nickname
+                userProfileData.photoURL = kakoData.avatarUrl || userProfileData.photoURL;   // Prefer Kako avatar
+                userProfileData.level = kakoData.level || userProfileData.level;             // Prefer Kako level
+                userProfileData.kakoLiveId = kakoProfileDoc.id; // Store FUID
+              }
+            } catch (kakoError) {
+              console.error("AuthContext: Error fetching KakoProfile:", kakoError);
             }
           }
-           userProfileData.profileName = userProfileData.profileName || deriveProfileNameFromEmail(firebaseUser.email!);
 
 
-        } else {
+        } else { // New user or Firestore document doesn't exist
           const derivedProfileName = deriveProfileNameFromEmail(firebaseUser.email!);
           userProfileData = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             profileName: derivedProfileName,
             displayName: firebaseUser.displayName || derivedProfileName,
-            photoURL: firebaseUser.photoURL || null,
-            role: null, // Role is set during onboarding
+            photoURL: firebaseUser.photoURL,
+            role: null, 
             adminLevel: null,
             showId: "", 
             kakoLiveId: "", 
             level: 1,
-            isVerified: firebaseUser.providerData.some(p => p.providerId === "google.com"), // Verified if Google Sign-In
+            isVerified: firebaseUser.emailVerified, // Set from Firebase Auth
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             hasCompletedOnboarding: false, 
@@ -106,22 +121,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             country: null,
             gender: null,
             phoneNumber: null,
-            bio: "",
-            followerCount:0,
-            followingCount:0,
+            followerCount: 0,
+            followingCount: 0,
             followingIds: [],
+            bio: "",
             photos: [],
-            socialLinks: null,
+            socialLinks: {},
             themePreference: 'system',
             accentColor: '#4285F4',
             currentDiamondBalance: 0,
           };
-           if (userProfileData.showId === "10933200") { // Check for master ID on new profile (less likely here unless showId is pre-populated)
+           // Check for Master Admin ID on new profile creation
+          if (userProfileData.showId === "10933200") { // Though showId would be empty here unless populated by some other means
             userProfileData.adminLevel = 'master';
           }
-          await setDoc(userAccountDocRef, userProfileData);
+          try {
+            await setDoc(userAccountDocRef, userProfileData);
+          } catch (setDocError) {
+            console.error("AuthContext: Error creating user account document in Firestore:", setDocError);
+            // Handle error - maybe log out user or show error
+          }
         }
 
+        // Sync Firestore isVerified if it's different from Firebase Auth's emailVerified
+        if (userProfileData.isVerified !== firebaseUser.emailVerified) {
+            console.log(`AuthContext: Syncing isVerified for ${firebaseUser.uid}. Firebase Auth: ${firebaseUser.emailVerified}, Firestore was: ${userProfileData.isVerified}`);
+            userProfileData.isVerified = firebaseUser.emailVerified;
+            try {
+                await updateDoc(userAccountDocRef, { isVerified: firebaseUser.emailVerified, updatedAt: serverTimestamp() });
+            } catch (err) {
+                console.error("AuthContext: Error updating isVerified in Firestore:", err);
+            }
+        }
+
+        // Fetch Wallet Balance
         try {
           const walletDocRef = doc(db, "userWallets", firebaseUser.uid); 
           const walletDocSnap = await getDoc(walletDocRef);
@@ -131,12 +164,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             userProfileData.currentDiamondBalance = 0; 
           }
         } catch (walletError) {
-          console.error("Error fetching user wallet:", walletError);
-          userProfileData.currentDiamondBalance = 0;
+          console.error("AuthContext: Error fetching user wallet:", walletError);
+          userProfileData.currentDiamondBalance = 0; // Default to 0 on error
         }
         setCurrentUser(userProfileData);
 
-      } else {
+      } else { // No Firebase user
         setCurrentUser(null);
       }
       setLoading(false);
@@ -145,10 +178,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
-    await firebaseSignOut(auth);
-    setCurrentUser(null);
-    // Optionally redirect to login page after logout
-    // window.location.href = '/login'; 
+    try {
+      await firebaseSignOut(auth);
+      setCurrentUser(null); // Clear user on logout
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Optionally show a toast to the user
+    }
   };
 
   const value = {

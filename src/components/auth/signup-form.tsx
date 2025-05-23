@@ -18,7 +18,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } 
 import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus, Lock } from "lucide-react"; // Added Lock here
+import { Eye, EyeOff, UserPlus, Lock } from "lucide-react";
 import type { UserProfile } from "@/types";
 
 const formSchema = z.object({
@@ -65,10 +65,9 @@ export default function SignupForm() {
 
       await updateProfile(user, {
         displayName: derivedProfileName,
-        // photoURL: user.photoURL // Preserve any photoURL from Google/etc. if applicable, or set default
       });
 
-      const userDocRef = doc(db, "accounts", user.uid); // Using "accounts" collection
+      const userDocRef = doc(db, "accounts", user.uid);
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
@@ -79,11 +78,12 @@ export default function SignupForm() {
         kakoLiveId: "",
         role: null,
         adminLevel: null,
-        isVerified: false, // User is NOT verified by email code yet
+        isVerified: false, // Initially false, user needs to verify via link
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
         followingCount: 0,
+        followingIds: [],
         level: 1,
         bio: "",
         photos: [],
@@ -103,8 +103,8 @@ export default function SignupForm() {
 
       toast({
         title: "Cadastro Realizado!",
-        description: "Enviamos um email de verificação. Por favor, verifique sua caixa de entrada para ativar sua conta e depois faça o login.",
-        duration: 7000, 
+        description: "Enviamos um link de verificação para o seu email. Por favor, clique no link para ativar sua conta e depois faça o login.",
+        duration: 9000, 
       });
       router.push(`/login?email=${encodeURIComponent(user.email || "")}`); 
     } catch (error: any) {
