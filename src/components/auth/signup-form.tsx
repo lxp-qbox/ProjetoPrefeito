@@ -19,7 +19,7 @@ import { auth, db, doc, setDoc, serverTimestamp } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff, UserPlus, Lock } from "lucide-react";
-import type { UserProfile } from "@/types";
+import type { UserProfile, UserWallet } from "@/types";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Endereço de email inválido." }),
@@ -47,6 +47,7 @@ export default function SignupForm() {
   });
 
   function deriveProfileNameFromEmail(email: string): string {
+    if (!email) return "Usuário";
     const atIndex = email.indexOf('@');
     if (atIndex !== -1) {
       let profileName = email.substring(0, atIndex);
@@ -67,7 +68,7 @@ export default function SignupForm() {
         displayName: derivedProfileName,
       });
 
-      const userDocRef = doc(db, "accounts", user.uid);
+      const userAccountDocRef = doc(db, "accounts", user.uid);
       const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
@@ -76,9 +77,10 @@ export default function SignupForm() {
         photoURL: user.photoURL,
         showId: "", 
         kakoLiveId: "",
-        role: null,
+        kakoLiveRoomId: null,
+        role: null, 
         adminLevel: null,
-        isVerified: false, // Initially false, user needs to verify via link
+        isVerified: false, 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         followerCount: 0,
@@ -90,14 +92,25 @@ export default function SignupForm() {
         socialLinks: {},
         themePreference: 'system',
         accentColor: '#4285F4', 
-        hasCompletedOnboarding: false,
+        hasCompletedOnboarding: false, 
         agreedToTermsAt: null,
         birthDate: null,
         country: null,
         gender: null,
         phoneNumber: null,
+        currentDiamondBalance: 10000, // Initialize with 10k
       };
-      await setDoc(userDocRef, newUserProfile);
+      await setDoc(userAccountDocRef, newUserProfile);
+
+      // Create user wallet with initial 10,000 diamonds
+      const userWalletDocRef = doc(db, "userWallets", user.uid);
+      const newUserWallet: UserWallet = {
+        kakoId: "", // Will be populated later if user links their Kako account
+        diamonds: 10000,
+        lastUpdatedAt: serverTimestamp(),
+      };
+      await setDoc(userWalletDocRef, newUserWallet);
+
 
       await sendEmailVerification(user);
 
@@ -208,3 +221,5 @@ export default function SignupForm() {
     </Form>
   );
 }
+
+  

@@ -8,6 +8,7 @@ export interface Game {
 
   prizeType?: 'kako_virtual' | 'cash' | 'other' | null;
   prizeKakoVirtualId?: string | null; // ID of the selected BingoPrize document
+  prizeKakoVirtualName?: string | null; // Denormalized name for display
   prizeCashAmount?: number | null;
   prizeDescription: string;
 
@@ -50,7 +51,7 @@ export interface SupportTicket {
   createdAt: Date;
 }
 
-export interface ReceivedGift { // Used in Host placeholder data
+export interface ReceivedGift {
   id: string;
   name: string;
   iconUrl: string;
@@ -58,8 +59,8 @@ export interface ReceivedGift { // Used in Host placeholder data
   dataAiHint?: string | null;
 }
 
-export interface Host { // This type is primarily for the placeholder data in /app/hosts/page.tsx
-  id: string; // App-specific ID for the placeholder list
+export interface Host { 
+  id: string; 
   rankPosition: number;
   name: string;
   avatarUrl: string;
@@ -72,8 +73,8 @@ export interface Host { // This type is primarily for the placeholder data in /a
   followersGained: number;
   totalFollowers: string;
   totalViews: string;
-  kakoLiveFuid?: string | null; // Actual FUID from Kako
-  kakoLiveRoomId?: string | null; // Actual RoomID from Kako
+  kakoLiveFuid?: string | null; 
+  kakoLiveRoomId?: string | null; 
   bio?: string | null;
   streamTitle?: string | null;
   likes?: number | null;
@@ -84,37 +85,37 @@ export interface Host { // This type is primarily for the placeholder data in /a
   totalDonationsValue?: number | null;
 }
 
-export interface UserProfile { // For 'accounts' Firestore collection
-  uid: string; // Firebase Auth UID
+export interface UserProfile { 
+  uid: string; 
   email?: string | null;
   role?: 'player' | 'host' | null;
   adminLevel?: 'master' | 'admin' | 'suporte' | null;
 
-  showId?: string | null; // User-facing Kako Show ID
-  kakoLiveId?: string | null; // Technical FUID from Kako (linked KakoProfile.id)
-  kakoLiveRoomId?: string | null; // If host has a specific room for their main stream
+  showId?: string | null; 
+  kakoLiveId?: string | null; 
+  kakoLiveRoomId?: string | null; 
 
-  profileName?: string | null; // App's display name, potentially synced from KakoProfile.nickname
-  displayName?: string | null; // Firebase Auth display name
-  photoURL?: string | null;    // Firebase Auth photoURL, potentially synced from KakoProfile.avatarUrl
-  level?: number | null;       // User's level, potentially synced from KakoProfile.level
+  profileName?: string | null; 
+  displayName?: string | null; 
+  photoURL?: string | null;    
+  level?: number | null;       
 
   hostStatus?: 'approved' | 'pending_review' | 'banned' | null;
 
   bio?: string | null;
-  isVerified?: boolean; // Reflects firebaseUser.emailVerified
+  isVerified?: boolean; 
   followerCount?: number;
   followingCount?: number;
   followingIds?: string[];
   photos?: string[];
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay' | null;
-  birthDate?: string | null; // YYYY-MM-DD
+  birthDate?: string | null; 
   country?: string | null;
   phoneNumber?: string | null;
   isBanned?: boolean;
   banReason?: string | null;
   bannedBy?: string | null;
-  bannedAt?: any | null; // Firestore Timestamp
+  bannedAt?: any | null; 
   socialLinks?: {
     twitter?: string | null;
     instagram?: string | null;
@@ -125,87 +126,85 @@ export interface UserProfile { // For 'accounts' Firestore collection
   themePreference?: 'light' | 'dark' | 'system' | null;
   accentColor?: string | null; 
   hasCompletedOnboarding?: boolean; 
-  agreedToTermsAt?: any | null; // Firestore Timestamp
-  createdAt?: any | null; // Firestore Timestamp
-  updatedAt?: any | null; // Firestore Timestamp
+  agreedToTermsAt?: any | null; 
+  createdAt?: any | null; 
+  updatedAt?: any | null; 
   currentDiamondBalance?: number; 
 }
 
-export interface KakoProfile { // For 'kakoProfiles' Firestore collection
-  id: string; // FUID - This is the document ID in 'kakoProfiles' Firestore collection
+export interface KakoProfile { 
+  id: string; 
   numId?: number | null;
   nickname: string;
-  avatarUrl: string; // Mapped from Kako's 'avatar' field
+  avatarUrl: string; 
   level?: number | null;
   signature?: string | null;
-  gender?: number | null; // 1 for male, 2 for female
+  gender?: number | null; 
   area?: string | null;
   school?: string | null;
-  showId: string; // User-facing searchable ID from Kako
+  showId?: string; 
   isLiving?: boolean | null;
-  roomId?: string | null; // If this profile is currently live in a room
-  lastFetchedAt?: any | null; // Firestore Timestamp
+  roomId?: string | null; 
+  lastFetchedAt?: any | null; 
 }
 
-export interface KakoGift { // For 'kakoGifts' Firestore collection
-  id: string; // Gift ID from Kako, used as document ID
+export interface KakoGift { 
+  id: string; 
   name: string;
   imageUrl: string | null;
-  storagePath?: string | null; // If uploaded by admin
+  storagePath?: string | null; 
   diamond?: number | null;
-  category?: string | null; // e.g., Sorte, Exclusivo, Interação, Fã-Clube
-  display?: boolean; // If it should be generally available/shown
+  category?: string | null; 
+  display?: boolean; 
   createdAt?: any;
   updatedAt?: any;
   dataAiHint?: string | null;
 }
 
-export interface BingoPrize { // For 'bingoPrizes' Firestore collection
-  id?: string; // Firestore auto-generated ID
+export interface BingoPrize { 
+  id?: string; 
   name: string;
   type: 'kako_virtual' | 'cash' | 'other';
   imageUrl?: string | null;
-  storagePath?: string | null; // If image uploaded via admin panel
-  kakoGiftId?: string | null; // If type is kako_virtual, references ID in KakoGift
-  valueDisplay?: string | null; // e.g., "R$ 100,00" or "Coroa Kako"
+  imageStoragePath?: string | null;
+  kakoGiftId?: string | null; 
+  valueDisplay?: string | null; 
   description?: string | null;
   isActive: boolean;
   quantityAvailable?: number | null;
   createdAt: any;
   updatedAt: any;
-  createdBy?: string | null; // UID of admin who created it
+  createdBy?: string | null; 
 }
 
 
 export interface FirestoreConversation {
-  id?: string; // Firestore document ID
-  participants: string[]; // Array of user UIDs
+  id?: string; 
+  participants: string[]; 
   participantInfo: { 
-    [uid: string]: { // Denormalized info for quick display
+    [uid: string]: { 
       name?: string | null;
       avatar?: string | null;
     }
   };
   lastMessageText?: string | null;
-  lastMessageTimestamp?: any | null; // Firestore Server Timestamp
+  lastMessageTimestamp?: any | null; 
   lastMessageSenderId?: string | null;
-  unreadCounts?: { [uid: string]: number }; // uid: count
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
+  unreadCounts?: { [uid: string]: number }; 
+  createdAt: any; 
+  updatedAt: any; 
 }
 
 export interface FirestoreMessage {
-  id?: string; // Firestore document ID
   senderId: string; 
   text: string;     
-  timestamp: any; // Firestore Server Timestamp   
+  timestamp: any;   
   imageUrl?: string | null; 
-  // readBy?: string[]; // For group chats later
 }
 
-export interface ConversationPreview { // For UI display
-  id: string; // Firestore document ID of the conversation
-  userId: string; // The OTHER user's UID in a 1-on-1 chat
+export interface ConversationPreview { 
+  id: string; 
+  userId: string; 
   userName: string;
   userAvatar?: string | null;
   lastMessage: string;
@@ -215,26 +214,26 @@ export interface ConversationPreview { // For UI display
   isPinned?: boolean;
 }
 
-export interface AppMessage { // For UI display
-  id?: string; // Firestore document ID of the message
+export interface AppMessage { 
+  id?: string; 
   conversationId: string;
   senderId: string;
   senderName: string;
   senderAvatar?: string | null;
   text: string;
-  timestamp: any; // Can be Date object or string for display
+  timestamp: any; 
   imageUrl?: string | null;
   isCurrentUser?: boolean;
   status?: 'sent' | 'delivered' | 'read' | null;
 }
 
 export interface FeedPost {
-  id?: string; // Firestore document ID
-  userId?: string; // UID of the author from 'accounts' collection
+  id?: string; 
+  userId?: string; 
   user: UserSummary; 
   postTitle?: string | null;
   content: string;
-  timestamp: any; // Firestore Timestamp or Date for display
+  timestamp: any; 
   imageUrl?: string | null;
   imageAiHint?: string | null;
   imageStoragePath?: string | null; 
@@ -245,39 +244,39 @@ export interface FeedPost {
   };
 }
 
-export interface UserSummary { // Denormalized user info for posts/comments
+export interface UserSummary { 
   name: string;
-  handle?: string; // User's handle or role
+  handle?: string; 
   avatarUrl?: string | null; 
   dataAiHint?: string | null;
 }
 
-export interface Trend { // For "What's Happening" widget
+export interface Trend { 
   id: string;
   category?: string | null;
   topic: string;
-  posts?: string | null; // e.g., "18.8K posts"
+  posts?: string | null; 
   icon?: React.ElementType;
 }
 
-export interface SuggestedUser { // For "Who to Follow" widget
-  id: string; // User UID
+export interface SuggestedUser { 
+  id: string; 
   name: string;
-  handle: string; // Can be description or actual handle
+  handle: string; 
   avatarUrl: string | null; 
   dataAiHint?: string | null;
 }
 
-export interface BanEntry { // For admin banishment list
-  id: string; // Firestore document ID
-  userId: string; // UID of the banned user
+export interface BanEntry { 
+  id: string; 
+  userId: string; 
   userName?: string | null;
   userAvatar?: string | null;
   reason: string;
-  bannedByUid: string; // UID of the admin who banned
+  bannedByUid: string; 
   bannedByName?: string | null;
-  bannedAt: any; // Firestore Timestamp
-  expiresAt?: any | null; // Firestore Timestamp
+  bannedAt: any; 
+  expiresAt?: any | null; 
 }
 
 export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
@@ -293,74 +292,75 @@ export interface SiteModule {
 }
 
 export interface CardUsageInstance {
-  userId: string; // UID of the player using the card
+  userId: string; 
   gameId: string;
-  timestamp: any; // Firestore Timestamp
+  timestamp: any; 
   isWinner?: boolean;
 }
 
 export interface AwardInstance {
   gameId: string;
-  userId: string; // UID of the winner
-  timestamp: any; // Firestore Timestamp
+  userId: string; 
+  timestamp: any; 
 }
 
 export interface GeneratedBingoCard {
-  id: string; // Firestore document ID
+  id: string; 
   cardNumbers: (number | null)[][];
-  creatorId: string; // UID of user who generated it, or "system"
-  createdAt: any; // Firestore Timestamp
+  creatorId: string; 
+  createdAt: any; 
   usageHistory: CardUsageInstance[];
   timesAwarded: number;
   awardsHistory: AwardInstance[];
 }
 
+
 export interface BingoBallLocutorAudio {
   audioUrl: string;
   audioStoragePath: string;
   fileName: string;
-  uploadedAt: any; // Firestore Timestamp
+  uploadedAt: any; 
 }
 export interface BingoBallSetting {
-  ballNumber: number; // Used as document ID in Firestore (as string)
+  ballNumber: number; 
   imageUrl?: string | null;
   imageStoragePath?: string | null;
   locutorAudios?: {
-    [locutorId: string]: BingoBallLocutorAudio; // e.g., "Padrão", "José"
+    [locutorId: string]: BingoBallLocutorAudio; 
   } | null;
-  lastUpdatedAt?: any | null; // Firestore Timestamp
+  lastUpdatedAt?: any | null; 
 }
 
-export interface AudioSetting { // For game event audios and interaction audios
-  id: string; // Firestore document ID (e.g., 'audioInicioPartida' or auto-ID for interaction)
+export interface AudioSetting { 
+  id: string; 
   type: 'gameEvent' | 'interaction';
-  eventName?: string | null; // For gameEvent: 'Início da Partida', etc.
-  displayName: string; // User-friendly name
+  eventName?: string | null; 
+  displayName: string; 
   audioUrl?: string | null;
   fileName?: string | null;
-  storagePath?: string | null; // Path in Firebase Storage
-  uploadedAt?: any | null; // Firestore Timestamp
-  keyword?: string | null; // For interaction audios
-  associatedGiftId?: string | null; // For interaction audios, links to BingoPrize.id
-  associatedGiftName?: string | null; // Denormalized for display
-  createdBy?: string | null; // UID of admin
+  storagePath?: string | null; 
+  uploadedAt?: any | null; 
+  keyword?: string | null; 
+  associatedGiftId?: string | null; 
+  associatedGiftName?: string | null; 
+  createdBy?: string | null; 
 }
 
 export interface BingoRoomSetting {
-  id?: string; // Firestore document ID
-  roomId: string; // Kako Live Room ID
+  id?: string; 
+  roomId: string; 
   description?: string | null;
   isActive: boolean;
-  addedBy?: string | null; // UID of admin who added it
-  addedAt?: any | null; // Firestore Timestamp
-  lastCheckedAt?: any | null; // Firestore Timestamp, for when data was last pulled or connection attempted
+  addedBy?: string | null; 
+  addedAt?: any | null; 
+  lastCheckedAt?: any | null; 
 }
 
 export interface UserWallet {
-  id?: string; // Firestore document ID (typically user UID)
-  kakoId: string; // User's Kako FUID or Show ID - needs consistent usage
+  id?: string; // Firestore document ID (should be user UID)
+  kakoId?: string | null; // User's Kako FUID or Show ID - for reference. Can be empty initially.
   diamonds: number;
-  lastUpdatedAt?: any | null; // Firestore Timestamp
+  lastUpdatedAt?: any | null; 
 }
 
 export interface WalletConfig {
@@ -369,47 +369,49 @@ export interface WalletConfig {
   enableDonationsToHostWalletsForLinkedRooms?: boolean;
 }
 
-export interface ChatMessage { // For host stream page chat UI
-  id: string; // Unique ID for the message (server ID or client-generated)
-  user: string; // Sender's name
+export interface ChatMessage { 
+  id: string; 
+  user: string; 
   avatar?: string | null;
   userMedalUrl?: string | null;
   message: string;
-  timestamp: string; // Formatted time string for display
-  rawData?: string | null; // Original WebSocket message string
-  displayFormatted: boolean; // Whether to show the formatted message or just raw data placeholder
-  gender?: number | null; // 1 for male, 2 for female
+  timestamp: string; 
+  rawData?: string | null; 
+  displayFormatted: boolean; 
+  gender?: number | null; 
 }
 
-// For WebSocket Link Tester
 export interface ParsedUserData {
   nickname?: string;
   avatarUrl?: string | null;
   level?: number;
   showId?: string;
-  userId?: string; // FUID
+  userId?: string; 
   gender?: number;
 }
 
-export interface LogEntry { // For WebSocket Link Tester page & global WS logs
+export interface LogEntry { 
   id: string;
   timestamp: string;
-  type: 'received' | 'sent' | 'system' | 'error';
-  message: string; // Formatted message for display
-  originalData?: string; // Raw string from WS
-  parsedData?: Record<string, any>; // Parsed JSON object
+  type: 'received' | 'sent' | 'system' | 'error' | 'info' | 'warning';
+  message: string; 
+  originalData?: string; 
+  parsedData?: Record<string, any>; 
   isJson: boolean;
-  classification?: string; // e.g., "Dados da Sala", "Mensagem de Chat"
+  classification?: string; 
   parsedUserData?: ParsedUserData;
-  giftInfo?: {
+  giftInfo?: { 
     senderNickname?: string;
     senderUserId?: string;
     giftId?: string;
     giftCount?: number;
-    isDonationToHost?: boolean;
+    isDonationToHost?: boolean; 
   };
 }
 
-export interface WebSocketConfig { // For app_settings/live_data_config
+export interface WebSocketConfig { 
   webSocketUrlList?: string[] | null;
+  primaryWebSocketUrl?: string | null; // Added to store the active URL
 }
+
+  
