@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, CheckCircle, User, UserRound } from "lucide-react";
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, User, UserRound, HelpCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -35,25 +35,45 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
-const onboardingStepLabels = ["Verificar Email", "Termos", "Função", "Dados", "Vínculo ID"];
+const onboardingStepLabels = ["Termos", "Função", "Dados", "Vínculo ID"];
 
 const formatPhoneNumberForDisplay = (value: string): string => {
-  if (!value.trim()) return "";
+  if (!value.trim()) return ""; 
+
   const originalStartsWithPlus = value.charAt(0) === '+';
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
+  
   digitsOnly = digitsOnly.slice(0, 13);
   const len = digitsOnly.length;
-  if (len === 0) return originalStartsWithPlus ? "+" : "";
-  let formatted = "+";
-  if (len <= 2) formatted += digitsOnly;
-  else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  else if (len <= 9) { // Handles up to 5 digits for local part prefix
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  } else { // Handles the rest, allowing for 9-digit local numbers like +55 (19) 91234-5678
-    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
+
+  if (len === 0) {
+    return originalStartsWithPlus ? "+" : ""; 
+  }
+
+  let formatted = "+"; 
+
+  if (len <= 2) { 
+    formatted += digitsOnly;
+  } else if (len <= 4) { 
+    formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
+  } else { 
+    const countryCode = digitsOnly.slice(0, 2);
+    const areaCode = digitsOnly.slice(2, 4);
+    const localPart = digitsOnly.slice(4);
+    
+    formatted += `${countryCode} (${areaCode}) `;
+
+    if (localPart.length <= 4) { 
+      formatted += localPart;
+    } else if (localPart.length <= 8) { 
+      formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
+    } else { 
+      formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
+    }
   }
   return formatted;
 };
+
 
 export default function AgeVerificationPage() {
   const [username, setUsername] = useState<string>("");
@@ -61,6 +81,7 @@ export default function AgeVerificationPage() {
   const [selectedGender, setSelectedGender] = useState<UserProfile['gender'] | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [foundUsVia, setFoundUsVia] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -74,6 +95,7 @@ export default function AgeVerificationPage() {
       setSelectedCountry(currentUser.country || "Brasil");
       setSelectedGender(currentUser.gender || undefined);
       setPhoneNumber(formatPhoneNumberForDisplay(currentUser.phoneNumber || ""));
+      setFoundUsVia(currentUser.foundUsVia || "");
       if (currentUser.birthDate) {
         try {
           let parsedDate: Date | null = null;
@@ -149,6 +171,10 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, informe seu número de celular.", variant: "destructive" });
       return;
     }
+    if (!foundUsVia) {
+      toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
+      return;
+    }
 
     const age = calculateAge(selectedDate);
     if (age < 18) {
@@ -167,6 +193,7 @@ export default function AgeVerificationPage() {
         gender: selectedGender,
         birthDate: format(selectedDate, "yyyy-MM-dd"),
         phoneNumber: phoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
+        foundUsVia: foundUsVia,
         updatedAt: serverTimestamp(),
       };
 
@@ -183,6 +210,7 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
+        // Fallback if role isn't set, though it should be by this point
         router.push("/profile"); 
       }
 
@@ -222,7 +250,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preencha seu nome de usuário, sexo<br />e as informações abaixo
+          Para prosseguir, preencha<br />as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -264,7 +292,6 @@ export default function AgeVerificationPage() {
                 <UserRound className="mr-2 h-5 w-5" /> Feminino
               </Button>
             </div>
-             <p className="text-xs text-muted-foreground mt-1">A seleção de 'Outro' ou 'Prefiro não dizer' pode ser feita na página de perfil.</p>
           </div>
 
           <div>
@@ -326,36 +353,73 @@ export default function AgeVerificationPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
-              Celular (WhatsApp)
-            </Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="phone-number"
-                    type="tel"
-                    placeholder="+55 (00) 00000-0000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
-                    className="pl-10 h-12"
-                />
-            </div>
-          </div>
-          {showUnderageAlert && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Idade Insuficiente</AlertTitle>
-              <AlertDescription>
-                Você precisa ter pelo menos 18 anos para usar nossos serviços.
-              </AlertDescription>
-            </Alert>
-          )}
+          
+          {/* Contact Info Card */}
+          <Card className="mt-6 shadow-sm border-border/50">
+            <CardHeader className="pb-3 pt-4">
+              <CardTitle className="text-base font-semibold flex items-center">
+                <Phone className="mr-2 h-5 w-5 text-primary" />
+                Informações de Contato
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-2 pb-4">
+              <div>
+                <Label htmlFor="phone-number" className="text-sm font-medium mb-1 block text-left">
+                  Celular (WhatsApp)
+                </Label>
+                <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="phone-number"
+                        type="tel"
+                        placeholder="+55 (00) 00000-0000"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
+                        className="pl-10 h-12"
+                    />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="found-us-via-select" className="text-sm font-medium mb-1 block text-left">
+                  Onde nos encontrou?
+                </Label>
+                <Select
+                  value={foundUsVia}
+                  onValueChange={(value) => setFoundUsVia(value)}
+                >
+                  <SelectTrigger id="found-us-via-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Selecione uma opção" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="kakolive">Kako Live</SelectItem>
+                    <SelectItem value="kwai">Kwai</SelectItem>
+                    <SelectItem value="nimotv">Nimo TV</SelectItem>
+                    <SelectItem value="twitch">Twitch</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-         <Button
+
+        {showUnderageAlert && (
+          <Alert variant="destructive" className="mt-4 max-w-xs mx-auto">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Idade Insuficiente</AlertTitle>
+            <AlertDescription>
+              Você precisa ter pelo menos 18 anos para usar nossos serviços.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Button
           onClick={handleContinue}
-          className="w-full mt-4" 
-          disabled={!username.trim() || !selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || isLoading}
+          className="w-full mt-auto" 
+          disabled={!username.trim() || !selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || !foundUsVia || isLoading}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />
@@ -366,9 +430,8 @@ export default function AgeVerificationPage() {
         </Button>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
-        <OnboardingStepper steps={onboardingStepLabels} currentStep={4} />
+        <OnboardingStepper steps={onboardingStepLabels} currentStep={3} />
       </CardFooter>
     </>
   );
 }
-

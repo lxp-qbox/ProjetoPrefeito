@@ -91,12 +91,12 @@ export interface UserProfile {
   adminLevel?: 'master' | 'admin' | 'suporte' | null;
 
   showId?: string; 
-  kakoLiveId?: string; 
+  kakoLiveId?: string; // FUID from Kako
 
   profileName?: string | null;
   displayName?: string | null; 
   photoURL?: string | null; 
-  level?: number; 
+  level?: number; // This will be populated from linked KakoProfile
 
   hostStatus?: 'approved' | 'pending_review' | 'banned' | null;
 
@@ -107,9 +107,10 @@ export interface UserProfile {
   followingIds?: string[];
   photos?: string[];
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay' | null;
-  birthDate?: string | Date | null; // Stored as "yyyy-MM-dd" in Firestore, can be Date in JS
+  birthDate?: string | Date | null; 
   country?: string | null;
   phoneNumber?: string | null;
+  foundUsVia?: string | null; // Added for where user found the app
 
   isBanned?: boolean;
   banReason?: string | null;
@@ -135,19 +136,20 @@ export interface UserProfile {
 }
 
 export interface KakoProfile {
-  id: string; 
+  id: string; // This is the FUID (technical userId from Kako), and it's the Firestore document ID
   numId?: number | null;
   nickname: string;
-  avatarUrl: string | null; 
+  avatarUrl: string | null; // Mapped from Kako's 'avatar' field
   level?: number | null;
   signature?: string | null;
-  gender?: number | null; 
+  gender?: number | null; // Kako might use 1 for male, 2 for female
   area?: string | null;
   school?: string | null;
-  showId: string; 
+  showId: string; // This is the user-facing, searchable ID from Kako
   isLiving?: boolean | null;
   roomId?: string | null;
   lastFetchedAt?: any | null; 
+  createdAt?: any;
 }
 
 export interface KakoGift {
@@ -182,19 +184,19 @@ export interface BingoPrize {
 
 export interface FirestoreConversation {
   id?: string; 
-  participants: string[]; 
-  participantInfo: {
+  participants: string[]; // Array of UIDs
+  participantInfo: { // Denormalized info for quick display
     [uid: string]: {
       name?: string | null;
-      avatar?: string | null;
+      avatar?: string | null; // photoURL from UserProfile
     }
   };
   lastMessageText?: string | null;
-  lastMessageTimestamp?: any | null; 
+  lastMessageTimestamp?: any | null; // Firestore Server Timestamp
   lastMessageSenderId?: string | null;
-  unreadCounts?: { [uid: string]: number };
-  createdAt: any; 
-  updatedAt: any; 
+  unreadCounts?: { [uid: string]: number }; // e.g., { uid1: 0, uid2: 3 }
+  createdAt: any; // Firestore Server Timestamp
+  updatedAt: any; // Firestore Server Timestamp
 }
 
 export interface AppMessage {
@@ -204,16 +206,22 @@ export interface AppMessage {
   senderName: string;
   senderAvatar?: string | null;
   text: string;
-  timestamp: any; 
+  timestamp: any; // Firestore Server Timestamp or JS Date
   imageUrl?: string | null;
   isCurrentUser?: boolean;
   status?: 'sent' | 'delivered' | 'read' | null;
 }
+export interface FirestoreMessage {
+  senderId: string; 
+  text: string;     
+  timestamp: any;   
+  imageUrl?: string; 
+}
 
 export interface FeedPost {
-  id: string;
+  id: string; 
   userId?: string; 
-  user: UserSummary;
+  user: UserSummary; 
   postTitle?: string | null;
   content: string;
   timestamp: any; 
@@ -229,7 +237,7 @@ export interface FeedPost {
 
 export interface UserSummary {
   name: string;
-  handle?: string;
+  handle?: string; // e.g. @username or Role like "UI/UX Designer"
   avatarUrl?: string | null;
   dataAiHint?: string;
 }
@@ -245,7 +253,7 @@ export interface Trend {
 export interface SuggestedUser {
   id: string;
   name: string;
-  handle: string;
+  handle: string; // User's @handle or description
   avatarUrl: string | null;
   dataAiHint?: string;
 }
@@ -340,7 +348,7 @@ export interface BingoRoomSetting {
 }
 
 export interface UserWallet {
-  id?: string; 
+  id?: string; // Typically user.uid
   kakoId?: string | null; 
   diamonds: number;
   lastUpdatedAt?: any | null;
@@ -364,15 +372,6 @@ export interface ChatMessage {
   gender?: number | null; 
 }
 
-export interface ParsedUserData {
-  nickname?: string;
-  avatarUrl?: string | null; 
-  level?: number;
-  showId?: string;
-  userId?: string; 
-  gender?: number;
-}
-
 export interface LogEntry {
   id: string;
   timestamp: string;
@@ -392,8 +391,16 @@ export interface LogEntry {
   };
 }
 
+export interface ParsedUserData {
+  nickname?: string;
+  avatarUrl?: string | null; 
+  level?: number;
+  showId?: string;
+  userId?: string; // FUID
+  gender?: number;
+}
+
 export interface WebSocketConfig {
   webSocketUrlList?: string[] | null;
   primaryWebSocketUrl?: string | null;
 }
-
