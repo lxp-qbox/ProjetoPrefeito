@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { UserProfile } from "@/types";
 import { countries } from "@/lib/countries";
-import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, User, UserRound, HelpCircle } from "lucide-react";
+import { CalendarDays, UserCheck, ArrowLeft, AlertTriangle, Phone, Globe, User, UserRound, HelpCircle, CheckCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -163,7 +163,7 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione sua data de nascimento.", variant: "destructive" });
       return;
     }
-    if (!selectedCountry) {
+     if (!selectedCountry) {
       toast({ title: "Atenção", description: "Por favor, selecione seu país.", variant: "destructive" });
       return;
     }
@@ -175,6 +175,7 @@ export default function AgeVerificationPage() {
       toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
       return;
     }
+
 
     const age = calculateAge(selectedDate);
     if (age < 18) {
@@ -210,7 +211,6 @@ export default function AgeVerificationPage() {
       } else if (currentUser.role === 'player') {
         router.push("/onboarding/kako-account-check");
       } else {
-        // Fallback if role isn't set, though it should be by this point
         router.push("/profile"); 
       }
 
@@ -250,7 +250,7 @@ export default function AgeVerificationPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Informações Básicas</CardTitle>
         <CardDescription>
-          Para prosseguir, preencha<br />as informacoes abaixo
+         Para prosseguir, preencha<br />as informacoes abaixo
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
@@ -304,7 +304,7 @@ export default function AgeVerificationPage() {
                   id="birthdate-picker"
                   variant={"outline"}
                   className={cn(
-                    "w-full justify-start text-left font-normal h-12 focus-visible:ring-0 focus-visible:ring-offset-0",
+                    "w-full justify-start text-left font-normal h-12",
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
@@ -340,7 +340,7 @@ export default function AgeVerificationPage() {
               value={selectedCountry}
               onValueChange={(value) => setSelectedCountry(value)}
             >
-              <SelectTrigger id="country-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+              <SelectTrigger id="country-select" className="w-full h-12">
                  <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                 <SelectValue placeholder="Selecione seu país" />
               </SelectTrigger>
@@ -353,9 +353,10 @@ export default function AgeVerificationPage() {
               </SelectContent>
             </Select>
           </div>
-          
-          {/* Contact Info Card */}
-          <Card className="mt-6 shadow-sm border-border/50">
+
+        </div>
+
+        <Card className="mt-6 shadow-sm border-border/50">
             <CardHeader className="pb-3 pt-4">
               <CardTitle className="text-base font-semibold flex items-center">
                 <Phone className="mr-2 h-5 w-5 text-primary" />
@@ -372,7 +373,7 @@ export default function AgeVerificationPage() {
                     <Input
                         id="phone-number"
                         type="tel"
-                        placeholder="+55 (00) 00000-0000"
+                        placeholder="+00 (00) 0000-0000"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                         className="pl-10 h-12"
@@ -387,7 +388,7 @@ export default function AgeVerificationPage() {
                   value={foundUsVia}
                   onValueChange={(value) => setFoundUsVia(value)}
                 >
-                  <SelectTrigger id="found-us-via-select" className="w-full h-12 focus-visible:ring-0 focus-visible:ring-offset-0">
+                  <SelectTrigger id="found-us-via-select" className="w-full h-12">
                     <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Selecione uma opção" />
                   </SelectTrigger>
@@ -404,7 +405,7 @@ export default function AgeVerificationPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+
 
         {showUnderageAlert && (
           <Alert variant="destructive" className="mt-4 max-w-xs mx-auto">
@@ -418,7 +419,7 @@ export default function AgeVerificationPage() {
 
         <Button
           onClick={handleContinue}
-          className="w-full mt-auto" 
+          className="w-full mt-4" 
           disabled={!username.trim() || !selectedCountry || !selectedGender || !selectedDate || !phoneNumber.trim() || !foundUsVia || isLoading}
         >
           {isLoading ? (
