@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -8,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import type { KakoProfile, KakoGift, UserProfile } from "@/types";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { useToast } from "@/hooks/use-toast";
-import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from "@/lib/firebase";
+import { useAuth } from '@/hooks/use-auth'; // Added import
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp, collection, query, where, getDocs } from "@/lib/firebase";
 import { PlugZap, WifiOff, Info, Save, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -29,7 +31,7 @@ const generateUniqueId = () => {
 export default function AdminKakoLiveUpdateDataChatPageContent() {
   const { toast } = useToast();
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const { currentUser } = useAuth(); // Assuming useAuth is available
+  const { currentUser } = useAuth(); 
 
   const [wsUrlInput, setWsUrlInput] = useState<string>(DEFAULT_WS_URL);
   const [savedWsUrl, setSavedWsUrl] = useState<string>("");
@@ -60,12 +62,12 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
           addLog(`URL do WebSocket carregada: ${url}`, "info");
         } else {
           addLog(`Nenhuma URL do WebSocket configurada. Usando padrão: ${DEFAULT_WS_URL}`, "info");
-          setWsUrlInput(DEFAULT_WS_URL); // Set to default if not found
+          setWsUrlInput(DEFAULT_WS_URL); 
         }
       } catch (error) {
         console.error("Erro ao carregar URL do WebSocket:", error);
         addLog("Falha ao carregar configuração da URL do WebSocket.", "error");
-        setWsUrlInput(DEFAULT_WS_URL); // Fallback to default on error
+        setWsUrlInput(DEFAULT_WS_URL); 
       } finally {
         setIsLoadingConfig(false);
       }
@@ -86,7 +88,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       const dataToSave: Partial<KakoProfile> & { lastFetchedAt: any } = {
         id: profileData.id,
         nickname: profileData.nickname,
-        avatarUrl: profileData.avatarUrl, // Ensure this maps from 'avatar' if that's the source field name
+        avatarUrl: profileData.avatarUrl, 
         level: profileData.level,
         numId: profileData.numId,
         showId: profileData.showId,
@@ -143,19 +145,23 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
 
     try {
       const docSnap = await getDoc(giftDocRef);
+      const defaultName = `Presente Desconhecido (ID: ${giftId})`;
+      const defaultImageUrl = `https://placehold.co/48x48.png?text=${giftId}`;
+      const defaultDisplay = !!(giftDataSource.name && giftDataSource.imageUrl);
+
       if (!docSnap.exists()) {
         const newGiftToSave: KakoGift = {
           id: giftId,
-          name: giftDataSource.name || `Presente Desconhecido (ID: ${giftId})`,
-          imageUrl: giftDataSource.imageUrl || `https://placehold.co/48x48.png?text=${giftId}`,
+          name: giftDataSource.name || defaultName,
+          imageUrl: giftDataSource.imageUrl || defaultImageUrl,
           diamond: giftDataSource.diamond === undefined ? null : giftDataSource.diamond,
-          display: !!(giftDataSource.name && giftDataSource.imageUrl),
+          display: defaultDisplay,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          dataAiHint: giftDataSource.name ? giftDataSource.name.toLowerCase().split(" ")[0].replace(/[^a-z0-9]/gi, '') : "gift icon"
+          dataAiHint: (giftDataSource.name || defaultName).toLowerCase().split(" ")[0].replace(/[^a-z0-9]/gi, '') || "gift icon"
         };
         await setDoc(giftDocRef, newGiftToSave);
-        addLog(`Novo presente '${newGiftToSave.name}' (ID: ${giftId}) ${newGiftToSave.display ? 'salvo com detalhes.' : 'salvo com info parcial.'}`, newGiftToSave.display ? "success" : "warning");
+        addLog(`Novo presente '${newGiftToSave.name}' ${newGiftToSave.display ? 'salvo com detalhes.' : 'salvo com info parcial.'}`, newGiftToSave.display ? "success" : "warning");
       } else {
         const existingData = docSnap.data() as KakoGift;
         const updates: Partial<KakoGift> = {};
@@ -174,6 +180,12 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
           updates.diamond = giftDataSource.diamond;
           hasChanges = true;
         }
+        // If it's now getting full info and was previously not displayed
+        if (defaultDisplay && existingData.display !== defaultDisplay) {
+            updates.display = defaultDisplay;
+            hasChanges = true;
+        }
+        
         if (hasChanges) {
           updates.updatedAt = serverTimestamp();
           await updateDoc(giftDocRef, updates);
@@ -196,7 +208,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
 
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
         addLog(`Fechando conexão existente com ${socketRef.current.url} para reconectar.`, "info");
-        isManuallyDisconnectingRef.current = true; // Temporarily set to prevent auto-reconnect for this specific action
+        isManuallyDisconnectingRef.current = true; 
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         socketRef.current.onopen = null;
         socketRef.current.onmessage = null;
@@ -283,7 +295,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
         setConnectionStatus("Erro na Conexão");
         setErrorDetails(errorMsg);
         addLog(errorMsg, "error");
-        if (socketRef.current === newSocket) { // Ensure it's the current socket
+        if (socketRef.current === newSocket) { 
             newSocket.onopen = null; newSocket.onmessage = null; newSocket.onerror = null; newSocket.onclose = null;
             if(newSocket.readyState === WebSocket.OPEN || newSocket.readyState === WebSocket.CONNECTING) newSocket.close();
             socketRef.current = null;
@@ -318,7 +330,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       addLog(`Falha ao Conectar WebSocket: ${errMsg}`, "error");
       if(socketRef.current) { socketRef.current.close(); socketRef.current = null; }
     }
-  }, [wsUrlInput, toast, addLog]);
+  }, [wsUrlInput, toast, addLog]); // Removed disconnectManually as it's not directly called in this hook
 
   const disconnectManually = useCallback(() => {
     isManuallyDisconnectingRef.current = true; 
@@ -337,7 +349,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
       setConnectionStatus("Desconectado");
     } else {
       addLog("Nenhuma conexão WebSocket ativa para desconectar.", "info");
-      setConnectionStatus("Desconectado"); // Ensure status is updated even if no active socket
+      setConnectionStatus("Desconectado");
     }
   }, [addLog]);
 
@@ -363,7 +375,6 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     };
 
   useEffect(() => {
-    // No auto-connect on mount, user clicks button
     return () => {
       disconnectManually();
     };
@@ -395,7 +406,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
               </Button>
             </div>
             {isLoadingConfig && <p className="text-xs text-muted-foreground">Carregando URL salva...</p>}
-            {savedWsUrl && <p className="text-xs text-muted-foreground">URL Salva: {savedWsUrl}</p>}
+            {savedWsUrl && <p className="text-xs text-muted-foreground">URL Salva no DB: {savedWsUrl}</p>}
           </div>
 
           <div className="flex items-center gap-2">
@@ -448,7 +459,7 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
                     log.type === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
                     log.type === 'received' ? 'bg-blue-50 border-blue-200 text-blue-700' :
                     log.type === 'sent' ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                    'bg-gray-50 border-gray-200 text-gray-700' // info
+                    'bg-gray-50 border-gray-200 text-gray-700' 
                   }`}>
                     <span className="font-semibold">{log.timestamp}:</span> {log.message}
                     {log.rawData && (
@@ -467,3 +478,4 @@ export default function AdminKakoLiveUpdateDataChatPageContent() {
     </div>
   );
 }
+
