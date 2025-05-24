@@ -1,8 +1,23 @@
 
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Crown, LogIn, LogOut, UserCircle2, Ticket as TicketIcon, LifeBuoy, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard } from "lucide-react";
+import {
+  Crown,
+  LogIn,
+  LogOut,
+  UserCircle2,
+  Ticket as TicketIcon,
+  Bell,
+  Search as SearchIcon,
+  Diamond,
+  Settings,
+  LayoutDashboard,
+  PanelLeft,
+  Maximize,
+  Minimize
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -15,10 +30,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // SidebarTrigger is used directly
-import React, { useState, useEffect } from "react"; 
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formatDiamonds = (amount: number | undefined | null): string => {
   if (amount === undefined || amount === null) return "0";
@@ -35,7 +50,30 @@ const formatDiamonds = (amount: number | undefined | null): string => {
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
-  // isFullscreen and toggleFullscreen are not used in this component currently
+  // useSidebar provides context for both mobile off-canvas and desktop collapsible state
+  const { isMobile: isMobileContext, toggleSidebar } = useSidebar(); 
+  // useIsMobile is a direct window width check, good for UI elements not tied to sidebar's own logic
+  const isMobileForFullscreen = useIsMobile(); 
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreenAPI = () => { // Renamed to avoid conflict if toggleFullscreen was a prop
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -50,13 +88,14 @@ export default function Header() {
     <header className="bg-card sticky top-0 z-40 border-b border-border h-16 flex items-center">
       <div className="px-6 w-full flex justify-between items-center">
         <div className="flex items-center gap-2">
-          {/* Sidebar Trigger for Mobile and Desktop - Use SidebarTrigger directly */}
           <SidebarTrigger
-            className="h-9 w-9 text-muted-foreground hover:text-primary" 
+            className="h-9 w-9 text-muted-foreground hover:text-primary"
             aria-label="Toggle Sidebar"
-          />
+            onClick={toggleSidebar} // Use toggleSidebar from useSidebar context
+          >
+            <PanelLeft className="h-5 w-5"/>
+          </SidebarTrigger>
           
-          {/* Search Input - More prominent on desktop */}
           <div className="relative hidden md:block">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -68,9 +107,6 @@ export default function Header() {
         </div>
 
         <nav className="flex items-center gap-1 md:gap-2">
-          {/* Fullscreen toggle removed as per previous instructions to keep only essential header items */}
-
-          {/* Diamond Balance Display */}
           {currentUser && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-md bg-primary/10 text-primary text-sm font-medium">
               <Diamond className="w-4 h-4 text-yellow-500" />
@@ -78,12 +114,17 @@ export default function Header() {
             </div>
           )}
 
-          {/* Notification Bell */}
+          {isMobileForFullscreen && (
+             <Button variant="ghost" size="icon" onClick={toggleFullscreenAPI} className="text-muted-foreground hover:text-primary h-9 w-9">
+               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+               <span className="sr-only">Tela Cheia</span>
+             </Button>
+           )}
+
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
             <Bell className="w-5 h-5" />
             <span className="sr-only">Notificações</span>
-            {/* Example notification dot */}
-            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" />
+            {currentUser && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" /> }
           </Button>
           
           {loading ? (
@@ -123,7 +164,7 @@ export default function Header() {
                   </Link>
                 </DropdownMenuItem>
                 {currentUser.adminLevel && (
-                  <React.Fragment>
+                  <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/admin">
@@ -137,7 +178,7 @@ export default function Header() {
                         Bingo Admin
                       </Link>
                     </DropdownMenuItem>
-                  </React.Fragment>
+                  </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
