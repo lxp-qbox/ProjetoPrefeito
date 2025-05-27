@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ProtectedPage from "@/components/auth/protected-page";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,18 +17,18 @@ import PostCard from "@/components/feed/post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  LogOut, UserCircle2, Save, Globe, Phone, Diamond, MoreHorizontal, MessageSquare, MapPin, Home as HomeIcon, Clock, Users, Package, Database, ThumbsUp, UserPlus, Settings as SettingsIcon, Check, Clipboard, DatabaseZap, Lock, CreditCard, Info, ChevronRight, Bell, UserCog, XCircle, Link as LinkIconLucide, ServerOff, FileText, Headphones, LayoutDashboard, Star, Share2, CalendarDays as LucideCalendarIcon, BadgeCheck, Fingerprint, Ticket as TicketIcon, RefreshCw
+  LogOut, UserCircle2, Save, Globe, Phone, Diamond, Share2, CalendarDays as LucideCalendarIcon, BadgeCheck, Fingerprint, Clipboard, Settings as SettingsIcon
 } from "lucide-react";
-import NextImage from 'next/image'; // Corrected import
+import NextImage from 'next/image';
 import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 import type { UserProfile, FeedPost } from "@/types";
 import { countries } from "@/lib/countries";
 import { format, parseISO, subYears, isValid, parse, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
-import LoadingSpinner from "@/components/ui/loading-spinner";
 
 const formatPhoneNumberForDisplay = (value: string): string => {
   if (!value.trim()) return "";
@@ -36,12 +36,32 @@ const formatPhoneNumberForDisplay = (value: string): string => {
   let digitsOnly = (originalStartsWithPlus ? value.substring(1) : value).replace(/[^\d]/g, '');
   digitsOnly = digitsOnly.slice(0, 13);
   const len = digitsOnly.length;
-  if (len === 0) return originalStartsWithPlus ? "+" : "";
+
+  if (len === 0) {
+    return originalStartsWithPlus ? "+" : "";
+  }
+
   let formatted = "+";
-  if (len <= 2) formatted += digitsOnly;
-  else if (len <= 4) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2)})`;
-  else if (len <= 9) formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4)}`;
-  else formatted += `${digitsOnly.slice(0, 2)} (${digitsOnly.slice(2, 4)}) ${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
+  const countryCode = digitsOnly.slice(0, 2);
+  const areaCode = digitsOnly.slice(2, 4);
+
+  if (len <= 2) {
+    formatted += digitsOnly;
+  } else if (len <= 4) {
+    formatted += `${countryCode}${areaCode ? ` (${areaCode}` : ''}${len > 2 && len < 4 ? '' : len === 4 ? ')' : ''}`;
+  } else {
+    const localPart = digitsOnly.slice(4);
+    formatted += `${countryCode} (${areaCode}) `;
+    if (countryCode === '55' && localPart.length === 9) {
+      formatted += `${localPart.slice(0, 5)}-${localPart.slice(5)}`;
+    } else if (localPart.length <= 4 && localPart.length > 0) {
+      formatted += localPart;
+    } else if (localPart.length <= 8) {
+      formatted += `${localPart.slice(0, 4)}-${localPart.slice(4)}`;
+    } else {
+       formatted += `${localPart.slice(0,5)}-${localPart.slice(5)}`;
+    }
+  }
   return formatted;
 };
 
@@ -50,14 +70,13 @@ interface ProfileMenuItem {
   title: string;
   icon: React.ElementType;
   link?: string;
-  currentValue?: string;
   action?: () => void;
 }
 
+// This interface is not strictly needed if we don't render group titles, but kept for potential structure
 interface ProfileMenuGroup {
   groupTitle?: string;
   items: ProfileMenuItem[];
-  isBottomSection?: boolean;
 }
 
 
@@ -82,11 +101,15 @@ export default function ProfilePage() {
 
   const placeholderPosts: FeedPost[] = useMemo(() => {
     if (!currentUser) return [];
+    const userName = currentUser.profileName || currentUser.displayName || "Usuário";
+    const userAvatar = currentUser.photoURL || undefined;
+    const userHandleCalculated = `@${(currentUser.email?.split('@')[0] || "usuario").toLowerCase()}`;
+
     return [
     {
       id: "post1-profile",
       userId: currentUser.uid,
-      user: { name: currentUser.profileName || "Usuário", handle: `@${(currentUser.email?.split('@')[0] || "usuario").toLowerCase()}`, avatarUrl: currentUser.photoURL || undefined, dataAiHint: "user avatar" },
+      user: { name: userName, handle: userHandleCalculated, avatarUrl: userAvatar, dataAiHint: "user avatar" },
       content: "Primeiro post no meu perfil! 🎉 Ansioso para interagir com todos aqui.",
       timestamp: "2h",
       stats: { replies: 10, retweets: 5, likes: 20 },
@@ -94,7 +117,7 @@ export default function ProfilePage() {
      {
       id: "post2-profile",
       userId: currentUser.uid,
-      user: { name: currentUser.profileName || "Usuário", handle: `@${(currentUser.email?.split('@')[0] || "usuario").toLowerCase()}`, avatarUrl: currentUser.photoURL || undefined, dataAiHint: "user avatar" },
+      user: { name: userName, handle: userHandleCalculated, avatarUrl: userAvatar, dataAiHint: "user avatar" },
       content: "Aproveitando o dia! ☀️ #abençoado #novaplataforma",
       timestamp: "5h",
       imageUrl: "https://placehold.co/600x400.png",
@@ -103,7 +126,6 @@ export default function ProfilePage() {
     },
   ];
   }, [currentUser]);
-
 
   const handleLogout = useCallback(async () => {
     try {
@@ -115,64 +137,30 @@ export default function ProfilePage() {
     }
   }, [logout, router, toast]);
 
-  const profileMenuGroups: ProfileMenuGroup[] = useMemo(() => [
-    {
-      groupTitle: "CONTA",
-      items: [
-        { id: "visaoGeral", title: "Visão Geral", icon: UserCircle2, link: "/profile#visaoGeral" },
-        { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard, link: "/profile#informacoesPessoais" },
-        { id: "aparencia", title: "Aparência", icon: SettingsIcon, link: "/settings" },
-        { id: "seguranca", title: "Segurança", icon: Lock, link: "/profile#seguranca" },
-      ],
-    },
-    {
-      groupTitle: "SOCIAL",
-      items: [
-        { id: "pessoasCompartilhamento", title: "Pessoas e Compartilhamento", icon: Users, link: "/profile#pessoas" },
-        { id: "pagamentosAssinaturas", title: "Pagamentos e Assinaturas", icon: CreditCard, link: "/profile#pagamentos" },
-      ],
-    },
-    {
-      groupTitle: "SOBRE",
-      items: [
-        { id: "contratoUsuario", title: "Contrato do usuário", icon: FileText, link: "/profile#user-agreement" },
-        { id: "politicaPrivacidade", title: "Política de privacidade", icon: FileText, link: "/profile#privacy-policy" },
-        { id: "contratoHost", title: "Contrato de Host", icon: FileText, link: "/profile#host-agreement"},
-        { id: "sobreKako", title: "Sobre Kako Live", icon: Info, link: "/profile#about-kako"},
-      ],
-    },
-    {
-      isBottomSection: true,
-      items: [
-        { id: "suporte", title: "Suporte", icon: Headphones, link: "/support" },
-      ],
-    },
-    {
-      items: [
-        { id: "sair", title: "Sair", icon: LogOut, action: handleLogout },
-      ],
-    },
+  const profileMenuItems: ProfileMenuItem[] = useMemo(() => [
+    { id: "visaoGeral", title: "Visão Geral", icon: UserCircle2, link: "/profile#visaoGeral" },
+    { id: "informacoesPessoais", title: "Informações Pessoais", icon: Clipboard, link: "/profile#informacoesPessoais" },
+    { id: "sair", title: "Sair", icon: LogOut, action: handleLogout },
   ], [handleLogout]);
 
 
   useEffect(() => {
     const hash = window.location.hash.substring(1);
-    const allItems = profileMenuGroups.flatMap(g => g.items);
-    const currentItem = allItems.find(item => item.id === hash);
+    const currentItem = profileMenuItems.find(item => item.id === hash);
 
     if (currentItem) {
       setActiveTab(hash);
     } else if (pathname === "/profile" && !hash) {
       setActiveTab("visaoGeral");
     } else {
-      const defaultProfileTab = allItems.find(item => item.link === pathname || `/profile#${item.id}` === pathname);
+      const defaultProfileTab = profileMenuItems.find(item => item.link === pathname || `/profile#${item.id}` === pathname);
       if (defaultProfileTab) {
         setActiveTab(defaultProfileTab.id);
       } else {
-        setActiveTab("visaoGeral"); 
+        setActiveTab("visaoGeral");
       }
     }
-  }, [pathname, profileMenuGroups]);
+  }, [pathname, profileMenuItems]);
 
 
   useEffect(() => {
@@ -230,9 +218,9 @@ export default function ProfilePage() {
       displayName: editableProfileName.trim() || currentUser.displayName,
       bio: editableBio.trim(),
       showId: editableShowId.trim(),
-      country: editableCountry,
-      gender: editableGender,
-      phoneNumber: editablePhoneNumber.trim().replace(/(?!^\+)[^\d]/g, ''),
+      country: editableCountry || null,
+      gender: editableGender || null,
+      phoneNumber: editablePhoneNumber.trim().replace(/(?!^\+)[^\d]/g, '') || null,
       updatedAt: serverTimestamp(),
     };
 
@@ -245,7 +233,7 @@ export default function ProfilePage() {
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       await updateDoc(userDocRef, dataToUpdate);
-      await refreshUserProfile(); 
+      await refreshUserProfile();
       toast({ title: "Perfil Atualizado", description: "Suas informações foram salvas." });
     } catch (error) {
       console.error("Erro ao salvar perfil:", error);
@@ -283,15 +271,17 @@ export default function ProfilePage() {
   const userHandle = currentUser?.email?.split('@')[0]?.toLowerCase() || "usuario";
 
   const renderContent = () => {
-    if (!currentUser) return <div className="p-6 flex justify-center items-center h-full"><LoadingSpinner /></div>;
+    if (!currentUser) {
+        return <div className="p-6 flex justify-center items-center h-full"><LoadingSpinner /></div>;
+    }
 
     switch (activeTab) {
       case 'visaoGeral':
         return (
            <div className="w-full bg-card"> {/* Ensures white background for this section */}
             {/* Banner */}
-            <div className="h-40 bg-gradient-to-r from-primary/30 to-accent/30 relative">
-               <NextImage src="https://placehold.co/1200x300.png" alt="Banner do perfil" layout="fill" objectFit="cover" data-ai-hint="abstract banner" />
+            <div className="h-40 bg-gradient-to-r from-primary/30 to-primary/10 relative">
+               <NextImage src="https://placehold.co/1200x400.png" alt="Banner do perfil" layout="fill" objectFit="cover" data-ai-hint="abstract banner" />
               <div className="absolute top-4 right-4 flex space-x-2">
                 <Button variant="outline" size="icon" className="bg-white/30 backdrop-blur-sm text-white hover:bg-white/50 h-8 w-8 rounded-full">
                   <Share2 className="h-4 w-4" />
@@ -324,7 +314,7 @@ export default function ProfilePage() {
                             <g><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="#1DA1F2"></path></g>
                           </svg>
                         ) : currentUser.isVerified ? (
-                          <BadgeCheck className="h-5 w-5 text-primary ml-1.5" /> 
+                          <BadgeCheck className="h-5 w-5 text-primary ml-1.5" />
                         ) : null}
                     </div>
                     <p className="mt-1 text-sm text-foreground/90 px-4 md:px-0 max-w-md mx-auto">{currentUser.bio || "UX/UI Designer, 4+ years of experience"}</p>
@@ -361,7 +351,7 @@ export default function ProfilePage() {
                     Inscrever-se
                   </Button>
                   <Button variant="outline" className="rounded-full px-6 text-sm h-9" onClick={() => {
-                     const infoItem = profileMenuGroups.flatMap(g => g.items).find(i => i.id === 'informacoesPessoais');
+                     const infoItem = profileMenuItems.find(i => i.id === 'informacoesPessoais');
                      if (infoItem) handleMenuClick(infoItem);
                   }}>
                     Editar perfil
@@ -384,6 +374,7 @@ export default function ProfilePage() {
                                 name: currentProfileName,
                                 handle: `@${userHandle}`,
                                 avatarUrl: currentUser.photoURL || undefined,
+                                dataAiHint: "user avatar"
                             }
                         }} />
                     ))}
@@ -513,17 +504,15 @@ export default function ProfilePage() {
             </Card>
           </div>
         );
-      case 'aparencia':
-      case 'suporte':
-        return <div className="p-6"><Card><CardContent><p className="text-muted-foreground">Redirecionando...</p></CardContent></Card></div>;
       default:
-        const activeItem = profileMenuGroups.flatMap(g => g.items).find(item => item.id === activeTab);
+        // Fallback for any other unhandled tabs, which are placeholders
+        const activeDefaultItem = profileMenuItems.find(item => item.id === activeTab);
         return (
           <div className="p-6">
             <Card>
-              <CardHeader><CardTitle>{activeItem?.title || "Seção"}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{activeDefaultItem?.title || "Seção"}</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Conteúdo para {activeItem?.title || "esta seção"} em desenvolvimento.</p>
+                <p className="text-muted-foreground">Conteúdo para {activeDefaultItem?.title || "esta seção"} em desenvolvimento.</p>
               </CardContent>
             </Card>
           </div>
@@ -538,44 +527,29 @@ export default function ProfilePage() {
   return (
     <ProtectedPage>
        <div className="flex flex-col md:flex-row h-full gap-0 overflow-hidden">
-         <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-2 space-y-4">
-            {profileMenuGroups.map((group, groupIndex) => (
-              <div key={group.groupTitle || `profile-group-${groupIndex}`} className={cn(group.isBottomSection ? "mt-auto pt-4 border-t" : "", group.groupTitle ? "" : "pt-2")}>
-                {group.groupTitle && (
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
-                    {group.groupTitle}
-                  </h2>
-                )}
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const isActive = activeTab === item.id;
-                    return (
-                       <Button
-                        key={item.id}
-                        variant="ghost"
-                        className={cn(
-                          "w-full text-left h-auto text-sm font-normal rounded-md transition-all",
-                           isActive
-                            ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
-                            : "text-card-foreground hover:bg-card/80 bg-card shadow-sm hover:text-card-foreground",
-                           "justify-between py-3 px-3"
-                        )}
-                        onClick={() => handleMenuClick(item)}
-                      >
-                        <div className="flex items-center gap-2.5">
-                            <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
-                            <span>{item.title}</span>
-                        </div>
-                        <div className="flex items-center ml-auto">
-                            {item.currentValue && <span className="text-xs text-muted-foreground mr-2">{item.currentValue}</span>}
-                            {(!item.link || (item.link && item.link.startsWith("/profile#"))) && !item.action && item.id !== 'aparencia' && item.id !== 'suporte' && item.id !== 'sair' ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : null }
-                        </div>
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+         <nav className="md:w-72 lg:w-80 flex-shrink-0 border-r bg-muted/40 h-full overflow-y-auto p-2 space-y-1">
+            {profileMenuItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                    <Button
+                    key={item.id}
+                    variant="ghost"
+                    className={cn(
+                        "w-full text-left h-auto text-sm font-normal rounded-md transition-all",
+                        isActive
+                        ? "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary"
+                        : "text-muted-foreground hover:text-primary hover:bg-primary/5",
+                        "justify-start py-2.5 px-3"
+                    )}
+                    onClick={() => handleMenuClick(item)}
+                    >
+                    <div className="flex items-center gap-2.5">
+                        <item.icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                        <span>{item.title}</span>
+                    </div>
+                    </Button>
+                );
+            })}
           </nav>
 
            <main className="flex-1 h-full overflow-y-auto">
@@ -586,3 +560,6 @@ export default function ProfilePage() {
   );
 }
 
+    
+
+    
