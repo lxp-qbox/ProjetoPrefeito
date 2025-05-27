@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Crown, LogIn, LogOut, UserCircle2, Ticket as TicketIcon, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard, Maximize, Minimize, PanelLeft } from "lucide-react";
+import { Crown, LogIn, LogOut, UserCircle2, TicketIcon, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard, Maximize, Minimize, PanelLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -16,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // SidebarTrigger is used directly
-import React, { useState, useEffect } from "react"; 
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -37,7 +37,28 @@ const formatDiamonds = (amount: number | undefined | null): string => {
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
-  // isFullscreen and toggleFullscreen are not used in this component currently
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isMobile } = useSidebar(); // Only need isMobile here if fullscreen button is mobile-only
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreenAPI = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -52,13 +73,9 @@ export default function Header() {
     <header className="bg-card sticky top-0 z-40 border-b border-border h-16 flex items-center">
       <div className="px-6 w-full flex justify-between items-center">
         <div className="flex items-center gap-2">
-          {/* Sidebar Trigger for Mobile and Desktop - Use SidebarTrigger directly */}
-          <SidebarTrigger
-            className="h-9 w-9 text-muted-foreground hover:text-primary"
-            aria-label="Toggle Sidebar"
-          />
+          {/* SidebarTrigger button removed from here */}
           
-          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity ml-2">
+          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
             <Crown className="h-6 w-6" />
             <span className="font-semibold text-lg hidden sm:block">The Presidential Agency</span>
           </Link>
@@ -75,9 +92,18 @@ export default function Header() {
         </div>
 
         <nav className="flex items-center gap-1 md:gap-2">
-          {/* Fullscreen toggle removed as per previous instructions to keep only essential header items */}
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreenAPI}
+              className="text-muted-foreground hover:text-primary h-9 w-9"
+              title={isFullscreen ? "Sair da Tela Cheia" : "Entrar em Tela Cheia"}
+            >
+              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            </Button>
+          )}
 
-          {/* Diamond Balance Display */}
           {currentUser && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-md bg-primary/10 text-primary text-sm font-medium">
               <Diamond className="w-4 h-4 text-yellow-500" />
@@ -89,7 +115,7 @@ export default function Header() {
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
             <Bell className="w-5 h-5" />
             <span className="sr-only">Notificações</span>
-            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" />
+            {/* <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" /> */}
           </Button>
           
           {loading ? (
