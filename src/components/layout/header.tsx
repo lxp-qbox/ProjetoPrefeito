@@ -157,7 +157,7 @@ export default function Header() {
                     <DropdownMenuItem asChild>
                       <Link href="/admin">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Painel Admin
+                        Painel Admin2
                       </Link>
                     </DropdownMenuItem>
                      <DropdownMenuItem asChild>
