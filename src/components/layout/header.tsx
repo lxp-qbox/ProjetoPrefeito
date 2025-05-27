@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+<<<<<<< HEAD
 import {
   Crown,
   LogIn,
@@ -18,6 +19,9 @@ import {
   Maximize,
   Minimize
 } from "lucide-react";
+=======
+import { Crown, LogIn, LogOut, UserCircle2, Ticket as TicketIcon, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard, Maximize, Minimize, PanelLeft } from "lucide-react";
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -31,6 +35,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+<<<<<<< HEAD
+=======
+import React, { useState, useEffect } from "react";
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -50,17 +58,23 @@ const formatDiamonds = (amount: number | undefined | null): string => {
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
+<<<<<<< HEAD
   // useSidebar provides context for both mobile off-canvas and desktop collapsible state
   const { isMobile: isMobileContext, toggleSidebar } = useSidebar(); 
   // useIsMobile is a direct window width check, good for UI elements not tied to sidebar's own logic
   const isMobileForFullscreen = useIsMobile(); 
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+=======
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isMobile } = useSidebar(); // Only need isMobile here if fullscreen button is mobile-only
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+<<<<<<< HEAD
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
@@ -68,6 +82,17 @@ export default function Header() {
   const toggleFullscreenAPI = () => { // Renamed to avoid conflict if toggleFullscreen was a prop
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
+=======
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreenAPI = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
@@ -96,7 +121,17 @@ export default function Header() {
             <PanelLeft className="h-5 w-5"/>
           </SidebarTrigger>
           
+<<<<<<< HEAD
           <div className="relative hidden md:block">
+=======
+          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity ml-2">
+            <Crown className="h-6 w-6" />
+            <span className="font-semibold text-lg hidden sm:block">The Presidential Agency</span>
+          </Link>
+
+          {/* Search Input - More prominent on desktop */}
+          <div className="relative hidden md:block ml-4">
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -107,6 +142,21 @@ export default function Header() {
         </div>
 
         <nav className="flex items-center gap-1 md:gap-2">
+<<<<<<< HEAD
+=======
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreenAPI}
+              className="text-muted-foreground hover:text-primary h-9 w-9"
+              title={isFullscreen ? "Sair da Tela Cheia" : "Entrar em Tela Cheia"}
+            >
+              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            </Button>
+          )}
+
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
           {currentUser && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-md bg-primary/10 text-primary text-sm font-medium">
               <Diamond className="w-4 h-4 text-yellow-500" />
@@ -114,6 +164,7 @@ export default function Header() {
             </div>
           )}
 
+<<<<<<< HEAD
           {isMobileForFullscreen && (
              <Button variant="ghost" size="icon" onClick={toggleFullscreenAPI} className="text-muted-foreground hover:text-primary h-9 w-9">
                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
@@ -125,6 +176,12 @@ export default function Header() {
             <Bell className="w-5 h-5" />
             <span className="sr-only">Notificações</span>
             {currentUser && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" /> }
+=======
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
+            <Bell className="w-5 h-5" />
+            <span className="sr-only">Notificações</span>
+            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" />
+>>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
           </Button>
           
           {loading ? (
