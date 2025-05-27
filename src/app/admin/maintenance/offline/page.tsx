@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,8 +11,9 @@ import { ServerOff, Home as HomeIcon, Users as UsersIconProp, TicketIcon, Layout
 import { useToast } from "@/hooks/use-toast";
 import { db, doc, getDoc, setDoc, serverTimestamp } from "@/lib/firebase";
 import LoadingSpinner from "@/components/ui/loading-spinner";
+import type { UserProfile } from "@/types"; // Assuming UserRole might be part of UserProfile or a separate type
 
-// Exporting types and initial data for use in AppContentWrapper demo
+// Define UserRole if it's not already globally available or imported from types
 export type UserRole = 'master' | 'admin' | 'suporte' | 'host' | 'player';
 export type MinimumAccessLevel = UserRole | 'nobody';
 
@@ -36,7 +37,7 @@ const roleDisplayNames: Record<UserRole, string> = {
 const roleIcons: Record<UserRole, React.ElementType> = {
   master: ShieldCheck,
   admin: UserCog,
-  suporte: UserCog,
+  suporte: UserCog, // Or a different icon if desired
   host: Star,
   player: User,
 };
@@ -49,6 +50,7 @@ const minimumAccessLevelOptions: { value: MinimumAccessLevel; label: string }[] 
   { value: 'host', label: "Host e abaixo" },
   { value: 'player', label: "Somente Players" },
 ];
+
 
 export const initialModuleStatuses: SiteModule[] = [
   {
@@ -103,7 +105,7 @@ export const initialModuleStatuses: SiteModule[] = [
 
 
 export default function AdminMaintenanceOfflinePage() {
-  const [moduleStatuses, setModuleStatuses] = useState<SiteModule[]>(initialModuleStatuses);
+  const [moduleStatuses, setModuleStatuses] = useState<SiteModule[]>(initialModuleStatuses.map(m => ({...m, icon: m.icon || ServerOff })));
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -117,45 +119,28 @@ export default function AdminMaintenanceOfflinePage() {
         const docSnap = await getDoc(maintenanceRulesDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const fetchedRules = (data.rules as Partial<Omit<SiteModule, 'icon'>>[] || []).map(fr => ({
-            ...initialModuleStatuses.find(im => im.id === fr.id),
-            ...fr,
-          })) as SiteModule[];
-
-          const newModuleStatuses = initialModuleStatuses.map(initialModule => {
-            const fetchedModule = fetchedRules.find(fr => fr.id === initialModule.id);
-            return fetchedModule ? {
-              ...initialModule, 
-              ...fetchedModule, 
-              globallyOffline: fetchedModule.globallyOffline ?? initialModule.globallyOffline ?? false,
-              isHiddenFromMenu: fetchedModule.isHiddenFromMenu ?? initialModule.isHiddenFromMenu ?? false,
-              minimumAccessLevelWhenOffline: fetchedModule.minimumAccessLevelWhenOffline ?? initialModule.minimumAccessLevelWhenOffline ?? 'player',
-            } : {
-              ...initialModule,
-              globallyOffline: initialModule.globallyOffline ?? false,
-              isHiddenFromMenu: initialModule.isHiddenFromMenu ?? false,
-              minimumAccessLevelWhenOffline: initialModule.minimumAccessLevelWhenOffline ?? 'player',
-            };
-          });
-
-          fetchedRules.forEach(fetchedModule => {
-            if (!newModuleStatuses.some(nms => nms.id === fetchedModule.id)) {
-              const correspondingInitial = initialModuleStatuses.find(im => im.id === fetchedModule.id);
-              newModuleStatuses.push({
-                id: fetchedModule.id!,
-                name: fetchedModule.name || 'Módulo Desconhecido',
-                icon: correspondingInitial ? correspondingInitial.icon : ServerOff,
-                globallyOffline: fetchedModule.globallyOffline ?? false,
-                isHiddenFromMenu: fetchedModule.isHiddenFromMenu ?? false,
-                minimumAccessLevelWhenOffline: fetchedModule.minimumAccessLevelWhenOffline ?? 'player',
-              } as SiteModule);
+          const fetchedRules = (data.rules as Partial<Omit<SiteModule, 'icon' | 'name'>>[] || []).map(fr => {
+             const initialModule = initialModuleStatuses.find(im => im.id === fr.id);
+             return {
+                ...initialModule, // Start with initial defaults including name and icon
+                ...fr, // Override with fetched data
+                icon: initialModule?.icon || ServerOff, // Ensure icon is always present
+                name: initialModule?.name || fr.id || 'Módulo Desconhecido', // Ensure name is present
+             }
+          }) as SiteModule[];
+          
+          // Ensure all initial modules are present, even if not in Firestore yet
+          const currentModuleIds = new Set(fetchedRules.map(r => r.id));
+          initialModuleStatuses.forEach(initialModule => {
+            if (!currentModuleIds.has(initialModule.id)) {
+              fetchedRules.push({...initialModule, icon: initialModule.icon || ServerOff});
             }
           });
-          setModuleStatuses(newModuleStatuses);
 
+          setModuleStatuses(fetchedRules);
         } else {
           console.log("Nenhuma configuração de manutenção encontrada, usando padrões.");
-          setModuleStatuses(initialModuleStatuses);
+          setModuleStatuses(initialModuleStatuses.map(m => ({...m, icon: m.icon || ServerOff })));
         }
       } catch (error) {
         console.error("Erro ao buscar configurações de manutenção:", error);
@@ -164,7 +149,7 @@ export default function AdminMaintenanceOfflinePage() {
           description: "Não foi possível carregar as configurações de manutenção. Usando padrões.",
           variant: "destructive",
         });
-        setModuleStatuses(initialModuleStatuses);
+        setModuleStatuses(initialModuleStatuses.map(m => ({...m, icon: m.icon || ServerOff })));
       } finally {
         setIsLoadingSettings(false);
       }
@@ -203,7 +188,7 @@ export default function AdminMaintenanceOfflinePage() {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest);
+      const statusesToSave = moduleStatuses.map(({ icon, ...rest }) => rest); // Don't save icon functions
       await setDoc(maintenanceRulesDocRef, { rules: statusesToSave, lastUpdated: serverTimestamp() });
       toast({
         title: "Configurações Salvas!",
@@ -243,18 +228,19 @@ export default function AdminMaintenanceOfflinePage() {
             Controle de Acesso aos Módulos
           </CardTitle>
           <CardDescription>
-            Ative ou desative módulos específicos do site. Se um módulo estiver offline, defina o nível de acesso mínimo necessário.
-            Você também pode ocultar módulos dos menus de navegação.
-            <strong className="text-destructive block mt-1">Clique em "Salvar Alterações" para persistir suas escolhas no banco de dados.</strong>
+            Controle o acesso aos diferentes módulos do seu site. Você pode colocar um módulo offline globalmente e, em seguida, definir permissões de acesso específicas para cada função de usuário (Master, Admin, Suporte, Host, Player).
+            <br />
+            Além disso, é possível ocultar módulos dos menus de navegação para todos os usuários.
+            <strong className="text-destructive block mt-1">As alterações feitas aqui são salvas no banco de dados ao clicar em "Salvar Alterações".</strong>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {moduleStatuses.map((module) => {
-            const ModuleIcon = module.icon;
+            const ModuleIcon = module.icon || ServerOff; // Fallback icon
             return (
               <Card key={module.id} className="p-4 border-border shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
+                  <div className="flex items-center mb-2 sm:mb-0">
                     <ModuleIcon className="mr-3 h-6 w-6 text-primary" />
                     <Label htmlFor={`${module.id}-global-status`} className="text-lg font-semibold">
                       {module.name}
@@ -333,4 +319,3 @@ export default function AdminMaintenanceOfflinePage() {
   );
 }
 
-    
