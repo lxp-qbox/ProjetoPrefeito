@@ -16,9 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import React, { useState, useEffect } from "react";
->>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // SidebarTrigger is used directly
+import React, { useState, useEffect } from "react"; 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -38,46 +37,7 @@ const formatDiamonds = (amount: number | undefined | null): string => {
 export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
-<<<<<<< HEAD
-  // useSidebar provides context for both mobile off-canvas and desktop collapsible state
-  const { isMobile: isMobileContext, toggleSidebar } = useSidebar(); 
-  // useIsMobile is a direct window width check, good for UI elements not tied to sidebar's own logic
-  const isMobileForFullscreen = useIsMobile(); 
-
-  const [isFullscreen, setIsFullscreen] = useState(false);
-=======
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const { isMobile } = useSidebar(); // Only need isMobile here if fullscreen button is mobile-only
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-<<<<<<< HEAD
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreenAPI = () => { // Renamed to avoid conflict if toggleFullscreen was a prop
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
-=======
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreenAPI = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-      });
->>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-  };
+  // isFullscreen and toggleFullscreen are not used in this component currently
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -104,8 +64,7 @@ export default function Header() {
           </Link>
 
           {/* Search Input - More prominent on desktop */}
-          <div className="relative hidden md:block ml-4">
->>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
+          <div className="relative hidden md:block">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -116,19 +75,9 @@ export default function Header() {
         </div>
 
         <nav className="flex items-center gap-1 md:gap-2">
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreenAPI}
-              className="text-muted-foreground hover:text-primary h-9 w-9"
-              title={isFullscreen ? "Sair da Tela Cheia" : "Entrar em Tela Cheia"}
-            >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-            </Button>
-          )}
+          {/* Fullscreen toggle removed as per previous instructions to keep only essential header items */}
 
->>>>>>> 58866fd (quero o titulo na barra superior na frende do campo de busca)
+          {/* Diamond Balance Display */}
           {currentUser && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-md bg-primary/10 text-primary text-sm font-medium">
               <Diamond className="w-4 h-4 text-yellow-500" />
@@ -136,19 +85,7 @@ export default function Header() {
             </div>
           )}
 
-<<<<<<< HEAD
-          {isMobileForFullscreen && (
-             <Button variant="ghost" size="icon" onClick={toggleFullscreenAPI} className="text-muted-foreground hover:text-primary h-9 w-9">
-               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-               <span className="sr-only">Tela Cheia</span>
-             </Button>
-           )}
-
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
-            <Bell className="w-5 h-5" />
-            <span className="sr-only">Notificações</span>
-            {currentUser && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-card" /> }
-=======
+          {/* Notification Bell */}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
             <Bell className="w-5 h-5" />
             <span className="sr-only">Notificações</span>
