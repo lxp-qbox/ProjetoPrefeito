@@ -55,13 +55,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
 );
 
 interface AdminHost {
-  id: string; // User UID (from UserProfile.uid / accounts document ID)
+  id: string; // UserProfile.uid
   avatarUrl?: string | null;
-  isLive: boolean; 
-  showId?: string; // from UserProfile.showId
-  name?: string; // from UserProfile.profileName or displayName, potentially overridden by KakoProfile.nickname
-  whatsapp?: string; // from UserProfile.phoneNumber
-  status: 'Aprovado' | 'Pendente' | 'Banido'; // Derived from UserProfile.hostStatus
+  isLive: boolean;
+  showId?: string; // From UserProfile.showId (Kako's user-facing ID)
+  name?: string; // From UserProfile.profileName (potentially enriched from KakoProfile.nickname)
+  whatsapp?: string;
+  status: 'Aprovado' | 'Pendente' | 'Banido';
 }
 
 
@@ -111,12 +111,14 @@ export default function AdminHostsPageContent() {
           if (userData.showId && userData.showId.trim() !== "") {
             try {
               const kakoProfilesRef = collection(db, "kakoProfiles");
+              // Query by showId instead of FUID (docSnap.id)
               const qKako = query(kakoProfilesRef, where("showId", "==", userData.showId));
               const kakoProfileSnapshot = await getDocs(qKako);
+              
               if (!kakoProfileSnapshot.empty) {
                 const kakoData = kakoProfileSnapshot.docs[0].data() as KakoProfile;
                 name = kakoData.nickname || name;
-                avatarUrl = kakoData.avatarUrl || avatarUrl;
+                avatarUrl = kakoData.avatarUrl || avatarUrl; // kakoData.avatarUrl maps to 'avatar' from API
               }
             } catch (kakoError) {
               console.error(`Error fetching KakoProfile for showId ${userData.showId}:`, kakoError);
@@ -131,10 +133,10 @@ export default function AdminHostsPageContent() {
           }
 
           return {
-            id: docSnap.id,
+            id: docSnap.id, // This is UserProfile.uid
             name: name,
             avatarUrl: avatarUrl,
-            showId: userData.showId, 
+            showId: userData.showId, // UserProfile.showId (Kako's user-facing ID)
             whatsapp: userData.phoneNumber,
             isLive: Math.random() > 0.5, 
             status: status,
@@ -171,16 +173,17 @@ export default function AdminHostsPageContent() {
     try {
       const userDocRef = doc(db, "accounts", hostId);
       await updateDoc(userDocRef, {
-        role: 'player',
-        adminLevel: null,
-        hostStatus: 'pending_review', 
+        role: 'player', // Change role to player
+        adminLevel: null, // Remove admin level
+        hostStatus: 'pending_review', // Set hostStatus appropriately
         updatedAt: serverTimestamp(),
       });
       
+      // Update local state to reflect the change
       setAdminHosts(prevHosts => prevHosts.filter(h => h.id !== hostId));
       toast({
         title: "Host Removido",
-        description: "A função do usuário foi alterada para 'player', nível de admin removido e status de host atualizado.",
+        description: "A função do usuário foi alterada para 'player' e o nível de admin removido.",
       });
 
     } catch (error) {
@@ -198,12 +201,12 @@ export default function AdminHostsPageContent() {
         const userDocRef = doc(db, "accounts", hostId);
         await updateDoc(userDocRef, {
             hostStatus: 'banned',
-            isBanned: true, 
+            isBanned: true, // Assuming you have an isBanned field for overall banning
             bannedAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
         toast({ title: "Host Banido", description: "O status do host foi atualizado para banido."});
-        fetchHosts(); 
+        fetchHosts(); // Re-fetch para atualizar a lista, incluindo o status
     } catch (error) {
         console.error("Erro ao banir host:", error);
         toast({ title: "Erro ao Banir", description: "Não foi possível banir o host.", variant: "destructive"});
@@ -242,7 +245,7 @@ export default function AdminHostsPageContent() {
 
   const filteredHosts = useMemo(() => adminHosts.filter(host =>
     host.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    host.showId?.toLowerCase().includes(searchTerm.toLowerCase())
+    host.showId?.toLowerCase().includes(searchTerm.toLowerCase()) // Search by showId as well
   ), [adminHosts, searchTerm]);
 
   const approvedHostsCount = adminHosts.filter(h => h.status === 'Aprovado').length;
@@ -318,7 +321,7 @@ export default function AdminHostsPageContent() {
                             </Avatar>
                             <div>
                               <span className="group-hover:text-primary group-hover:underline">{host.name}</span>
-                              <div className="text-xs text-muted-foreground">{host.showId || "Show ID: N/A"}</div>
+                              <div className="text-xs text-muted-foreground">Show ID: {host.showId || "N/A"}</div>
                             </div>
                           </Link>
                         </TableCell>
@@ -409,7 +412,7 @@ export default function AdminHostsPageContent() {
                 <br />
                 <strong className="text-destructive">Esta ação não pode ser desfeita.</strong>
                 <br />
-                A conta de autenticação do Firebase ainda precisará ser removida manually no Firebase Console.
+                A conta de autenticação do Firebase ainda precisará ser removida manualmente no Firebase Console.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -427,3 +430,4 @@ export default function AdminHostsPageContent() {
     </>
   );
 }
+
