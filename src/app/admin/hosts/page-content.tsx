@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, Clock, CheckCircle, XCircle, Edit, ChevronDown, User as UserIcon, Trash2 } from "lucide-react";
+import { Search, Users, Clock, CheckCircle, XCircle, Edit, ChevronDown, User as UserIcon, Trash2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -26,8 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import React, { useState, useEffect, useCallback } from "react";
-import { db, doc, updateDoc, serverTimestamp, getDocs, collection, query, where, deleteDoc, type UserProfile } from "@/lib/firebase";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { db, doc, updateDoc, serverTimestamp, getDocs, collection, query, where, deleteDoc, type UserProfile, type KakoProfile } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
@@ -55,11 +55,11 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon: Icon, iconColor
 );
 
 interface AdminHost {
-  id: string; // User UID (from UserProfile.uid)
+  id: string; // User UID (from UserProfile.uid / accounts document ID)
   avatarUrl?: string | null;
-  isLive: boolean; // Placeholder for live status
-  kakoShowId?: string; // from UserProfile.kakoShowId
-  name?: string; // from UserProfile.profileName or displayName
+  isLive: boolean; 
+  showId?: string; // from UserProfile.showId
+  name?: string; // from UserProfile.profileName or displayName, potentially overridden by KakoProfile.nickname
   whatsapp?: string; // from UserProfile.phoneNumber
   status: 'Aprovado' | 'Pendente' | 'Banido'; // Derived from UserProfile.hostStatus
 }
@@ -96,30 +96,56 @@ export default function AdminHostsPageContent() {
   const fetchHosts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const accountsRef = collection(db, "accounts"); // Changed 'users' to 'accounts'
+      const accountsRef = collection(db, "accounts");
       const q = query(accountsRef, where("role", "==", "host"));
-      const querySnapshot = await getDocs(q);
-      const fetchedHosts: AdminHost[] = [];
-      querySnapshot.forEach((docSnap) => {
-        const userData = docSnap.data() as UserProfile;
-        let status: AdminHost['status'] = 'Pendente';
-        if (userData.hostStatus === 'approved') {
-          status = 'Aprovado';
-        } else if (userData.hostStatus === 'banned') {
-          status = 'Banido';
-        }
+      const accountsSnapshot = await getDocs(q);
+      const fetchedHostsPromises: Promise<AdminHost>[] = [];
 
-        fetchedHosts.push({
-          id: docSnap.id,
-          name: userData.profileName || userData.displayName || "N/A",
-          avatarUrl: userData.photoURL,
-          kakoShowId: userData.kakoShowId, // Use kakoShowId
-          whatsapp: userData.phoneNumber,
-          isLive: Math.random() > 0.5, 
-          status: status,
-        });
+      accountsSnapshot.forEach((docSnap) => {
+        const userData = docSnap.data() as UserProfile;
+        
+        const promise = async (): Promise<AdminHost> => {
+          let name = userData.profileName || userData.displayName || "N/A";
+          let avatarUrl = userData.photoURL;
+
+          if (userData.showId && userData.showId.trim() !== "") {
+            try {
+              const kakoProfilesRef = collection(db, "kakoProfiles");
+              const qKako = query(kakoProfilesRef, where("showId", "==", userData.showId));
+              const kakoProfileSnapshot = await getDocs(qKako);
+              if (!kakoProfileSnapshot.empty) {
+                const kakoData = kakoProfileSnapshot.docs[0].data() as KakoProfile;
+                name = kakoData.nickname || name;
+                avatarUrl = kakoData.avatarUrl || avatarUrl;
+              }
+            } catch (kakoError) {
+              console.error(`Error fetching KakoProfile for showId ${userData.showId}:`, kakoError);
+            }
+          }
+          
+          let status: AdminHost['status'] = 'Pendente';
+          if (userData.hostStatus === 'approved') {
+            status = 'Aprovado';
+          } else if (userData.hostStatus === 'banned') {
+            status = 'Banido';
+          }
+
+          return {
+            id: docSnap.id,
+            name: name,
+            avatarUrl: avatarUrl,
+            showId: userData.showId, 
+            whatsapp: userData.phoneNumber,
+            isLive: Math.random() > 0.5, 
+            status: status,
+          };
+        };
+        fetchedHostsPromises.push(promise());
       });
-      setAdminHosts(fetchedHosts);
+
+      const resolvedHosts = await Promise.all(fetchedHostsPromises);
+      setAdminHosts(resolvedHosts);
+
     } catch (error) {
       console.error("Error fetching hosts:", error);
       toast({
@@ -143,15 +169,14 @@ export default function AdminHostsPageContent() {
       return;
     }
     try {
-      const userDocRef = doc(db, "accounts", hostId); // Changed 'users' to 'accounts'
+      const userDocRef = doc(db, "accounts", hostId);
       await updateDoc(userDocRef, {
         role: 'player',
         adminLevel: null,
         hostStatus: 'pending_review', 
         updatedAt: serverTimestamp(),
       });
-
-      // Update local state to reflect the change
+      
       setAdminHosts(prevHosts => prevHosts.filter(h => h.id !== hostId));
       toast({
         title: "Host Removido",
@@ -169,9 +194,8 @@ export default function AdminHostsPageContent() {
   };
 
   const handleBanHost = async (hostId: string) => {
-    console.log("Solicitado banir host:", hostId);
     try {
-        const userDocRef = doc(db, "accounts", hostId); // Changed 'users' to 'accounts'
+        const userDocRef = doc(db, "accounts", hostId);
         await updateDoc(userDocRef, {
             hostStatus: 'banned',
             isBanned: true, 
@@ -194,7 +218,7 @@ export default function AdminHostsPageContent() {
   const handleConfirmDeleteAccount = async () => {
     if (!hostToDelete) return;
     try {
-      await deleteDoc(doc(db, "accounts", hostToDelete.id)); // Changed 'users' to 'accounts'
+      await deleteDoc(doc(db, "accounts", hostToDelete.id)); 
       setAdminHosts(prevHosts => prevHosts.filter(h => h.id !== hostToDelete.id));
       toast({
         title: "Conta Excluída (Firestore)",
@@ -216,10 +240,10 @@ export default function AdminHostsPageContent() {
   };
 
 
-  const filteredHosts = adminHosts.filter(host =>
+  const filteredHosts = useMemo(() => adminHosts.filter(host =>
     host.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    host.kakoShowId?.toLowerCase().includes(searchTerm.toLowerCase()) // Search by kakoShowId
-  );
+    host.showId?.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [adminHosts, searchTerm]);
 
   const approvedHostsCount = adminHosts.filter(h => h.status === 'Aprovado').length;
   const pendingHostsCount = adminHosts.filter(h => h.status === 'Pendente').length;
@@ -245,7 +269,7 @@ export default function AdminHostsPageContent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar hosts (Nome, Show ID Kako...)"
+                placeholder="Buscar hosts (Nome, Show ID...)"
                 className="pl-10 w-full h-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -265,7 +289,7 @@ export default function AdminHostsPageContent() {
               <TableHeader className="bg-muted/50 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="w-[60px] px-4 text-center">LIVE</TableHead>
-                  <TableHead className="min-w-[200px]">NOME</TableHead>
+                  <TableHead className="min-w-[200px]">NOME / SHOW ID</TableHead>
                   <TableHead>WHATSAPP</TableHead>
                   <TableHead>STATUS</TableHead>
                   <TableHead className="text-right w-[200px]">AÇÕES</TableHead>
@@ -287,14 +311,14 @@ export default function AdminHostsPageContent() {
                           <span className={`h-3 w-3 rounded-full inline-block ${host.isLive ? 'bg-green-500' : 'bg-red-500'}`}></span>
                         </TableCell>
                         <TableCell className="font-medium">
-                          <Link href={`/hosts/${host.id}`} className="flex items-center gap-3 group">
+                          <Link href={`/admin/hosts/${host.id}/edit`} className="flex items-center gap-3 group">
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={host.avatarUrl || undefined} alt={host.name || "Host"} data-ai-hint="host avatar" />
                               <AvatarFallback>{host.name ? host.name.substring(0, 2).toUpperCase() : <UserIcon />}</AvatarFallback>
                             </Avatar>
                             <div>
                               <span className="group-hover:text-primary group-hover:underline">{host.name}</span>
-                              <div className="text-xs text-muted-foreground">{host.kakoShowId || "N/A"}</div>
+                              <div className="text-xs text-muted-foreground">{host.showId || "Show ID: N/A"}</div>
                             </div>
                           </Link>
                         </TableCell>
@@ -332,6 +356,7 @@ export default function AdminHostsPageContent() {
                                 <DropdownMenuItem
                                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                     onSelect={() => handleBanHost(host.id)}
+                                    disabled={host.status === 'Banido'}
                                 >
                                    <XCircle className="mr-2 h-4 w-4" />
                                   Banir Host
@@ -340,7 +365,7 @@ export default function AdminHostsPageContent() {
                                 <DropdownMenuItem onSelect={() => handleRemoveHostRole(host.id)}>
                                     Remover dos Hosts
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => {/* Implement Give Admin Role Logic */}}>
+                                <DropdownMenuItem onSelect={() => toast({title: "Dar Cargo Admin", description:"Funcionalidade em desenvolvimento."})}>
                                     Dar Cargo Admin
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -384,7 +409,7 @@ export default function AdminHostsPageContent() {
                 <br />
                 <strong className="text-destructive">Esta ação não pode ser desfeita.</strong>
                 <br />
-                A conta de autenticação do Firebase ainda precisará ser removida manualmente no Firebase Console.
+                A conta de autenticação do Firebase ainda precisará ser removida manually no Firebase Console.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
