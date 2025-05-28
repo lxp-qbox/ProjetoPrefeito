@@ -4,28 +4,25 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Search, MoreHorizontal, ImagePlus, Video as VideoIcon, CalendarDays, FileText as FileTextIcon, Send,
-  Sparkles, UserPlus, ListFilter, Tag, ThumbsUp, MessageSquare as MessageSquareIcon, Send as SendIconLucide, Smile, Paperclip
-} from "lucide-react"; // Renamed MessageSquare to MessageSquareIcon and Send to SendIconLucide
-import type { FeedPost, Trend, SuggestedUser, UserProfile } from "@/types";
+import { Search, MoreHorizontal, ImagePlus, Video as VideoIcon, CalendarDays, FileText as FileTextIcon, Send, Sparkles, UserPlus, ListFilter, Tag, ThumbsUp, MessageSquare as MessageSquareIcon, Send as SendIconLucide, Smile, Paperclip, Gamepad2, Crown, PlayCircle, BarChart2, Bookmark, Settings as SettingsIcon } from "lucide-react";
+import type { FeedPost, Trend, SuggestedUser, UserProfile, SidebarNavItem, Hashtag } from "@/types";
 import PostCard from "@/components/feed/post-card";
-import PostCardSkeleton from "@/components/feed/post-card-skeleton"; // Corrected path if needed
+import PostCardSkeleton from "@/components/feed/post-card-skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import Link from "next/link"; // Added import for Link
 import { cn } from "@/lib/utils";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
-// Locally defined widgets for the right sidebar
 const SearchWidget = () => (
   <div className="relative">
     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -234,44 +231,53 @@ export default function HomePage() {
       const postsCollection = collection(db, "posts");
       const q = query(postsCollection, orderBy("timestamp", "desc"));
       
-      // Using getDocs for initial load. For real-time, use onSnapshot.
-      const snapshot = await getDocs(q);
-      const fetchedPosts: FeedPost[] = snapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        let formattedTimestamp = "data inválida";
-        if (data.timestamp && typeof data.timestamp.toDate === 'function') {
-          try {
-            formattedTimestamp = formatDistanceToNow(data.timestamp.toDate(), { addSuffix: true, locale: ptBR });
-          } catch (e) {
-            console.error("Error formatting date:", e, data.timestamp);
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedPosts: FeedPost[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          let formattedTimestamp = "data inválida";
+          if (data.timestamp && typeof data.timestamp.toDate === 'function') {
+            try {
+              formattedTimestamp = formatDistanceToNow(data.timestamp.toDate(), { addSuffix: true, locale: ptBR });
+            } catch (e) {
+              console.error("Error formatting date:", e, data.timestamp);
+            }
+          } else if (data.timestamp) {
+             formattedTimestamp = String(data.timestamp); 
           }
-        } else if (data.timestamp) {
-           formattedTimestamp = String(data.timestamp); // Fallback if not a Firestore Timestamp
-        }
-        return {
-          id: docSnap.id,
-          userId: data.userId,
-          user: data.user || { name: "Usuário Desconhecido", handle: "@desconhecido", avatarUrl: undefined, dataAiHint: "user avatar" },
-          postTitle: data.postTitle,
-          content: data.content,
-          timestamp: formattedTimestamp,
-          imageUrl: data.imageUrl,
-          imageAiHint: data.imageAiHint,
-          stats: data.stats || { replies: 0, retweets: 0, likes: 0 },
-        } as FeedPost;
-      });
-      setPosts(fetchedPosts);
-    } catch (error: any) {
-        console.error("Erro ao carregar posts:", error);
-        toast({ title: "Erro ao Carregar Posts", description: error.message, variant: "destructive" });
-    } finally {
+          return {
+            id: docSnap.id,
+            userId: data.userId,
+            user: data.user || { name: "Usuário Desconhecido", handle: "@desconhecido", avatarUrl: undefined, dataAiHint: "user avatar" },
+            postTitle: data.postTitle,
+            content: data.content,
+            timestamp: formattedTimestamp,
+            imageUrl: data.imageUrl,
+            imageAiHint: data.imageAiHint,
+            stats: data.stats || { replies: 0, retweets: 0, likes: 0 },
+          } as FeedPost;
+        });
+        setPosts(fetchedPosts);
         setIsLoadingPosts(false);
+      }, (error) => {
+        console.error("Erro ao carregar posts em tempo real:", error);
+        toast({ title: "Erro ao Carregar Feed", description: error.message, variant: "destructive" });
+        setIsLoadingPosts(false);
+      });
+      return unsubscribe; // Return the unsubscribe function for cleanup
+    } catch (error: any) {
+        console.error("Erro ao configurar listener de posts:", error);
+        toast({ title: "Erro de Configuração do Feed", description: error.message, variant: "destructive" });
+        setIsLoadingPosts(false);
+        return () => {}; // Return an empty cleanup function on initial setup error
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    fetchPosts(); // Fetch on mount
+    const unsubscribe = fetchPosts();
+    return () => {
+      unsubscribe.then(unsub => unsub()).catch(err => console.error("Error unsubscribing from posts:", err));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchPosts]);
 
   const handlePostSubmit = async (text: string) => {
@@ -287,14 +293,14 @@ export default function HomePage() {
         user: {
           name: currentUser.profileName || currentUser.displayName || "Usuário Anônimo",
           handle: `@${currentUser.email?.split('@')[0] || currentUser.uid.substring(0,6)}`,
-          avatarUrl: currentUser.photoURL,
-          dataAiHint: "user avatar" // Add default hint
+          avatarUrl: currentUser.photoURL || undefined,
+          dataAiHint: "user avatar"
         },
         stats: { replies: 0, retweets: 0, likes: 0 },
       };
       await addDoc(collection(db, "posts"), newPostData);
       toast({ title: "Post Enviado!", description: "Seu post foi publicado." });
-      fetchPosts(); // Re-fetch posts after adding a new one
+      // No explicit fetchPosts() needed here due to onSnapshot
     } catch (error: any) {
       console.error("Error creating post:", error);
       toast({ title: "Erro ao Postar", description: error.message, variant: "destructive" });
@@ -308,16 +314,15 @@ export default function HomePage() {
 
   return (
     <div className="flex justify-center w-full flex-grow">
-      <div className="flex w-full max-w-screen-xl flex-grow overflow-hidden"> {/* Main flex container for 3 columns */}
+      <div className="flex w-full max-w-screen-xl flex-grow overflow-hidden">
         
         {/* Central Feed Column */}
         <div className="w-full lg:w-[600px] border-r border-l border-border flex flex-col h-full">
-          {/* Create Post Area & Tabs List - Sticky Wrapper */}
-          <div className="shrink-0 border-b border-border"> {/* Removed sticky from here, TabsList will be sticky INSIDE Tabs */}
+          <div className="shrink-0">
             <CreatePostInput currentUser={currentUser} onPostSubmit={handlePostSubmit} />
           </div>
           
-          <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col overflow-hidden"> {/* Tabs takes remaining space and manages overflow for content */}
+          <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col overflow-hidden">
              <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card shrink-0 sticky top-0 z-10 border-b border-border">
               <TabsTrigger
                 value="for-you"
@@ -382,11 +387,11 @@ export default function HomePage() {
         </div>
 
         {/* Right Sidebar */}
-        <aside className="hidden xl:flex flex-col w-[350px] pl-6 py-3 h-full"> {/* Adjusted xl:flex and py-3 */}
-          <div className="shrink-0 pb-3 sticky top-0 bg-background z-10"> {/* Adjusted pb-3 */}
+        <aside className="hidden lg:flex flex-col w-[350px] pl-6 py-3 h-full"> 
+          <div className="shrink-0 pb-3 sticky top-0 bg-background z-10"> 
             <SearchWidget />
           </div>
-          <div className="flex-grow overflow-y-auto space-y-5 pr-2"> {/* Added pr-2 for scrollbar space */}
+          <div className="flex-grow overflow-y-auto space-y-5 pr-4"> 
             <PremiumWidget />
             <WhatsHappeningWidget />
             <WhoToFollowWidget />
