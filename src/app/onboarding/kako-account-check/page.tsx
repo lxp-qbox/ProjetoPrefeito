@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
@@ -10,7 +9,6 @@ import { CheckCircle, Phone, ArrowLeft, Smartphone } from "lucide-react";
 import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 import { useAuth } from "@/hooks/use-auth";
-import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
@@ -18,23 +16,41 @@ const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Víncul
 
 export default function KakoAccountCheckPage() {
   const router = useRouter();
-  const { currentUser, refreshUserProfile } = useAuth();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [navigating, setNavigating] = useState(false);
+
+  // Evitar dupla navegação ou recarregamento da página
+  useEffect(() => {
+    return () => {
+      setNavigating(false);
+    };
+  }, []);
 
   const handleHasAccount = () => {
-    if (isLoading) return;
+    if (isLoading || navigating) return;
     setLoadingAction('hasAccount');
     setIsLoading(true);
-    router.push("/onboarding/kako-id-input");
+    setNavigating(true);
+    
+    // Adicionar pequeno delay para garantir que a UI mostre o estado de carregamento
+    setTimeout(() => {
+      router.push("/onboarding/kako-id-input");
+    }, 100);
   };
 
   const handleNavigateToCreationChoice = () => {
-    if (isLoading) return;
+    if (isLoading || navigating) return;
     setLoadingAction('needsAccount');
     setIsLoading(true);
-    router.push("/onboarding/kako-creation-choice");
+    setNavigating(true);
+    
+    // Adicionar pequeno delay para garantir que a UI mostre o estado de carregamento
+    setTimeout(() => {
+      router.push("/onboarding/kako-creation-choice");
+    }, 100);
   };
   
   return (
@@ -45,6 +61,7 @@ export default function KakoAccountCheckPage() {
             size="icon"
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
+            disabled={isLoading || navigating}
         >
             <Link href="/onboarding/contact-info">
                 <ArrowLeft className="h-8 w-8" />
@@ -64,12 +81,12 @@ export default function KakoAccountCheckPage() {
       <CardContent className="flex-grow px-6 pt-6 pb-6 flex flex-col overflow-y-auto">
         <div className="grid grid-cols-1 gap-6 w-full my-auto">
           <ChoiceCard
-            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
+            className={`p-6 flex flex-col items-center text-center cursor-pointer transition-shadow transform ${(isLoading || navigating) ? '' : 'hover:shadow-lg hover:scale-105'}`}
             onClick={handleHasAccount}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleHasAccount()}
-            aria-disabled={isLoading || (isLoading && loadingAction !== 'hasAccount')}
+            aria-disabled={isLoading || navigating}
           >
             {isLoading && loadingAction === 'hasAccount' ? (
                 <div className="h-[100px] flex items-center justify-center">
@@ -89,12 +106,12 @@ export default function KakoAccountCheckPage() {
           </ChoiceCard>
 
           <ChoiceCard
-            className="p-6 flex flex-col items-center text-center cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105"
+            className={`p-6 flex flex-col items-center text-center cursor-pointer transition-shadow transform ${(isLoading || navigating) ? '' : 'hover:shadow-lg hover:scale-105'}`}
             onClick={handleNavigateToCreationChoice}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleNavigateToCreationChoice()}
-            aria-disabled={isLoading || (isLoading && loadingAction !== 'needsAccount')}
+            aria-disabled={isLoading || navigating}
           >
              {isLoading && loadingAction === 'needsAccount' ? (
                 <div className="h-[100px] flex items-center justify-center">

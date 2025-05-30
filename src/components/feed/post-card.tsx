@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FeedPost } from "@/types";
@@ -16,7 +15,11 @@ import {
     ThumbsUp, // For like
     Smile, // For comment emoji
     ImagePlus as ImageIcon, // For comment image attach
+    MessageSquare,
+    Repeat,
+    Share,
 } from "lucide-react";
+import Image from "next/image";
 
 interface PostCardProps {
   post: FeedPost;
@@ -57,32 +60,56 @@ export default function PostCard({ post }: PostCardProps) {
             <p className="text-sm text-foreground whitespace-pre-wrap mt-0.5 break-words">{post.content}</p>
             
             {post.imageUrl && (
-              <div className="mt-3 rounded-lg overflow-hidden border border-border aspect-video relative">
-                <NextImage
-                  src={post.imageUrl}
-                  alt={post.postTitle || "Post image"}
-                  fill
-                  className="object-cover"
-                  data-ai-hint={post.imageAiHint || "post image"}
+              <div className="mt-3 rounded-xl overflow-hidden">
+                <Image 
+                  src={post.imageUrl} 
+                  alt={`Imagem postada por ${post.user.name}`} 
+                  width={520} 
+                  height={290} 
+                  className="w-full object-cover max-h-[350px]" 
+                  data-ai-hint={post.imageAiHint || "post image"} 
+                  loading="lazy"
+                  placeholder="blur"
+                  blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
                 />
               </div>
             )}
             
-            <div className="mt-3 flex justify-start items-center text-muted-foreground space-x-6"> {/* Changed justify-between and max-w-xs */}
-              <Button variant="ghost" size="icon" className="h-auto p-0 text-xs group flex items-center gap-1.5 hover:text-red-500">
-                <Heart className="h-5 w-5 group-hover:fill-red-500/20" /> {/* Adjusted icon size */}
-                <span className="font-medium">{post.stats.likes > 0 ? post.stats.likes : ''}</span>
+            <div className="flex items-center justify-between mt-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full px-2"
+                aria-label={`Responder para ${post.user.name}`}
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                <span>{post.stats.replies}</span>
               </Button>
-              <Button variant="ghost" size="icon" className="h-auto p-0 text-xs group flex items-center gap-1.5 hover:text-primary">
-                <MessageCircle className="h-5 w-5" /> {/* Adjusted icon size */}
-                <span className="font-medium">{post.stats.replies > 0 ? post.stats.replies : ''}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-green-500 hover:bg-green-500/10 rounded-full px-2"
+                aria-label={`Recompartilhar post de ${post.user.name}`}
+              >
+                <Repeat className="h-4 w-4 mr-1" />
+                <span>{post.stats.retweets}</span>
               </Button>
-              <Button variant="ghost" size="icon" className="h-auto p-0 text-xs group flex items-center gap-1.5 hover:text-green-500">
-                <Repeat2 className="h-5 w-5" /> {/* Adjusted icon size */}
-                <span className="font-medium">{post.stats.retweets > 0 ? post.stats.retweets : ''}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10 rounded-full px-2"
+                aria-label={`Curtir post de ${post.user.name}`}
+              >
+                <Heart className="h-4 w-4 mr-1" />
+                <span>{post.stats.likes}</span>
               </Button>
-              <Button variant="ghost" size="icon" className="h-auto p-0 text-xs group flex items-center gap-1.5 hover:text-primary">
-                <SendIcon className="h-5 w-5" /> {/* Adjusted icon size */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                aria-label="Compartilhar post"
+              >
+                <Share className="h-4 w-4" />
               </Button>
             </div>
 

@@ -1,67 +1,56 @@
-
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Card as ChoiceCard } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Smartphone, ArrowLeft, DownloadCloud, XCircle, ExternalLink } from "lucide-react";
+import { Smartphone, QrCode, ArrowLeft, MessageCircle } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
-import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import LoadingSpinner from "@/components/ui/loading-spinner";
-import Link from "next/link";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
 export default function KakoCreationChoicePage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const router = useRouter();
-  const { currentUser, refreshUserProfile } = useAuth();
-  const { toast } = useToast();
+  const [navigating, setNavigating] = useState(false);
 
-  const handleCompleteOnboardingWithoutId = async () => {
-    if (!currentUser) {
-      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
-      router.push("/login");
-      return;
-    }
-    setLoadingAction('completeWithoutId');
+  // Limpar estado de navegação no desmonte do componente
+  useEffect(() => {
+    return () => {
+      setNavigating(false);
+    };
+  }, []);
+
+  const handleMobileChoice = () => {
+    if (isLoading || navigating) return;
+    setLoadingAction('mobile');
     setIsLoading(true);
-    try {
-      const userDocRef = doc(db, "accounts", currentUser.uid);
-      await updateDoc(userDocRef, {
-        showId: "", // Explicitly empty if skipping
-        kakoLiveId: "", // Explicitly empty
-        hasCompletedOnboarding: true,
-        updatedAt: serverTimestamp(),
-      });
-      await refreshUserProfile();
-      toast({
-        title: "Onboarding Concluído!",
-        description: "Você pode explorar o aplicativo. Vincule seu ID Kako Live mais tarde no seu perfil, se desejar.",
-        duration: 7000,
-      });
-      router.push("/profile");
-    } catch (error) {
-      console.error("Erro ao finalizar onboarding (completeWithoutId):", error);
-      toast({ title: "Erro", description: "Não foi possível finalizar o onboarding. Tente novamente.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-      setLoadingAction(null);
-    }
+    setNavigating(true);
+    
+    // Adicionar pequeno delay para garantir feedback visual
+    setTimeout(() => {
+      router.push("/onboarding/kako-download");
+    }, 100);
   };
 
-  const handleProceedToIdInputAfterCreation = () => {
-    if (isLoading) return;
-    setLoadingAction('proceedToIdInput');
-    setIsLoading(true); 
-    router.push("/onboarding/kako-id-input");
+  const handleAgentAssistChoice = () => {
+    if (isLoading || navigating) return;
+    setLoadingAction('agent');
+    setIsLoading(true);
+    setNavigating(true);
+    
+    // Adicionar pequeno delay para garantir feedback visual
+    setTimeout(() => {
+      router.push("/onboarding/kako-agent-assist");
+    }, 100);
   };
-
 
   return (
     <>
@@ -71,6 +60,7 @@ export default function KakoCreationChoicePage() {
             size="icon"
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
+            disabled={isLoading || navigating}
         >
             <Link href="/onboarding/kako-account-check">
                 <ArrowLeft className="h-8 w-8" />
@@ -83,53 +73,62 @@ export default function KakoCreationChoicePage() {
         </div>
         <CardTitle className="text-2xl font-bold">Criar Conta Kako Live</CardTitle>
         <CardDescription>
-          Você indicou que não tem uma conta Kako Live.<br />O que gostaria de fazer?
+          Como você prefere criar<br />sua conta no Kako Live?
         </CardDescription>
       </CardHeader>
       <Separator className="my-6" />
-      <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-          <ChoiceCard className="shadow-md border-primary/20 mb-6">
-            <CardHeader className="flex-row items-center space-x-3 pb-3 pt-4">
-              <div className="p-2 bg-primary/10 rounded-full">
-                <DownloadCloud className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle className="text-lg font-semibold">Baixar Aplicativo Kako Live</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-3">
-              <p>
-                Entre no site do Kako Live e baixe o aplicativo de acordo com a versão do seu celular. Após criar sua conta, volte aqui e informe seu ID.
-              </p>
-              <Button variant="link" asChild className="p-0 h-auto text-primary no-underline hover:underline">
-                <a href="https://www.kako.live/index.html" target="_blank" rel="noopener noreferrer">
-                  Acessar kako.live <ExternalLink className="ml-1 h-3 w-3" />
-                </a>
-              </Button>
-            </CardContent>
+      <CardContent className="flex-grow px-6 pt-6 pb-6 flex flex-col overflow-y-auto">
+        <div className="grid grid-cols-1 gap-6 w-full my-auto">
+          <ChoiceCard
+            className={`p-6 flex flex-col items-center text-center cursor-pointer transition-shadow transform ${(isLoading || navigating) ? '' : 'hover:shadow-lg hover:scale-105'}`}
+            onClick={handleMobileChoice}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && handleMobileChoice()}
+            aria-disabled={isLoading || navigating}
+          >
+            {isLoading && loadingAction === 'mobile' ? (
+                <div className="h-[100px] flex items-center justify-center">
+                    <LoadingSpinner size="md" />
+                </div>
+             ) : (
+              <>
+                <div className="p-3 bg-primary/10 rounded-full mb-3">
+                  <QrCode className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-1">Criar no Celular</h3>
+                <p className="text-sm text-muted-foreground">
+                  Vou baixar o app no meu celular e criar eu mesmo(a)
+                </p>
+              </>
+            )}
           </ChoiceCard>
 
-          <div className="mt-auto pt-4 space-y-4">
-            <Button
-              onClick={handleProceedToIdInputAfterCreation}
-              className="w-full"
-              disabled={isLoading && loadingAction !== 'proceedToIdInput'}
-            >
-              {isLoading && loadingAction === 'proceedToIdInput' ? (
-                <LoadingSpinner size="sm" className="mr-2" />
-              ) : null}
-              Já baixei e criei minha conta
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleCompleteOnboardingWithoutId}
-              className="w-full"
-              disabled={isLoading && loadingAction !== 'completeWithoutId'}
-            >
-              {isLoading && loadingAction === 'completeWithoutId' ? (
-                <LoadingSpinner size="sm" className="mr-2" />
-              ) : null}
-              Prosseguir sem vincular ID Kako
-            </Button>
-          </div>
+          <ChoiceCard
+            className={`p-6 flex flex-col items-center text-center cursor-pointer transition-shadow transform ${(isLoading || navigating) ? '' : 'hover:shadow-lg hover:scale-105'}`}
+            onClick={handleAgentAssistChoice}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && handleAgentAssistChoice()}
+            aria-disabled={isLoading || navigating}
+          >
+             {isLoading && loadingAction === 'agent' ? (
+                <div className="h-[100px] flex items-center justify-center">
+                    <LoadingSpinner size="md" />
+                </div>
+             ) : (
+              <>
+                <div className="p-3 bg-primary/10 rounded-full mb-3">
+                  <MessageCircle className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-1">Suporte do Agente</h3>
+                <p className="text-sm text-muted-foreground">
+                  Prefiro que um agente me ajude a criar minha conta
+                </p>
+              </>
+            )}
+          </ChoiceCard>
+        </div>
       </CardContent>
        <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={5} />

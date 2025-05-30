@@ -1,22 +1,28 @@
-
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { CardContent, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { db, doc, updateDoc, serverTimestamp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, CheckCircle } from "lucide-react";
-import LoadingSpinner from "@/components/ui/loading-spinner";
 import OnboardingStepper from "@/components/onboarding/onboarding-stepper";
+import { SectionHeader } from "@/components/onboarding/section-header";
+import { ActionButton } from "@/components/onboarding/action-button";
+import { useMemoizedSelector } from "@/hooks/use-memoized-selector";
+import { useOnboardingStore } from "@/store/onboarding-store";
+import { ErrorBoundary } from "@/lib/error/error-boundary";
+import { logger, withErrorLogging } from "@/lib/error/error-logger";
+import { useSafeEffect } from "@/hooks/use-safe-effect";
+import { measurePerformance } from "@/utils/performance";
 
-const placeholderTerms = `
+// Memoizado para evitar recriação em cada renderização
+const placeholderTerms = React.memo(() => {
+  const termsText = `
 Bem-vindo à The Presidential Agency!
 Estes termos e condições descrevem as regras e regulamentos para o uso do website da The Presidential Agency.
 Ao acessar este website, presumimos que você aceita estes termos e condições na íntegra. Não continue a usar o website da The Presidential Agency se você não aceitar todos os termos e condições declarados nesta página.
@@ -40,17 +46,65 @@ Este é um texto de placeholder. Em uma aplicação real, este seria substituíd
 É crucial que você leia e entenda nossos termos completos antes de prosseguir.
 Obrigado por se juntar à The Presidential Agency! Esperamos que você aproveite nossos serviços.
   `.trim().repeat(3);
+  
+  return (
+    <pre className="whitespace-pre-wrap break-words font-sans">{termsText}</pre>
+  );
+});
+
+placeholderTerms.displayName = 'PlaceholderTerms';
 
 const onboardingStepLabels = ["Termos", "Função", "Dados", "Contato", "Vínculo ID"];
 
-export default function TermsPage() {
-  const [agreed, setAgreed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Função assíncrona para salvar o aceite dos termos
+ */
+const saveTermsAgreement = withErrorLogging(async (userId: string) => {
+  const userDocRef = doc(db, "accounts", userId);
+  await updateDoc(userDocRef, {
+    agreedToTermsAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}, "Erro ao salvar aceite dos termos");
+
+function TermsContent() {
   const router = useRouter();
   const { currentUser, refreshUserProfile } = useAuth();
   const { toast } = useToast();
+  
+  // Use seletores memoizados para evitar renderizações desnecessárias
+  const { agreed, setAgreed } = useMemoizedSelector(state => ({
+    agreed: state.agreed,
+    setAgreed: state.setAgreed
+  }));
+  
+  const { 
+    isLoading, 
+    isNavigating,
+    startNavigation,
+    resetNavigation
+  } = useMemoizedSelector(state => ({
+    isLoading: state.isLoading,
+    isNavigating: state.isNavigating,
+    startNavigation: state.startNavigation,
+    resetNavigation: state.resetNavigation
+  }));
+  
+  const setCurrentStep = useOnboardingStore(state => state.setCurrentStep);
+  const markStepCompleted = useOnboardingStore(state => state.markStepCompleted);
+  
+  // Limpar estado de navegação no desmonte do componente
+  useSafeEffect(() => {
+    // Definir passo atual
+    setCurrentStep('terms');
+    
+    return () => {
+      resetNavigation();
+    };
+  }, [resetNavigation, setCurrentStep]);
 
-  const handleContinue = async () => {
+  // Memoizado para evitar recriação em cada renderização
+  const handleContinue = useCallback(async () => {
     if (!currentUser) {
       toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
       router.push("/login");
@@ -60,56 +114,88 @@ export default function TermsPage() {
       toast({ title: "Atenção", description: "Você precisa concordar com os termos para continuar.", variant: "destructive" });
       return;
     }
+    
+    if (isLoading || isNavigating) return;
 
-    setIsLoading(true);
+    startNavigation();
+    
     try {
-      const userDocRef = doc(db, "accounts", currentUser.uid);
-      await updateDoc(userDocRef, {
-        agreedToTermsAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      // Medir performance da operação
+      await measurePerformance('saveTermsAgreement', async () => {
+        await saveTermsAgreement(currentUser.uid);
+        await refreshUserProfile();
       });
-      await refreshUserProfile();
+      
+      // Marcar etapa como concluída
+      markStepCompleted('terms');
+      
       toast({ title: "Termos Aceitos", description: "Obrigado por aceitar os termos." });
-      router.push("/onboarding/role-selection"); 
+      
+      // Adicionar pequeno delay para garantir feedback visual
+      setTimeout(() => {
+        router.push("/onboarding/role-selection");
+      }, 100);
     } catch (error) {
-      console.error("Erro ao salvar aceite dos termos:", error);
+      logger.error("Falha ao processar aceite dos termos", error instanceof Error ? error : undefined);
       toast({ title: "Erro ao Salvar", description: "Não foi possível salvar sua concordância. Tente novamente.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+      resetNavigation();
     }
-  };
+  }, [agreed, currentUser, isLoading, isNavigating, router, markStepCompleted, refreshUserProfile, resetNavigation, startNavigation, toast]);
+
+  // Memoizar elementos do formulário para evitar recriações desnecessárias
+  const termsForm = useMemo(() => (
+    <>
+      <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
+        <placeholderTerms />
+      </ScrollArea>
+      <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
+        <Checkbox 
+          id="terms" 
+          checked={agreed} 
+          onCheckedChange={(checked) => setAgreed(Boolean(checked))} 
+          disabled={isLoading || isNavigating}
+        />
+        <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
+          Li e estou de acordo
+        </Label>
+      </div>
+    </>
+  ), [agreed, isLoading, isNavigating, setAgreed]);
 
   return (
     <>
-      <CardHeader className="h-[200px] flex flex-col justify-center items-center text-center px-6 pb-0">
-        <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 mx-auto">
-          <FileText className="h-8 w-8 text-primary" />
-        </div>
-        <CardTitle className="text-2xl font-bold">Termos de Uso e Privacidade</CardTitle>
-        <CardDescription>
-          Por favor, leia e aceite nossos termos<br />para continuar.
-        </CardDescription>
-      </CardHeader>
-      <Separator className="my-6" />
+      <SectionHeader
+        title="Termos de Uso e Privacidade"
+        description={<>Por favor, leia e aceite nossos termos<br />para continuar.</>}
+        icon={FileText}
+      />
+      
       <CardContent className="flex-grow px-6 pt-0 pb-6 flex flex-col overflow-y-auto">
-        <ScrollArea className="w-full rounded-md border p-4 text-sm text-muted-foreground bg-muted h-[300px]">
-          <pre className="whitespace-pre-wrap break-words font-sans">{placeholderTerms}</pre>
-        </ScrollArea>
-        <div className="flex justify-center items-center space-x-2 mt-6 mb-4">
-          <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(Boolean(checked))} />
-          <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground cursor-pointer">
-            Li e estou de acordo
-          </Label>
-        </div>
-        <Button onClick={handleContinue} className="w-full mt-auto" disabled={!agreed || isLoading}>
-          {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+        {termsForm}
+        
+        <ActionButton 
+          onClick={handleContinue} 
+          disabled={!agreed || isLoading || isNavigating}
+          isLoading={isLoading}
+          icon={CheckCircle}
+        >
           Continuar
-        </Button>
+        </ActionButton>
       </CardContent>
+      
       <CardFooter className="p-4 border-t bg-muted">
         <OnboardingStepper steps={onboardingStepLabels} currentStep={1} />
       </CardFooter>
     </>
+  );
+}
+
+// Componente principal com ErrorBoundary
+export default function TermsPage() {
+  return (
+    <ErrorBoundary>
+      <TermsContent />
+    </ErrorBoundary>
   );
 }
 

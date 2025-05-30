@@ -1,4 +1,3 @@
-
 "use client";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { XCircle } from "lucide-react";
@@ -19,15 +18,15 @@ export default function AdminBansPage() {
         </CardHeader>
         <CardContent>
           <p>Conteúdo da tabela de hosts banidos aparecerá aqui...</p>
-           <p className="mt-4 text-sm text-muted-foreground">
-            Funcionalidades planejadas:
+          <div className="mt-4">
+            <p className="text-sm text-muted-foreground">Funcionalidades planejadas:</p>
             <ul className="list-disc list-inside ml-4 mt-2">
               <li>Visualizar todos os hosts banidos</li>
               <li>Revisar motivo e data do banimento</li>
               <li>Opção para reverter banimentos (com log)</li>
               <li>Buscar e filtrar hosts banidos</li>
             </ul>
-          </p>
+          </div>
         </CardContent>
       </Card>
     </div>

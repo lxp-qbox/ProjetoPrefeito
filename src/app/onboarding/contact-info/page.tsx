@@ -46,6 +46,7 @@ export default function ContactInfoPage() {
   const [foundUsVia, setFoundUsVia] = useState<string>("");
   const [referralCode, setReferralCode] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   
   const router = useRouter();
   const { currentUser, refreshUserProfile } = useAuth();
@@ -57,6 +58,10 @@ export default function ContactInfoPage() {
       setFoundUsVia(currentUser.foundUsVia || "");
       setReferralCode(currentUser.referralCode || "");
     }
+    
+    return () => {
+      setNavigating(false);
+    };
   }, [currentUser]);
 
   const handleContinue = async () => {
@@ -73,8 +78,12 @@ export default function ContactInfoPage() {
       toast({ title: "Atenção", description: "Por favor, selecione onde nos encontrou.", variant: "destructive" });
       return;
     }
+    
+    if (isLoading || navigating) return;
 
     setIsLoading(true);
+    setNavigating(true);
+    
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
@@ -92,13 +101,15 @@ export default function ContactInfoPage() {
         description: "Seus dados de contato foram registrados.",
       });
       
-      if (currentUser.role === 'host') {
-        router.push("/onboarding/kako-id-input");
-      } else if (currentUser.role === 'player') {
-        router.push("/onboarding/kako-account-check");
-      } else {
-        router.push("/onboarding/kako-account-check"); 
-      }
+      setTimeout(() => {
+        if (currentUser.role === 'host') {
+          router.push("/onboarding/kako-id-input");
+        } else if (currentUser.role === 'player') {
+          router.push("/onboarding/kako-account-check");
+        } else {
+          router.push("/onboarding/kako-account-check"); 
+        }
+      }, 100);
 
     } catch (error) {
       console.error("Erro ao salvar informações de contato:", error);
@@ -107,8 +118,8 @@ export default function ContactInfoPage() {
         description: "Não foi possível salvar suas informações. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
+      setNavigating(false);
     }
   };
 
@@ -128,6 +139,7 @@ export default function ContactInfoPage() {
         size="icon"
         className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
         title="Voltar"
+        disabled={isLoading || navigating}
       >
         <Link href="/onboarding/age-verification">
           <ArrowLeft className="h-8 w-8" />
@@ -157,6 +169,7 @@ export default function ContactInfoPage() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(formatPhoneNumberForDisplay(e.target.value))}
                 className="pl-10 h-12"
+                disabled={isLoading || navigating}
               />
             </div>
           </div>
@@ -165,6 +178,7 @@ export default function ContactInfoPage() {
             <Select
               value={foundUsVia}
               onValueChange={(value) => setFoundUsVia(value)}
+              disabled={isLoading || navigating}
             >
               <SelectTrigger id="found-us-via-select" className="w-full h-12">
                 <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -192,6 +206,7 @@ export default function ContactInfoPage() {
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value)}
                 className="pl-10 h-12"
+                disabled={isLoading || navigating}
               />
             </div>
             <p className="text-[0.8rem] text-muted-foreground mt-1">
@@ -202,7 +217,7 @@ export default function ContactInfoPage() {
         <Button
           onClick={handleContinue}
           className="w-full mt-auto" 
-          disabled={!phoneNumber.trim() || !foundUsVia || isLoading}
+          disabled={!phoneNumber.trim() || !foundUsVia || isLoading || navigating}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />

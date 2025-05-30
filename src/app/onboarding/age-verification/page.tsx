@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -46,6 +45,7 @@ export default function AgeVerificationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showUnderageAlert, setShowUnderageAlert] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   
   const router = useRouter();
   const { currentUser, refreshUserProfile } = useAuth();
@@ -84,6 +84,10 @@ export default function AgeVerificationPage() {
         }
       }
     }
+    
+    return () => {
+      setNavigating(false);
+    };
   }, [currentUser]);
 
   console.log("AgeVerificationPage RENDER. States:", {
@@ -149,8 +153,12 @@ export default function AgeVerificationPage() {
       return;
     }
     setShowUnderageAlert(false);
+    
+    if (isLoading || navigating) return;
 
     setIsLoading(true);
+    setNavigating(true);
+    
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       const dataToUpdate: Partial<UserProfile> = {
@@ -170,8 +178,10 @@ export default function AgeVerificationPage() {
         description: "Seus dados foram registrados com sucesso.",
       });
       
-      // Navigate to next step (Contact Info)
-      router.push("/onboarding/contact-info");
+      // Adicionar pequeno delay para garantir feedback visual
+      setTimeout(() => {
+        router.push("/onboarding/contact-info");
+      }, 100);
 
     } catch (error) {
       console.error("Erro ao salvar informações:", error);
@@ -180,8 +190,8 @@ export default function AgeVerificationPage() {
         description: "Não foi possível salvar suas informações. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
+      setNavigating(false);
     }
   };
 
@@ -204,6 +214,7 @@ export default function AgeVerificationPage() {
             size="icon"
             className="absolute top-4 left-4 z-10 h-12 w-12 rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
             title="Voltar"
+            disabled={isLoading || navigating}
         >
             <Link href="/onboarding/role-selection">
                 <ArrowLeft className="h-8 w-8" />
@@ -334,8 +345,8 @@ export default function AgeVerificationPage() {
 
         <Button
           onClick={handleContinue}
-          className="w-full mt-4" 
-          disabled={!username.trim() || !selectedGender || !selectedDate || !selectedCountry || isLoading}
+          className="w-full mt-auto"
+          disabled={!username.trim() || !selectedGender || !selectedDate || !selectedCountry || isLoading || navigating}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" className="mr-2" />

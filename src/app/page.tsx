@@ -1,13 +1,12 @@
-
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, MoreHorizontal, ImagePlus, Video as VideoIcon, CalendarDays, FileText as FileTextIcon, Send, Sparkles, UserPlus, ListFilter, Tag, ThumbsUp, MessageSquare as MessageSquareIcon, Send as SendIconLucide, Smile, Paperclip, Gamepad2, Crown, PlayCircle, BarChart2, Bookmark, Settings as SettingsIcon } from "lucide-react";
+import { Search, MoreHorizontal, ImagePlus, Video as VideoIcon, CalendarDays, FileText as FileTextIcon, Send, Sparkles, UserPlus, ListFilter, Tag, ThumbsUp, MessageSquare as MessageSquareIcon, Send as SendIconLucide, Smile, Paperclip, Gamepad2, Crown, PlayCircle, BarChart2, Bookmark, Settings as SettingsIcon, Home, UserCircle2, Users } from "lucide-react";
 import type { FeedPost, Trend, SuggestedUser, UserProfile, SidebarNavItem, Hashtag } from "@/types";
 import PostCard from "@/components/feed/post-card";
 import PostCardSkeleton from "@/components/feed/post-card-skeleton";
@@ -17,11 +16,16 @@ import { db, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Ti
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import Link from "next/link"; // Added import for Link
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Lazy loading de componentes não críticos
+const PremiumWidget = lazy(() => import("@/components/feed/premium-widget"));
+const WhatsHappeningWidget = lazy(() => import("@/components/feed/whats-happening-widget"));
+const WhoToFollowWidget = lazy(() => import("@/components/feed/who-to-follow-widget"));
+const FooterLinksWidget = lazy(() => import("@/components/feed/footer-links-widget"));
 
 const SearchWidget = () => (
   <div className="relative">
@@ -30,119 +34,10 @@ const SearchWidget = () => (
       type="search"
       placeholder="Buscar"
       className="pl-10 rounded-full bg-muted/60 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-card h-10 w-full"
+      aria-label="Buscar no site"
     />
   </div>
 );
-
-const PremiumWidget = () => (
-  <Card className="bg-muted border-none rounded-xl">
-    <CardHeader className="p-4">
-      <CardTitle className="text-xl font-bold">Assine o Premium</CardTitle>
-    </CardHeader>
-    <CardContent className="p-4 pt-0">
-      <CardDescription className="text-sm mb-3">
-        Assine para desbloquear novos recursos e, se elegível, receba uma parte da receita.
-      </CardDescription>
-      <Button size="sm" className="rounded-full font-semibold px-4 py-1.5 h-auto text-sm bg-primary text-primary-foreground hover:bg-primary/90">
-        Experimente grátis
-      </Button>
-    </CardContent>
-  </Card>
-);
-
-const WhatsHappeningWidget = () => {
-  const trends: Trend[] = [
-    { id: "t1", category: "Política · Assunto do Momento", topic: "Eleições 2026" },
-    { id: "t2", category: "Futebol · Assunto do Momento", topic: "Final da Champions", posts: "35,8 mil posts" },
-    { id: "t3", category: "Música · Assunto do Momento", topic: "Novo Álbum Anitta", posts: "102 mil posts" },
-    { id: "t4", category: "Tecnologia", topic: "IA Generativa", posts: "22 mil posts" },
-  ];
-  return (
-    <Card className="bg-muted border-none rounded-xl">
-      <CardHeader className="p-4">
-        <CardTitle className="text-xl font-bold">O que está acontecendo</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="space-y-0">
-          {trends.map((trend) => (
-            <div key={trend.id} className="px-4 py-3 hover:bg-card/50 transition-colors cursor-pointer border-b last:border-b-0 border-border/50">
-              <div className="flex justify-between items-start">
-                <p className="text-xs text-muted-foreground">{trend.category}</p>
-                <Button variant="ghost" size="icon" className="h-7 w-7 -mr-2 -mt-1 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-full">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="font-semibold text-sm text-foreground">{trend.topic}</p>
-              {trend.posts && <p className="text-xs text-muted-foreground">{trend.posts}</p>}
-            </div>
-          ))}
-        </div>
-        <div className="p-4">
-          <Button variant="link" className="p-0 text-sm text-primary hover:no-underline hover:text-primary/80">Mostrar mais</Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const WhoToFollowWidget = () => {
-  const suggestions: SuggestedUser[] = [
-    { id: "sugg1", name: "Lia Clark", handle: "@liaclark", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "singer pop" },
-    { id: "sugg2", name: "SpaceX", handle: "@SpaceX", avatarUrl: "https://placehold.co/40x40.png", dataAiHint: "space logo" },
-  ];
-  return (
-    <Card className="bg-muted border-none rounded-xl">
-      <CardHeader className="p-4">
-        <CardTitle className="text-xl font-bold">Quem seguir</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="space-y-0">
-          {suggestions.map((user) => (
-            <div key={user.id} className="flex items-center justify-between px-4 py-3 hover:bg-card/50 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatarUrl || undefined} alt={user.name} data-ai-hint={user.dataAiHint} />
-                  <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold text-sm text-foreground hover:underline">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.handle}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-8 px-4 text-xs font-semibold">
-                Seguir
-              </Button>
-            </div>
-          ))}
-        </div>
-        <div className="p-4">
-          <Button variant="link" className="p-0 text-sm text-primary hover:no-underline hover:text-primary/80">Mostrar mais</Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const FooterLinksWidget = () => {
-  const footerLinks = [
-    { name: "Termos de Serviço", href: "#" }, { name: "Política de Privacidade", href: "#" },
-    { name: "Política de cookies", href: "#" }, { name: "Acessibilidade", href: "#" },
-    { name: "Informações de anúncios", href: "#" }, { name: "Mais...", href: "#" },
-  ];
-  return (
-    <div className="px-4 py-2 text-xs text-muted-foreground">
-      <div className="flex flex-wrap gap-x-2 gap-y-1">
-        {footerLinks.map((link) => (
-          <Link key={link.name} href={link.href} className="hover:underline">
-            {link.name}
-          </Link>
-        ))}
-        <span>© {new Date().getFullYear()} The Presidential Agency.</span>
-      </div>
-    </div>
-  );
-};
-
 
 const CreatePostInput = ({ currentUser, onPostSubmit }: { currentUser: UserProfile | null, onPostSubmit: (text: string) => Promise<void> }) => {
   const [text, setText] = useState("");
@@ -218,67 +113,66 @@ const CreatePostInput = ({ currentUser, onPostSubmit }: { currentUser: UserProfi
   );
 };
 
-
 export default function HomePage() {
   const { currentUser } = useAuth();
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const { toast } = useToast();
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showMobileNavLabels, setShowMobileNavLabels] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
-  const fetchPosts = useCallback(async () => {
-    setIsLoadingPosts(true);
-    try {
-      const postsCollection = collection(db, "posts");
-      const q = query(postsCollection, orderBy("timestamp", "desc"));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedPosts: FeedPost[] = snapshot.docs.map(docSnap => {
-          const data = docSnap.data();
-          let formattedTimestamp = "data inválida";
-          if (data.timestamp && typeof data.timestamp.toDate === 'function') {
-            try {
-              formattedTimestamp = formatDistanceToNow(data.timestamp.toDate(), { addSuffix: true, locale: ptBR });
-            } catch (e) {
-              console.error("Error formatting date:", e, data.timestamp);
-            }
-          } else if (data.timestamp) {
-             formattedTimestamp = String(data.timestamp); 
-          }
-          return {
-            id: docSnap.id,
-            userId: data.userId,
-            user: data.user || { name: "Usuário Desconhecido", handle: "@desconhecido", avatarUrl: undefined, dataAiHint: "user avatar" },
-            postTitle: data.postTitle,
-            content: data.content,
-            timestamp: formattedTimestamp,
-            imageUrl: data.imageUrl,
-            imageAiHint: data.imageAiHint,
-            stats: data.stats || { replies: 0, retweets: 0, likes: 0 },
-          } as FeedPost;
-        });
-        setPosts(fetchedPosts);
-        setIsLoadingPosts(false);
-      }, (error) => {
-        console.error("Erro ao carregar posts em tempo real:", error);
-        toast({ title: "Erro ao Carregar Feed", description: error.message, variant: "destructive" });
-        setIsLoadingPosts(false);
-      });
-      return unsubscribe; // Return the unsubscribe function for cleanup
-    } catch (error: any) {
-        console.error("Erro ao configurar listener de posts:", error);
-        toast({ title: "Erro de Configuração do Feed", description: error.message, variant: "destructive" });
-        setIsLoadingPosts(false);
-        return () => {}; // Return an empty cleanup function on initial setup error
-    }
-  }, [toast]);
+  // Simulação para verificar mensagens não lidas
+  useEffect(() => {
+    // Aqui você poderia fazer uma consulta real para verificar mensagens não lidas
+    // Por enquanto, apenas simulando com um valor fixo
+    setHasUnreadMessages(true);
+  }, []);
 
   useEffect(() => {
+    // Fetch initial posts
+    const fetchPosts = async () => {
+      setLoading(true);
+      try {
+        const postsRef = collection(db, "posts");
+        const q = query(postsRef, orderBy("createdAt", "desc"));
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const fetchedPosts: FeedPost[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            fetchedPosts.push({
+              id: doc.id,
+              ...data,
+              userId: data.userId || "",
+              user: data.user || { name: "Usuário Anônimo", handle: "@anon", avatarUrl: "" },
+              content: data.content || "",
+              timestamp: data.timestamp,
+              stats: data.stats || { replies: 0, retweets: 0, likes: 0 },
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
+            } as FeedPost);
+          });
+          setPosts(fetchedPosts);
+          setLoading(false);
+        });
+        
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+        toast({
+          title: "Erro ao carregar posts",
+          description: "Não foi possível carregar os posts. Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return () => {};
+      }
+    };
+    
     const unsubscribe = fetchPosts();
     return () => {
-      unsubscribe.then(unsub => unsub()).catch(err => console.error("Error unsubscribing from posts:", err));
+      unsubscribe.then(unsub => unsub && unsub());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchPosts]);
+  }, [toast]);
 
   const handlePostSubmit = async (text: string) => {
     if (!currentUser) {
@@ -313,92 +207,130 @@ export default function HomePage() {
   }, [posts, currentUser?.followingIds]);
 
   return (
-    <div className="flex justify-center w-full flex-grow">
-      <div className="flex w-full max-w-screen-xl flex-grow overflow-hidden">
-        
-        {/* Central Feed Column */}
-        <div className="w-full lg:w-[600px] border-r border-l border-border flex flex-col h-full">
-          <div className="shrink-0">
-            <CreatePostInput currentUser={currentUser} onPostSubmit={handlePostSubmit} />
-          </div>
-          
-          <Tabs defaultValue="for-you" className="w-full flex-grow flex flex-col overflow-hidden">
-             <TabsList className="grid w-full grid-cols-2 h-auto p-0 rounded-none bg-card shrink-0 sticky top-0 z-10 border-b border-border">
-              <TabsTrigger
-                value="for-you"
-                className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Pra Você
-              </TabsTrigger>
-              <TabsTrigger
-                value="following"
-                className="py-4 text-sm font-semibold text-muted-foreground data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Seguindo
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="for-you" className="mt-0 flex-grow overflow-y-auto">
-              {isLoadingPosts ? (
-                 <div className="p-4 flex-grow flex flex-col items-center justify-start"> 
-                    <PostCardSkeleton />
-                    <PostCardSkeleton />
-                    <PostCardSkeleton />
-                 </div>
-              ) : posts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground p-6">
-                    <Sparkles className="mx-auto h-12 w-12 mb-3" />
-                    <h3 className="text-lg font-semibold">Nenhum post por aqui ainda.</h3>
-                    <p className="text-sm">Que tal criar o primeiro?</p>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {posts.map((post) => ( <PostCard key={post.id} post={post} /> ))}
-                </div>
-              )}
-            </TabsContent>
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-0 max-w-screen-xl mx-auto">
+      {/* Desktop Left Sidebar - Hidden on mobile */}
+      <aside className="hidden md:block md:col-span-1 p-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+        {/* Desktop left sidebar content */}
+        <div className="space-y-6">
+          <SearchWidget />
+          <nav className="space-y-1">
+            {/* Navigation items */}
+          </nav>
+        </div>
+      </aside>
 
-            <TabsContent value="following" className="mt-0 flex-grow overflow-y-auto">
-              {isLoadingPosts ? (
-                <div className="p-4 flex-grow flex flex-col items-center justify-start"> 
-                    <PostCardSkeleton />
-                    <PostCardSkeleton />
-                    <PostCardSkeleton />
-                 </div>
-              ) : (!currentUser?.followingIds || currentUser.followingIds.length === 0) ? (
-                <div className="text-center py-12 text-muted-foreground p-6">
-                    <UserPlus className="mx-auto h-12 w-12 mb-3" />
-                    <h3 className="text-lg font-semibold">Você ainda não segue ninguém.</h3>
-                    <p className="text-sm">Posts de contas que você segue aparecerão aqui.</p>
-                </div>
-              ) : filteredFollowingPosts.length === 0 ? (
-                 <div className="text-center py-12 text-muted-foreground p-6">
-                    <MessageSquareIcon className="mx-auto h-12 w-12 mb-3" />
-                    <h3 className="text-lg font-semibold">Nenhuma novidade por enquanto.</h3>
-                    <p className="text-sm">Os posts das contas que você segue aparecerão aqui.</p>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {filteredFollowingPosts.map((post) => ( <PostCard key={post.id} post={post} /> ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+      {/* Main Content - Full width on mobile, narrower on desktop */}
+      <main className="col-span-1 md:col-span-2 lg:col-span-2 border-x border-border min-h-screen">
+        <div className="sticky top-0 z-10 backdrop-blur-md bg-background/90 border-b border-border p-4">
+          <h1 className="text-xl font-bold">Página Inicial</h1>
         </div>
 
-        {/* Right Sidebar */}
-        <aside className="hidden lg:flex flex-col w-[350px] pl-6 py-3 h-full"> 
-          <div className="shrink-0 pb-3 sticky top-0 bg-background z-10"> 
-            <SearchWidget />
+        <div className="pb-20">
+          <CreatePostInput currentUser={currentUser} onPostSubmit={handlePostSubmit} />
+          
+          <div className="divide-y divide-border">
+            {loading ? (
+              // Mostrar esqueletos durante o carregamento
+              Array(3).fill(0).map((_, i) => <PostCardSkeleton key={i} />)
+            ) : posts.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-muted-foreground">Nenhum post encontrado. Seja o primeiro a postar!</p>
+              </div>
+            ) : (
+              posts.map(post => <PostCard key={post.id} post={post} />)
+            )}
           </div>
-          <div className="flex-grow overflow-y-auto space-y-5 pr-4"> 
+        </div>
+      </main>
+
+      {/* Right Sidebar - Hidden on mobile and small tablets */}
+      <aside className="hidden lg:block lg:col-span-1 p-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="space-y-6">
+          {/* Right sidebar widgets */}
+          <Suspense fallback={<div className="h-40"><LoadingSpinner size="md" message="Carregando widgets..." /></div>}>
             <PremiumWidget />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-40"><LoadingSpinner size="md" /></div>}>
             <WhatsHappeningWidget />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-40"><LoadingSpinner size="md" /></div>}>
             <WhoToFollowWidget />
+          </Suspense>
+          
+          <Suspense fallback={<div className="h-10"></div>}>
             <FooterLinksWidget />
+          </Suspense>
+        </div>
+      </aside>
+
+      {/* Mobile Bottom Bar - Visible only on mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t border-border px-6 py-2 md:hidden">
+        <div className="flex justify-between items-center">
+          <button 
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 bg-primary text-white rounded-full z-30"
+            onClick={() => setShowMobileNavLabels(!showMobileNavLabels)}
+            aria-label="Mostrar/ocultar legendas"
+          >
+            {showMobileNavLabels ? (
+              <SettingsIcon className="h-5 w-5" />
+            ) : (
+              <Crown className="h-5 w-5" />
+            )}
+          </button>
+          
+          <div className="flex justify-between items-center w-full">
+            <div className="flex flex-col items-center">
+              <Link href="/" className="p-2 text-foreground hover:bg-muted rounded-full flex items-center justify-center">
+                <Home className="h-6 w-6" />
+              </Link>
+              {showMobileNavLabels && (
+                <span className="text-xs mt-1 text-muted-foreground">Início</span>
+              )}
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Link href="/hosts" className="p-2 text-foreground hover:bg-muted rounded-full flex items-center justify-center">
+                <Users className="h-6 w-6" />
+              </Link>
+              {showMobileNavLabels && (
+                <span className="text-xs mt-1 text-muted-foreground">Lives</span>
+              )}
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Link href="/bingo" className="p-2 text-foreground hover:bg-muted rounded-full flex items-center justify-center">
+                <Gamepad2 className="h-6 w-6" />
+              </Link>
+              {showMobileNavLabels && (
+                <span className="text-xs mt-1 text-muted-foreground">Jogos</span>
+              )}
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Link href="/messages" className="p-2 text-foreground hover:bg-muted rounded-full flex items-center justify-center relative">
+                <MessageSquareIcon className="h-6 w-6" />
+                {hasUnreadMessages && (
+                  <span className="absolute h-2.5 w-2.5 rounded-full bg-green-500 -right-0.5 -top-0.5" />
+                )}
+              </Link>
+              {showMobileNavLabels && (
+                <span className="text-xs mt-1 text-muted-foreground">Mensagens</span>
+              )}
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <Link href="/profile" className="p-2 text-foreground hover:bg-muted rounded-full flex items-center justify-center">
+                <UserCircle2 className="h-6 w-6" />
+              </Link>
+              {showMobileNavLabels && (
+                <span className="text-xs mt-1 text-muted-foreground">Perfil</span>
+              )}
+            </div>
           </div>
-        </aside>
-      </div>
+        </div>
+      </nav>
     </div>
   );
 }

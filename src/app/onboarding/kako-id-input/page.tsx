@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -77,7 +76,7 @@ export default function KakoIdInputPage() {
   const [foundKakoProfile, setFoundKakoProfile] = useState<(KakoProfile | (Partial<KakoProfile> & { id: string; showId: string; })) | null>(null);
   const [profileSearchAttempted, setProfileSearchAttempted] = useState(false);
   const [showIdInUseError, setShowIdInUseError] = useState<string | null>(null);
-
+  const [navigating, setNavigating] = useState(false);
 
   const router = useRouter();
   const { currentUser, loading: authLoading, refreshUserProfile } = useAuth();
@@ -88,6 +87,10 @@ export default function KakoIdInputPage() {
       setUserInputShowId(currentUser.showId);
       // Optionally trigger search if ID exists: handleSearchProfile(currentUser.showId);
     }
+    
+    return () => {
+      setNavigating(false);
+    };
   }, [currentUser?.showId]);
 
 
@@ -198,16 +201,15 @@ export default function KakoIdInputPage() {
       return;
     }
     if (showIdInUseError) {
-         toast({ title: "Show ID em Uso", description: showIdInUseError, variant: "destructive" });
-         return;
-    }
-    // Ensure profile was searched and either found, or it's the master ID
-    if (!foundKakoProfile && !isSearching && profileSearchAttempted && currentInputShowId !== "10933200") {
-      toast({ title: "Perfil Não Verificado", description: "Por favor, busque um perfil válido ou verifique o ID inserido.", variant: "destructive"});
+      toast({ title: "ID em Uso", description: showIdInUseError, variant: "destructive" });
       return;
     }
-
+    
+    if (isLoading || navigating) return;
+    
     setIsLoading(true);
+    setNavigating(true);
+    
     try {
       const userDocRef = doc(db, "accounts", currentUser.uid);
       
@@ -251,10 +253,13 @@ export default function KakoIdInputPage() {
       await refreshUserProfile();
       
       toast({
-        title: "ID Kako Live Vinculado!",
-        description: "Seu onboarding foi concluído.",
+        title: "Perfil Vinculado",
+        description: "Seu perfil do Kako Live foi vinculado com sucesso.",
       });
-      router.push("/profile");
+      
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 100);
 
     } catch (error) {
       console.error("Erro ao salvar ID do Kako Live:", error);
@@ -263,8 +268,8 @@ export default function KakoIdInputPage() {
         description: "Não foi possível salvar seu ID. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
+      setNavigating(false);
     }
   };
 

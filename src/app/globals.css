@@ -8,31 +8,26 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 96%; /* #F5F5F5 Light Gray */
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 217 89% 61%; /* #4285F4 Vivid Blue */
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 217 89% 61%; /* WAS: 36 100% 57%; (#FFA726 Energetic Orange) NOW: Same as primary */
-    --accent-foreground: 210 40% 98%; /* WAS: 24 9.8% 10%; NOW: Same as primary-foreground */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217 89% 61%; /* Ring color matches primary */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.75rem;
 
     /* Sidebar variables, derived from main theme if needed */
     --sidebar-background: 0 0% 100%; /* Light background for sidebar */
@@ -52,24 +47,19 @@ body {
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 89% 61%; /* #4285F4 Vivid Blue */
-    --primary-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217 89% 61%; /* WAS: 36 100% 57%; (#FFA726 Energetic Orange) NOW: Same as primary */
-    --accent-foreground: 210 40% 98%; /* WAS: 24 9.8% 10%; NOW: Same as primary-foreground */
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 217 89% 61%; /* Ring color matches primary */
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --ring: 224.3 76.3% 48%;
 
     /* Dark Sidebar variables */
     --sidebar-background: 222.2 84% 4.9%;
@@ -90,4 +80,56 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Estilos personalizados */
+.font-poppins {
+  font-family: var(--font-poppins), system-ui, sans-serif;
+}
+
+.font-sans {
+  font-family: var(--font-poppins), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Animações */
+@keyframes loading-progress {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 60%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-loading-progress {
+  animation: loading-progress 2.5s ease-in-out infinite;
+}
+
+/* Melhorias de acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-loading-progress {
+    animation: none !important;
+  }
+}
+
+/* Otimizações para dispositivos móveis */
+@media (max-width: 640px) {
+  .font-sans {
+    font-size: 15px;
+  }
+}
+
+/* Aprimoramentos de contraste para acessibilidade */
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground) / 0.8);
 }

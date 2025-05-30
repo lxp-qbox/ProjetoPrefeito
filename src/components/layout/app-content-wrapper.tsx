@@ -28,7 +28,8 @@ import {
     Settings, 
     LayoutDashboard,
     LogOut, // Added LogOut for completeness if needed later in a direct logout button
-    Crown // For branding, if applicable
+    Crown, // For branding, if applicable
+    SettingsIcon // Added SettingsIcon for the new layout
 } from 'lucide-react'; 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -58,7 +59,7 @@ const initialModuleStatuses: SiteModule[] = [
 
 
 export default function AppContentWrapper({ children }: { children: ReactNode }) {
-  const { currentUser, loading: authLoading, logout } = useAuth(); // Added logout
+  const { currentUser, loading: authLoading, logout, isOnboardingComplete } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -66,6 +67,7 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   const [maintenanceRules, setMaintenanceRules] = useState<SiteModule[]>(initialModuleStatuses);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
   const [isReadyForContent, setIsReadyForContent] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
 
   useEffect(() => {
     const fetchMaintenanceSettings = async () => {
@@ -145,6 +147,53 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       return;
     }
 
+    // Verificar se o onboarding está completo, caso não esteja, redirecionar para o passo correto
+    if (!isOnboardingComplete(currentUser) && !isOnboardingPage) {
+      if (!currentUser.isVerified && !(pathname.startsWith('/auth/verify-email'))) {
+        router.replace(`/auth/verify-email-notice?email=${encodeURIComponent(currentUser.email || "")}`);
+        setIsReadyForContent(false);
+        return;
+      }
+      
+      if (!currentUser.agreedToTermsAt) {
+        router.replace("/onboarding/terms");
+        setIsReadyForContent(false);
+        return;
+      } 
+      
+      if (!currentUser.role) {
+        router.replace("/onboarding/role-selection");
+        setIsReadyForContent(false);
+        return;
+      } 
+      
+      if (!currentUser.birthDate || !currentUser.gender || !currentUser.country) {
+        router.replace("/onboarding/age-verification");
+        setIsReadyForContent(false);
+        return;
+      } 
+      
+      if (!currentUser.phoneNumber || !currentUser.foundUsVia) {
+        router.replace("/onboarding/contact-info");
+        setIsReadyForContent(false);
+        return;
+      }
+      
+      // Verificar etapa específica baseada na função do usuário
+      if (currentUser.hasCompletedOnboarding === false || typeof currentUser.hasCompletedOnboarding === 'undefined') {
+        if (currentUser.role === 'host') {
+          router.replace("/onboarding/kako-id-input");
+        } else if (currentUser.role === 'player') {
+          router.replace("/onboarding/kako-account-check");
+        } else {
+          router.replace("/profile");
+        }
+        setIsReadyForContent(false);
+        return;
+      }
+    }
+
+    // Continuar com a verificação de manutenção após confirmar que o onboarding está completo
     let currentModuleId = '';
     if (pathname === '/' || pathname === '') currentModuleId = 'home';
     else if (pathname.startsWith('/hosts')) currentModuleId = 'hosts';
@@ -193,13 +242,22 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
     
     setIsReadyForContent(true);
 
-  }, [authLoading, isLoadingRules, currentUser, pathname, router, maintenanceRules, isAuthPage, isOnboardingPage, isMaintenancePage]);
+  }, [authLoading, isLoadingRules, currentUser, pathname, router, maintenanceRules, isAuthPage, isOnboardingPage, isMaintenancePage, isOnboardingComplete]);
 
 
   if ((authLoading || isLoadingRules) && !isAuthPage && !isOnboardingPage && !isMaintenancePage) {
     return (
-      <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-        <LoadingSpinner size="lg" />
+      <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center">
+        <div className="text-center space-y-4">
+          <LoadingSpinner size="xl" />
+          <p className="text-muted-foreground animate-pulse">Carregando aplicação...</p>
+          <div className="w-48 h-1 bg-muted rounded-full overflow-hidden mt-2">
+            <div 
+              className="h-full bg-primary rounded-full animate-loading-progress" 
+              style={{ width: `${Math.min((authLoading ? 0 : 50) + (isLoadingRules ? 0 : 50), 100)}%` }}
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -214,10 +272,10 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   }
   
    if (isMaintenancePage) {
-     if (authLoading || isLoadingRules) { // Still show loader if auth/rules are loading for maintenance page
+     if (authLoading || isLoadingRules) {
         return (
-            <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-                <LoadingSpinner size="lg" />
+            <div className="fixed inset-0 bg-background z-50 flex items-center justify-center">
+                <LoadingSpinner size="lg" message="Verificando acesso à manutenção..." />
             </div>
         );
      }
@@ -230,8 +288,8 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
   if (!isReadyForContent && !isAuthPage && !isOnboardingPage) {
     // This covers the case where checks are done, but content isn't ready (e.g. redirecting)
     return (
-      <div className="flex justify-center items-center h-screen w-screen fixed inset-0 bg-background z-50">
-        <LoadingSpinner size="lg" />
+      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center">
+        <LoadingSpinner size="lg" message="Redirecionando..." />
       </div>
     );
   }
@@ -242,24 +300,24 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
       <div className="flex h-full w-full"> {/* Ensures Sidebar and SidebarInset are flex siblings taking full height */}
         <Sidebar collapsible="icon" className="border-r bg-muted/40"> {/* Sidebar from ui/sidebar */}
           <SidebarHeader className="p-0 flex flex-col items-center justify-center">
-             <SidebarTrigger className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0" />
-             {/* Branding shown when expanded */}
-             <div className={cn(
-                "flex items-center justify-center h-12 transition-all duration-500 ease-in-out overflow-hidden group-data-[state=collapsed]:h-0 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:invisible",
-             )}>
-                <Crown className="size-6 text-primary shrink-0" />
-                <span className="ml-2 text-lg font-semibold text-primary whitespace-nowrap">
-                  The Presidential Agency
-                </span>
-             </div>
+             <button 
+               className="h-16 w-full rounded-none border-b border-sidebar-border hover:bg-sidebar-accent focus-visible:ring-0 focus-visible:ring-offset-0 flex items-center justify-center"
+               onClick={() => setShowLabels(!showLabels)}
+             >
+               {showLabels ? (
+                 <SettingsIcon className="h-6 w-6 text-primary" />
+               ) : (
+                 <Crown className="h-6 w-6 text-primary" />
+               )}
+             </button>
           </SidebarHeader>
-          <SidebarContent className="flex flex-col flex-1 pt-2">
-            <SidebarMenu className="items-center w-full">
+          <SidebarContent className="flex flex-col flex-1 pt-4">
+            <SidebarMenu className="items-center w-full space-y-3">
               {[
                 { id: 'home', label: 'Início', icon: Home, href: '/' },
-                { id: 'hosts', label: 'Hosts', icon: Users, href: '/hosts' },
+                { id: 'hosts', label: 'Lives', icon: Users, href: '/hosts' },
                 { id: 'games', label: 'Jogos', icon: GameIcon, href: '/bingo' }, // Using GameIcon (aliased TicketIcon)
-                { id: 'messages', label: 'Mensagem', icon: MessageSquare, href: '/messages', hasNotification: hasUnreadMessages },
+                { id: 'messages', label: 'Mensagens', icon: MessageSquare, href: '/messages', hasNotification: hasUnreadMessages },
               ].map((item) => {
                 // Verificação específica para o item de mensagens
                 const isItemActive = item.id === 'messages' 
@@ -269,88 +327,129 @@ export default function AppContentWrapper({ children }: { children: ReactNode })
                 
                 return (
                 <SidebarMenuItem key={item.id} className="w-full">
-                  <SidebarMenuButton 
-                    asChild 
-                    tooltip={item.label} 
-                    variant={pathname === item.href ? "secondary" : "ghost"} 
-                    isActive={isItemActive}
-                  >
-                    <Link href={item.href || '#'}>
-                      <item.icon 
-                        className={cn(
-                          "transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6",
-                          isItemActive && "!text-primary"
-                        )} 
-                      />
-                      <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>{item.label}</span>
-                      {item.id === 'messages' && item.hasNotification && (
-                        <span className={cn(
-                            "absolute h-2 w-2 rounded-full bg-green-500 ring-1 ring-card pointer-events-none",
-                            "top-2 right-2 group-data-[state=collapsed]:top-2.5 group-data-[state=collapsed]:right-2.5 group-data-[state=collapsed]:h-2.5 group-data-[state=collapsed]:w-2.5"
-                         )} />
-                       )}
-                    </Link>
-                  </SidebarMenuButton>
+                  <div className="flex flex-col items-center w-full">
+                    <SidebarMenuButton 
+                      asChild 
+                      variant={pathname === item.href ? "secondary" : "ghost"} 
+                      isActive={isItemActive}
+                      className={showLabels ? "!h-10" : "!h-12"}
+                    >
+                      <Link href={item.href || '#'}>
+                        <item.icon 
+                          className={cn(
+                            "transition-all duration-500 ease-in-out shrink-0",
+                            showLabels ? "size-5" : "size-7",
+                            isItemActive && "!text-primary"
+                          )} 
+                        />
+                        {item.id === 'messages' && item.hasNotification && (
+                          <span className="absolute h-2 w-2 rounded-full bg-green-500 ring-1 ring-card pointer-events-none top-2 right-2" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                    {showLabels && (
+                      <span className="text-xs text-muted-foreground mt-1.5">
+                        {item.label}
+                      </span>
+                    )}
+                  </div>
                 </SidebarMenuItem>
               )})}
             </SidebarMenu>
             <div className="flex-grow" /> {/* Pushes footer to bottom */}
           </SidebarContent>
           <SidebarFooter className="p-2 border-t border-sidebar-border">
-             <SidebarMenu className="items-center w-full">
+             <SidebarMenu className="items-center w-full space-y-3 py-3">
                 {currentUser?.adminLevel && (
                   <>
                     <SidebarMenuItem className="w-full">
-                        <SidebarMenuButton asChild tooltip="Painel Admin" isActive={pathname.startsWith('/admin') && !pathname.includes('bingo-admin')}>
+                      <div className="flex flex-col items-center w-full">
+                        <SidebarMenuButton asChild isActive={pathname.startsWith('/admin') && !pathname.includes('bingo-admin')} className={showLabels ? "!h-10" : "!h-12"}>
                           <Link href="/admin">
                             <LayoutDashboard className={cn(
-                              "transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6",
+                              "transition-all duration-500 ease-in-out shrink-0",
+                              showLabels ? "size-5" : "size-7",
                               (pathname.startsWith('/admin') && !pathname.includes('bingo-admin')) && "!text-primary"
                             )} />
-                            <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>Painel</span>
                           </Link>
                         </SidebarMenuButton>
+                        {showLabels && (
+                          <span className="text-xs text-muted-foreground mt-1.5">
+                            Painel
+                          </span>
+                        )}
+                      </div>
                     </SidebarMenuItem>
-                     <SidebarMenuItem className="w-full">
-                        <SidebarMenuButton asChild tooltip="Bingo Admin" isActive={pathname.includes('bingo-admin')}>
+                    <SidebarMenuItem className="w-full">
+                      <div className="flex flex-col items-center w-full">
+                        <SidebarMenuButton asChild isActive={pathname.includes('bingo-admin')} className={showLabels ? "!h-10" : "!h-12"}>
                           <Link href="/admin/bingo-admin">
                             <GameIcon className={cn(
-                              "transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6",
+                              "transition-all duration-500 ease-in-out shrink-0",
+                              showLabels ? "size-5" : "size-7",
                               pathname.includes('bingo-admin') && "!text-primary"
                             )} />
-                            <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>Bingo</span>
                           </Link>
                         </SidebarMenuButton>
+                        {showLabels && (
+                          <span className="text-xs text-muted-foreground mt-1.5">
+                            Bingo
+                          </span>
+                        )}
+                      </div>
                     </SidebarMenuItem>
                   </>
                 )}
                 <SidebarMenuItem className="w-full">
-                    <SidebarMenuButton asChild tooltip="Perfil" isActive={pathname === '/profile'}>
-                       <Link href="/profile">
-                         <UserCircle2 className={cn(
-                           "transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6",
-                           pathname === '/profile' && "!text-primary"
-                         )} />
-                         <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>Perfil</span>
-                       </Link>
+                  <div className="flex flex-col items-center w-full">
+                    <SidebarMenuButton asChild isActive={pathname === '/profile'} className={showLabels ? "!h-10" : "!h-12"}>
+                      <Link href="/profile">
+                        <UserCircle2 className={cn(
+                          "transition-all duration-500 ease-in-out shrink-0",
+                          showLabels ? "size-5" : "size-7",
+                          pathname === '/profile' && "!text-primary"
+                        )} />
+                      </Link>
                     </SidebarMenuButton>
+                    {showLabels && (
+                      <span className="text-xs text-muted-foreground mt-1.5">
+                        Perfil
+                      </span>
+                    )}
+                  </div>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="w-full">
-                    <SidebarMenuButton asChild tooltip="Config" isActive={pathname === '/settings'}>
-                       <Link href="/settings">
-                         <Settings className={cn(
-                           "transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6",
-                           pathname === '/settings' && "!text-primary"
-                         )} />
-                         <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>Config</span>
-                       </Link>
+                  <div className="flex flex-col items-center w-full">
+                    <SidebarMenuButton asChild isActive={pathname === '/settings'} className={showLabels ? "!h-10" : "!h-12"}>
+                      <Link href="/settings">
+                        <Settings className={cn(
+                          "transition-all duration-500 ease-in-out shrink-0",
+                          showLabels ? "size-5" : "size-7",
+                          pathname === '/settings' && "!text-primary"
+                        )} />
+                      </Link>
                     </SidebarMenuButton>
+                    {showLabels && (
+                      <span className="text-xs text-muted-foreground mt-1.5">
+                        Config
+                      </span>
+                    )}
+                  </div>
                 </SidebarMenuItem>
                 <SidebarMenuItem className="w-full">
-                  <SidebarMenuButton tooltip="Sair" onClick={logout}>
-                      <LogOut className={cn("transition-all duration-500 ease-in-out shrink-0 size-5 group-data-[state=collapsed]:size-6")} />
-                      <span className={cn("transition-all ease-out duration-300 delay-150 group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:max-w-0 group-data-[state=collapsed]:delay-0 text-xs whitespace-nowrap overflow-hidden opacity-100 max-w-[100px]")}>Sair</span>
-                  </SidebarMenuButton>
+                  <div className="flex flex-col items-center w-full">
+                    <SidebarMenuButton onClick={logout} className={showLabels ? "!h-10" : "!h-12"}>
+                      <LogOut className={cn(
+                        "transition-all duration-500 ease-in-out shrink-0",
+                        showLabels ? "size-5" : "size-7"
+                      )} />
+                    </SidebarMenuButton>
+                    {showLabels && (
+                      <span className="text-xs text-muted-foreground mt-1.5">
+                        Sair
+                      </span>
+                    )}
+                  </div>
                 </SidebarMenuItem>
              </SidebarMenu>
           </SidebarFooter>
