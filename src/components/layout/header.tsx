@@ -1,7 +1,6 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Crown, LogIn, LogOut, UserCircle2, TicketIcon, Bell, Search as SearchIcon, Diamond, Settings, LayoutDashboard, Maximize, Minimize, PanelLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,11 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // SidebarTrigger might be unused now in this component
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const formatDiamonds = (amount: number | undefined | null): string => {
   if (amount === undefined || amount === null) return "0";
@@ -38,7 +36,7 @@ export default function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const { isMobile } = useSidebar(); // Only need isMobile here if fullscreen button is mobile-only
+  const { isMobile: isSidebarMobile, toggleSidebar } = useSidebar(); 
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -81,7 +79,7 @@ export default function Header() {
           </Link>
 
           {/* Search Input - More prominent on desktop */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden md:block ml-4">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -92,7 +90,7 @@ export default function Header() {
         </div>
 
         <nav className="flex items-center gap-1 md:gap-2">
-          {isMobile && (
+          {isSidebarMobile && ( // Fullscreen toggle only on mobile view for now
             <Button
               variant="ghost"
               size="icon"
@@ -111,7 +109,6 @@ export default function Header() {
             </div>
           )}
 
-          {/* Notification Bell */}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-9 w-9 relative">
             <Bell className="w-5 h-5" />
             <span className="sr-only">Notificações</span>
@@ -155,12 +152,12 @@ export default function Header() {
                   </Link>
                 </DropdownMenuItem>
                 {currentUser.adminLevel && (
-                  <>
+                  <React.Fragment>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/admin">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Painel Admin
+                        Painel Admin2
                       </Link>
                     </DropdownMenuItem>
                      <DropdownMenuItem asChild>
@@ -169,7 +166,7 @@ export default function Header() {
                         Bingo Admin
                       </Link>
                     </DropdownMenuItem>
-                  </>
+                  </React.Fragment>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>

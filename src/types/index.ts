@@ -1,9 +1,14 @@
 
+import type React from 'react';
+import type { Control } from "react-hook-form";
+
 export interface Game {
   id?: string;
   title: string;
-  status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada';
+  status: 'planejada' | 'ativa' | 'pausada' | 'finalizada' | 'cancelada'; // planejada, ativa, pausada, finalizada, cancelada
   bingoType: '75-ball' | '90-ball';
+  bingoRoomId?: string;
+  bingoRoomName?: string;
   cardPrice?: number | null;
 
   prizeType?: 'kako_virtual' | 'cash' | 'other';
@@ -11,10 +16,7 @@ export interface Game {
   prizeCashAmount?: number;
   prizeDescription: string;
 
-  bingoRoomId?: string;
-  bingoRoomName?: string;
-
-  startTime: any;
+  startTime: any; // Firestore Timestamp or Date
   actualStartTime?: any | null;
   endTime?: any | null;
 
@@ -28,21 +30,21 @@ export interface Game {
   winners?: GameWinner[];
 
   createdBy?: string | null;
-  createdAt: any;
-  updatedAt: any;
+  createdAt?: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
   notes?: string | null;
 
-  // For UI/Card display
-  description?: string; // Optional description for game listings
-  prize?: string; // Simplified prize display for game listings
-  participants?: number; // From GameCard placeholder
-  hostedBy?: string; // From HostGamesPage placeholder
-  generatedCards?: number; // From BingoPlayPage
-  countdownSeconds?: number; // From BingoPlayPage
-  startTimeDisplay?: string; // From BingoPage placeholder
-  endTimeDisplay?: string; // From FinishedGameCard placeholder
-  imageAiHint?: string; // For game card images
-  imageUrl?: string; // For game card images
+  // For UI/Card display (can be removed if data is always structured from the above)
+  description?: string;
+  prize?: string;
+  participants?: number;
+  hostedBy?: string;
+  generatedCards?: number;
+  countdownSeconds?: number;
+  startTimeDisplay?: string;
+  endTimeDisplay?: string;
+  imageAiHint?: string;
+  imageUrl?: string;
 }
 
 export interface GameWinner {
@@ -53,7 +55,6 @@ export interface GameWinner {
   claimedAt?: any | null;
   winningCardId?: string | null;
 }
-
 
 export interface SupportTicket {
   subject: string;
@@ -71,7 +72,7 @@ export interface ReceivedGift {
 }
 
 export interface Host {
-  id: string; // Kako Live FUID, used as document ID in placeholderHosts
+  id: string;
   rankPosition: number;
   name: string;
   avatarUrl: string;
@@ -80,11 +81,11 @@ export interface Host {
   timeStreamed: number;
   allTimePeakViewers: number;
   hoursWatched: string;
-  rank?: number | null; // User's level on Kako
+  rank?: number | null;
   followersGained: number;
   totalFollowers: string;
   totalViews: string;
-  kakoLiveFuid?: string | null; // Redundant if id is already FUID
+  kakoLiveFuid?: string | null;
   kakoLiveRoomId?: string | null;
   bio?: string | null;
   streamTitle?: string | null;
@@ -97,30 +98,31 @@ export interface Host {
 }
 
 export interface UserProfile {
-  uid: string; // Firebase Auth UID, used as document ID in 'accounts'
+  uid: string;
   email?: string | null;
   role?: 'player' | 'host' | null;
   adminLevel?: 'master' | 'admin' | 'suporte' | null;
 
-  showId?: string; // User-facing Kako Live Show ID
-  kakoLiveId?: string; // Technical Kako Live FUID (synced from KakoProfile.id)
+  showId?: string; 
+  kakoLiveId?: string; 
 
-  profileName?: string | null; // App's display name, can be overridden by Kako nickname
-  displayName?: string | null; // Firebase Auth display name, initial fallback
-  photoURL?: string | null; // App's avatar, can be overridden by Kako avatar
-  level?: number; // User's level (synced from KakoProfile.level)
+  profileName?: string | null;
+  displayName?: string | null; 
+  photoURL?: string | null;
+  level?: number; 
 
   hostStatus?: 'approved' | 'pending_review' | 'banned' | null;
-
-  bio?: string | null;
-  isVerified?: boolean; // Email verified status
-  isPremiumVerified?: boolean; // App-specific premium verification
+  isVerified?: boolean;
+  isPremiumVerified?: boolean;
+  
   followerCount?: number;
   followingCount?: number;
-  followingIds?: string[];
+  followingIds?: string[]; 
+
+  bio?: string | null;
   photos?: string[];
   gender?: 'male' | 'female' | 'other' | 'preferNotToSay' | null;
-  birthDate?: string | Date | null; // Store as YYYY-MM-DD string or Date
+  birthDate?: string | Date | null; 
   country?: string | null;
   phoneNumber?: string | null;
   foundUsVia?: string | null;
@@ -145,57 +147,44 @@ export interface UserProfile {
   agreedToTermsAt?: any | null;
   liveVerificationCompletedAt?: any;
 
-
   createdAt?: any;
   updatedAt?: any;
   currentDiamondBalance?: number;
 }
 
-export interface KakoProfile { // Stored in 'kakoProfiles' collection, doc ID is FUID
+export interface KakoProfile {
   id: string; // FUID (userId from Kako API)
   numId?: number | null;
   nickname: string;
-  avatarUrl: string | null; // Mapped from 'avatar' in Kako API
+  avatarUrl?: string | null;
   level?: number | null;
   signature?: string | null;
-  gender?: number | null; // 1 for male, 2 for female from Kako
+  gender?: number | null;
   area?: string | null;
   school?: string | null;
-  showId: string; // User-facing Show ID from Kako
+  showId: string;
   isLiving?: boolean | null;
   roomId?: string | null;
   lastFetchedAt?: any | null;
   createdAt?: any;
 }
 
-export interface KakoGift { // Stored in 'kakoGifts' collection
-  id: string; // Gift ID from Kako, used as document ID
+export interface KakoGift {
+  id: string; 
   name: string;
-  imageUrl: string | null;
+  imageUrl: string | null; 
   storagePath?: string | null;
   diamond?: number | null;
-  category?: string | null; // e.g., Sorte, Exclusivo, Interação, Fã-Clube
-  display?: boolean;
+  category?: string | null; 
+  display?: boolean; 
   createdAt?: any;
   updatedAt?: any;
   dataAiHint?: string | null;
 }
 
 
-export interface ConversationPreview { // For UI display in conversations list
-  id: string; // Firestore document ID of the conversation
-  userId: string; // UID of the other participant
-  userName: string;
-  userAvatar?: string | null;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount?: number;
-  isOnline?: boolean;
-  isPinned?: boolean; // Placeholder for future pinning
-}
-
-export interface FirestoreConversation { // Stored in 'conversations' collection
-  id?: string; // Firestore document ID
+export interface FirestoreConversation {
+  id?: string;
   participants: string[]; // Array of user UIDs
   participantInfo: {
     [uid: string]: {
@@ -204,44 +193,49 @@ export interface FirestoreConversation { // Stored in 'conversations' collection
     }
   };
   lastMessageText?: string | null;
-  lastMessageTimestamp?: any | null; // Firestore Server Timestamp
+  lastMessageTimestamp?: any | null; 
   lastMessageSenderId?: string | null;
   unreadCounts?: { [uid: string]: number };
-  createdAt: any; // Firestore Server Timestamp
-  updatedAt: any; // Firestore Server Timestamp
+  createdAt: any; 
+  updatedAt: any; 
 }
 
-export interface AppMessage { // For UI display and Firestore messages subcollection
-  id?: string; // Firestore document ID
+export interface AppMessage {
+  id?: string; 
   conversationId: string;
   senderId: string;
-  senderName: string; // Denormalized for UI
-  senderAvatar?: string | null; // Denormalized for UI
+  senderName: string;
+  senderAvatar?: string | null;
   text: string;
-  timestamp: any; // Firestore Server Timestamp
+  timestamp: any; // Firestore Server Timestamp or JS Date after fetch
   imageUrl?: string | null;
-  isCurrentUser?: boolean; // UI flag
-  status?: 'sent' | 'delivered' | 'read' | null; // Message status
+  isCurrentUser?: boolean; 
+  status?: 'sent' | 'delivered' | 'read' | null;
+  gender?: number | null;
 }
 
-// This can be simplified if FirestoreMessage and AppMessage are mostly the same
-export interface FirestoreMessage { // Structure for messages in subcollections
+export interface FirestoreMessage {
   senderId: string;
   text: string;
-  timestamp: any; // Firestore Server Timestamp
+  timestamp: any; 
   imageUrl?: string | null;
   status?: 'sent' | 'delivered' | 'read' | null;
-  // Any other fields needed per message
 }
 
+export interface UserSummary {
+  name: string;
+  handle: string;
+  avatarUrl?: string | null;
+  dataAiHint?: string;
+}
 
 export interface FeedPost {
   id: string;
-  userId?: string; // UID of the author from 'accounts' collection
+  userId: string; // UID of the author
   user: UserSummary; // Denormalized author info
   postTitle?: string | null;
   content: string;
-  timestamp: any; // Firestore Server Timestamp
+  timestamp: any; // Firestore Server Timestamp or JS Date after fetch
   imageUrl?: string | null;
   imageAiHint?: string | null;
   imageStoragePath?: string | null;
@@ -252,25 +246,18 @@ export interface FeedPost {
   };
 }
 
-export interface UserSummary { // For denormalizing user info in posts/comments etc.
-  name: string; // User's profileName or displayName
-  handle?: string; // User's @handle (e.g., derived from email or a chosen username)
-  avatarUrl?: string | null;
-  dataAiHint?: string;
-}
-
 export interface Trend {
   id: string;
   category?: string | null;
   topic: string;
-  posts?: string | null; // e.g. "18.8K posts"
-  icon?: React.ElementType; // For TopicsWidget
+  posts?: string | null; 
+  icon?: React.ElementType;
 }
 
 export interface SuggestedUser {
-  id: string; // User UID
+  id: string; 
   name: string;
-  handle: string; // User's @handle or description
+  handle: string; 
   avatarUrl: string | null;
   dataAiHint?: string;
 }
@@ -340,34 +327,33 @@ export interface BingoBallSetting {
 }
 
 export interface AudioSetting {
-  id: string;
+  id: string; 
   type: 'gameEvent' | 'interaction';
-  eventName?: string | null;
+  eventName?: string | null; 
   displayName: string;
   audioUrl?: string | null;
   fileName?: string | null;
   storagePath?: string | null;
-  uploadedAt?: any | null;
+  uploadedAt?: any | null; 
   keyword?: string | null;
   associatedGiftId?: string | null;
-  associatedGiftName?: string | null;
+  associatedGiftName?: string | null; 
   createdBy?: string | null;
 }
 
-
 export interface BingoRoomSetting {
-  id?: string;
+  id?: string; 
   roomId: string;
   description?: string | null;
   isActive: boolean;
   addedBy?: string | null;
   addedAt?: any | null;
-  lastCheckedAt?: any | null;
+  lastCheckedAt?: any | null; 
 }
 
 export interface UserWallet {
   id?: string; // Typically user.uid
-  kakoId?: string | null; // FUID or Show ID from Kako for mapping
+  kakoId?: string | null; 
   diamonds: number;
   lastUpdatedAt?: any | null;
 }
@@ -390,11 +376,11 @@ export interface ChatMessage { // Used in HostStreamPage
   gender?: number | null;
 }
 
-export interface LogEntry { // Used in WebSocket Link Tester and Update Data (Chat)
+export interface LogEntry {
   id: string;
   timestamp: string;
   type: 'received' | 'sent' | 'system' | 'error' | 'info' | 'warning';
-  message: string; // Short summary or raw text if not JSON
+  message: string; 
   originalData?: string;
   parsedData?: Record<string, any>;
   isJson: boolean;
@@ -409,7 +395,7 @@ export interface LogEntry { // Used in WebSocket Link Tester and Update Data (Ch
   };
 }
 
-export interface ParsedUserData { // Used with LogEntry
+export interface ParsedUserData {
   nickname?: string;
   avatarUrl?: string | null;
   level?: number;
@@ -423,4 +409,19 @@ export interface WebSocketConfig {
   primaryWebSocketUrl?: string | null;
 }
 
-    
+// Added for Feed Page
+export interface SidebarNavItem {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  href: string;
+  new?: boolean; // For "New" badge
+}
+
+export interface Hashtag {
+  id: string;
+  name: string;
+  href: string;
+}
+// Trend and SuggestedUser already exist and are suitable.
+// FeedPost is also suitable for post data.
